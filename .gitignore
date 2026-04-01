@@ -1,0 +1,11 @@
+# Default
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+/.idea/
+
+# dotenv files
+.env
+.env.example
