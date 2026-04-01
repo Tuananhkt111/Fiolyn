@@ -9,9 +9,10 @@ builder.Services.AddDbContext<AppDbContext>( options =>
   options.UseNpgsql( Environment.GetEnvironmentVariable( "DATABASE_URL" ) ) ) ;
 
 // Notion
-builder.Services.AddSingleton( new NotionService(
+builder.Services.AddSingleton( sp => new NotionService(
   Environment.GetEnvironmentVariable( "NOTION_API_KEY" )!,
-  Environment.GetEnvironmentVariable( "NOTION_DATABASE_ID" )!
+  Environment.GetEnvironmentVariable( "NOTION_DATABASE_ID" )!,
+  sp.GetRequiredService<ILogger<NotionService>>()
 ) ) ;
 
 // Add services to the container.
