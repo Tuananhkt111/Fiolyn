@@ -44,41 +44,13 @@ export NOTION_DATABASE_ID="..."
 export DATABASE_URL="postgresql://..."
 ```
 
-Keep `.env.example` as a reference template — never commit real values.
-
-### Initial cleanup after `dotnet new webapi`
-Delete the generated sample files — they are not part of this project:
-
-```bash
-cd src/Fiolyn
-rm Controllers/WeatherForecastController.cs WeatherForecast.cs Fiolyn.http
-```
-
-Create `.gitignore` and `.dockerignore` from the repo root:
-
-```bash
-cd ../..
-dotnet new gitignore
-```
-
-Create `.dockerignore` (prevents `bin/` and `obj/` from bloating the Docker build context):
-
-```bash
-cat > .dockerignore << 'EOF'
-**/bin
-**/obj
-**/.git
-**/.vs
-EOF
-```
-
 ### Apply migrations locally
 Requires `DATABASE_URL` to be set in your shell (see Environment variables above).
 
 To apply all existing migrations to your local database:
 
 ```bash
-cd src/Fiolyn
+cd Fiolyn
 dotnet ef database update
 ```
 
@@ -91,12 +63,12 @@ dotnet ef database update
 
 ### Run locally
 ```bash
-cd src/Fiolyn
+cd Fiolyn
 dotnet run
 ```
 
 ### Test the webhook locally
-`dotnet run` starts on port 5000 by default — check console output for the exact URL.
+`dotnet run` starts on port 5027 by default — check console output for the exact URL.
 
 Your Telegram ID must be in the `allowed_users` table before testing. Insert it via the Neon SQL Editor:
 
@@ -107,7 +79,7 @@ INSERT INTO allowed_users (telegram_id, label) VALUES (YOUR_TELEGRAM_ID, 'owner'
 Then send a test request:
 
 ```bash
-curl -X POST http://localhost:5000/api/telegram \
+curl -X POST http://localhost:5027/api/telegram \
   -H "Content-Type: application/json" \
   -d '{"message":{"text":"test","from":{"id":YOUR_TELEGRAM_ID},"chat":{"id":1}}}'
 ```
