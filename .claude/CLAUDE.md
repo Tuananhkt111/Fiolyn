@@ -57,29 +57,41 @@ See `docs/ConfigurationSettingSetup.md` for full details.
 
 ## Architecture
 
-**Layered design**: Controller → Services → Data Access
+**Layered design**: Controller → Services (External + Internal) → Data Access
 
 ```
 POST /api/telegram
   ↓
 TelegramController (thin orchestrator)
   ↓
-TelegramMessageService (business logic)
-  ├→ AllowedUsersService (whitelist check via DB)
-  └→ NotionService (HTTP wrapper for Notion API)
+TelegramMessageService (External — webhook coordination)
+  ├→ AllowedUsersService (Internal — DB whitelist check)
+  └→ NotionService (External — Notion API integration)
   ↓
-AppDbContext (EF Core data access)
+AppDbContext (Data — EF Core)
 ```
+
+Services are organized by responsibility:
+- **External**: Services that call external systems (APIs, webhooks)
+- **Internal**: Services that handle internal business logic (DB queries, validation)
 
 ### Files & Responsibilities
 
 - `Program.cs` — top-level wiring (DI, middleware, migrations). No logic.
 - `Controllers/TelegramController.cs` — HTTP orchestrator only (parse body, delegate to service, return 200).
-- `Services/TelegramMessageService.cs` — coordinates webhook processing, validation, and external calls.
-- `Services/AllowedUsersService.cs` — encapsulates allowed-user whitelist checks.
-- `Services/NotionService.cs` — Notion API integration (HTTP client via `IHttpClientFactory`). Throws on errors.
-- `ServiceRegisters/` — DI registration via `IServiceRegister` interface (auto-discovered).
+
+**Services/External/** — external system integrations
+- `TelegramMessageService.cs` — coordinates webhook processing and external calls.
+- `NotionService.cs` — Notion API integration (HTTP client via `IHttpClientFactory`). Throws on errors.
+
+**Services/Internal/** — internal business logic
+- `AllowedUsersService.cs` — encapsulates allowed-user whitelist checks via database.
+
+**DI & Configuration**
+- `ServiceRegisters/` — DI registration via `IServiceRegister` interface (auto-discovered, ordered by `Order` property).
 - `ServiceRegisters/Settings/` — strongly-typed config classes bound via `IOptions<T>`.
+
+**Data & Persistence**
 - `Data/AppDbContext.cs` + `Entities/AllowedUser.cs` — EF Core Code First; schema in C#, never raw SQL.
 - `Data/Migrations/` — auto-generated, committed, applied on startup via `Migrate()`.
 
@@ -98,7 +110,8 @@ AppDbContext (EF Core data access)
 
 **Namespaces:**
 - Controllers: `Fiolyn.Controllers`
-- Services: `Fiolyn.Services`
+- External services: `Fiolyn.Services.External` (API integrations, webhooks)
+- Internal services: `Fiolyn.Services.Internal` (business logic, DB queries)
 - Configuration classes: `Fiolyn.ServiceRegisters.Settings`
 - Service registration: `Fiolyn.ServiceRegisters`
 - Entities: `Fiolyn.Entities`

@@ -1,7 +1,7 @@
 using Fiolyn.Data ;
 using Microsoft.EntityFrameworkCore ;
 
-namespace Fiolyn.Services ;
+namespace Fiolyn.Services.Internal ;
 
 public class AllowedUsersService( AppDbContext db )
 {

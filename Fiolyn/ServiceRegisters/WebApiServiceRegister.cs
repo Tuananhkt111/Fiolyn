@@ -13,8 +13,6 @@ public class WebApiServiceRegister : IServiceRegister
 
   #endregion
 
-  public int Order => 0 ;
-
   public void RegisterServices( IServiceCollection services, IConfiguration configuration )
   {
     // Controllers

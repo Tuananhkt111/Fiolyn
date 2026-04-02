@@ -1,6 +1,7 @@
 using System.Text.Json ;
+using Fiolyn.Services.Internal ;
 
-namespace Fiolyn.Services ;
+namespace Fiolyn.Services.External ;
 
 /// <summary>
 /// Processes incoming Telegram webhook messages and orchestrates saving to Notion.

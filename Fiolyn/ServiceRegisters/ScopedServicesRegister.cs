@@ -1,12 +1,11 @@
 using Fiolyn.ServiceRegisters.Base ;
-using Fiolyn.Services ;
+using Fiolyn.Services.External ;
+using Fiolyn.Services.Internal ;
 
 namespace Fiolyn.ServiceRegisters ;
 
 public class ScopedServicesRegister : IServiceRegister
 {
-  public int Order => 1 ;
-
   public void RegisterServices( IServiceCollection services, IConfiguration configuration )
   {
     services.AddScoped<AllowedUsersService>() ;

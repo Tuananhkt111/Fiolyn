@@ -3,7 +3,7 @@ using System.Text.Json ;
 using Fiolyn.ServiceRegisters.Settings ;
 using Microsoft.Extensions.Options ;
 
-namespace Fiolyn.Services ;
+namespace Fiolyn.Services.External ;
 
 /// <summary>
 /// Integrates with the Notion API to create database pages.
