@@ -1,4 +1,4 @@
-namespace Fiolyn.Services.External.Telegram ;
+namespace Fiolyn.Services.External.Telegram.Results ;
 
 /// <summary>
 ///   Result of processing a Telegram webhook message.

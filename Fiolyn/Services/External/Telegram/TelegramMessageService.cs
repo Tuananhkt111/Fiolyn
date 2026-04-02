@@ -1,6 +1,9 @@
 using System.Text.Json ;
+using Fiolyn.Data.Repositories ;
+using Fiolyn.Entities ;
 using Fiolyn.Services.External.Notion ;
-using Fiolyn.Services.Internal ;
+using Fiolyn.Services.External.Telegram.Results ;
+using Microsoft.EntityFrameworkCore ;
 
 namespace Fiolyn.Services.External.Telegram ;
 
@@ -8,19 +11,11 @@ namespace Fiolyn.Services.External.Telegram ;
 ///   Processes incoming Telegram webhook messages and orchestrates saving to Notion.
 /// </summary>
 public class TelegramMessageService(
-  AllowedUsersService allowedUsersService,
-  NotionService notionService,
-  ILogger<TelegramMessageService> logger )
+  IRepository<TelegramUserInfo> userRepository,
+  INotionService notionService,
+  ILogger<TelegramMessageService> logger ) : ITelegramMessageService
 {
-  /// <summary>
-  ///   Processes a raw Telegram webhook JSON payload.
-  /// </summary>
-  /// <param name="rawJson">The raw JSON body from the Telegram webhook.</param>
-  /// <returns>A <see cref="ProcessResult" /> indicating success, skip, or error.</returns>
-  /// <remarks>
-  ///   Validates the sender against the allowed users list before saving to Notion.
-  ///   Returns appropriate result codes for all outcomes (success, skipped, error).
-  /// </remarks>
+  /// <inheritdoc/>
   public async Task<ProcessResult> ProcessWebhookAsync( string rawJson )
   {
     try
@@ -39,7 +34,8 @@ public class TelegramMessageService(
       var fromId = from.GetProperty( "id" ).GetInt64() ;
 
       // Check if user is allowed
-      var isAllowed = await allowedUsersService.IsUserAllowedAsync( fromId ) ;
+      var isAllowed = await userRepository.QueryActive()
+        .AnyAsync( u => u.TelegramId == fromId ) ;
       if ( ! isAllowed )
       {
         logger.LogInformation( "User {UserId} not in allowed list", fromId ) ;

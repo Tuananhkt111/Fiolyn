@@ -57,23 +57,40 @@ See `docs/ConfigurationSettingSetup.md` for full details.
 
 ## Architecture
 
-**Layered design**: Controller → Services (External + Internal) → Data Access
+**Layered design**: Controller → Service (External) → Repository → DbContext → Database
 
 ```
 POST /api/telegram
   ↓
 TelegramController (thin orchestrator)
   ↓
-TelegramMessageService (External — webhook coordination)
-  ├→ AllowedUsersService (Internal — DB whitelist check)
-  └→ NotionService (External — Notion API integration)
+ITelegramMessageService (External — webhook coordination)
+  ├→ IRepository<TelegramUserInfo> (Generic — DB whitelist check + soft-delete filtering)
+  └→ INotionService (External — Notion API integration)
   ↓
-AppDbContext (Data — EF Core)
+AppDbContext (Data — EF Core, auto-manages audit timestamps)
+  ↓
+PostgreSQL (Neon)
 ```
 
-Services are organized by responsibility:
-- **External**: Services that call external systems (APIs, webhooks)
-- **Internal**: Services that handle internal business logic (DB queries, validation)
+### Architecture Patterns
+
+**Service Layer**
+- **External Services**: Call external systems (Telegram, Notion APIs)
+- All services use **interface injection** for testability and decoupling
+- Services throw on errors; controllers handle gracefully and always return 200
+
+**Generic Repository Pattern**
+- `IRepository<T>` provides CRUD operations for any entity
+- `QueryActive()` automatically filters soft-deleted entities
+- Registered globally via `RepositoriesServiceRegister`
+- Eliminates need for entity-specific data access layers
+
+**Audit Trail & Soft Deletes**
+- Entities implement `IAuditable` for automatic timestamp management (`Created`, `LastModified`)
+- Entities implement `ISoftDelete` for logical deletion (`IsDeleted` boolean)
+- `AppDbContext.SetDefaultValues()` auto-populates audit fields on SaveChangesAsync()
+- All timestamp operations use UTC to avoid timezone issues
 
 ### Files & Responsibilities
 
@@ -81,19 +98,25 @@ Services are organized by responsibility:
 - `Controllers/TelegramController.cs` — HTTP orchestrator only (parse body, delegate to service, return 200).
 
 **Services/External/** — external system integrations
-- `TelegramMessageService.cs` — coordinates webhook processing and external calls.
-- `NotionService.cs` — Notion API integration (HTTP client via `IHttpClientFactory`). Throws on errors.
+- `ITelegramMessageService.cs` — interface defining webhook processing contract
+- `TelegramMessageService.cs` — implementation; orchestrates whitelist checks and Notion persistence
+- `INotionService.cs` — interface for Notion API operations
+- `NotionService.cs` — implementation; HTTP client integration with automatic header management
 
-**Services/Internal/** — internal business logic
-- `AllowedUsersService.cs` — encapsulates allowed-user whitelist checks via database.
+**Data Access Layer**
+- `Data/AppDbContext.cs` — EF Core DbContext; overrides SaveChangesAsync() to auto-populate audit fields
+- `Data/Repositories/IRepository<T>.cs` — generic repository interface for all entities
+- `Data/Repositories/Repository<T>.cs` — generic implementation; provides CRUD + soft-delete filtering
+- `Data/Migrations/` — EF Core migrations (auto-generated, committed, applied on startup via `Migrate()`)
+
+**Entity Model**
+- `Entities/TelegramUserInfo.cs` — implements `IAuditable` and `ISoftDelete`
+- `Entities/Base/IAuditable.cs` — provides `Created` and `LastModified` timestamp properties
+- `Entities/Base/ISoftDelete.cs` — provides `IsDeleted` boolean property
 
 **DI & Configuration**
-- `ServiceRegisters/` — DI registration via `IServiceRegister` interface (auto-discovered, ordered by `Order` property).
-- `ServiceRegisters/Settings/` — strongly-typed config classes bound via `IOptions<T>`.
-
-**Data & Persistence**
-- `Data/AppDbContext.cs` + `Entities/AllowedUser.cs` — EF Core Code First; schema in C#, never raw SQL.
-- `Data/Migrations/` — auto-generated, committed, applied on startup via `Migrate()`.
+- `ServiceRegisters/` — DI registration via `IServiceRegister` interface (auto-discovered, ordered by `Order` property)
+- `ServiceRegisters/Settings/` — strongly-typed config classes bound via `IOptions<T>`
 
 ---
 
@@ -107,16 +130,106 @@ Services are organized by responsibility:
 - `record` for DTOs. One class per file, file name matches class name.
 - Throw on errors in services (don't silently fail). Controllers log and always return 200.
 - XML doc comments on public methods/endpoints only (suppress warnings with `NoWarn` in `.csproj`).
+- Synchronous methods for non-I/O operations (e.g., `Attach()`, `Update()`, `Delete()` in repository are sync)
 
 **Namespaces:**
 - Controllers: `Fiolyn.Controllers`
-- External services: `Fiolyn.Services.External` (API integrations, webhooks)
-- Internal services: `Fiolyn.Services.Internal` (business logic, DB queries)
+- External services: `Fiolyn.Services.External` (API integrations)
+- Data repositories: `Fiolyn.Data.Repositories`
 - Configuration classes: `Fiolyn.ServiceRegisters.Settings`
 - Service registration: `Fiolyn.ServiceRegisters`
-- Entities: `Fiolyn.Entities`
+- Entities: `Fiolyn.Entities` and `Fiolyn.Entities.Base`
 - Data: `Fiolyn.Data`
-- `Program.cs` uses top-level statements (no namespace).
+- `Program.cs` uses top-level statements (no namespace)
+
+---
+
+## Working with Entities
+
+When creating new entities:
+
+1. **Implement audit interface** for timestamp tracking:
+   ```csharp
+   public class MyEntity : IAuditable
+   {
+     [Key]
+     public long Id { get; set; }
+     
+     [Required]
+     public DateTime Created { get; set; }  // Auto-populated on insert
+     
+     [Required]
+     public DateTime LastModified { get; set; }  // Auto-populated on insert/update
+     
+     // ... other properties
+   }
+   ```
+
+2. **Implement soft-delete interface** for logical deletion:
+   ```csharp
+   public class MyEntity : IAuditable, ISoftDelete
+   {
+     // ... audit fields
+     
+     [Required]
+     public bool IsDeleted { get; set; }  // Auto-set to false on insert
+   }
+   ```
+
+3. **Use repository for all data access**:
+   ```csharp
+   public class MyService( IRepository<MyEntity> repository )
+   {
+     // Query only non-deleted entities
+     var items = await repository.QueryActive().ToListAsync();
+     
+     // Soft-delete an entity
+     await repository.SoftDelete(item);
+     await repository.SaveAsync();
+   }
+   ```
+
+---
+
+## Working with Repositories
+
+The generic `IRepository<T>` provides:
+
+**Query Methods:**
+- `Query()` — all entities (including soft-deleted)
+- `QueryActive()` — only non-deleted entities (filters automatically if entity implements `ISoftDelete`)
+- `GetByIdAsync(id)` — fetch by primary key
+
+**Modification Methods:**
+- `AddAsync(entity)` / `InsertRangeAsync(entities)` — add new entities
+- `Attach(entity)` — attach detached entity without modifying DB
+- `Update(entity)` / `UpdateRange(entities)` — mark entities as modified
+- `Delete(entity)` — hard delete (removes from DB completely)
+- `SoftDelete(entity)` — logical delete (sets `IsDeleted = true`)
+- `Restore(entity)` — undo soft delete (sets `IsDeleted = false`)
+- `SaveAsync()` — flush all pending changes to database
+
+All modifications trigger `SetDefaultValues()` automatically, so audit timestamps are always current.
+
+---
+
+## Working with Migrations
+
+**Create a new migration:**
+```bash
+dotnet ef migrations add MigrationName --output-dir Data/Migrations
+```
+
+**Apply pending migrations to database:**
+```bash
+dotnet ef database update
+```
+
+**Key rules:**
+- **Never edit migration files manually** — regenerate with `dotnet ef migrations add`
+- **Never delete applied migrations** — create a new down migration if needed
+- **Never use `EnsureCreated()`** — bypasses migrations, corrupts schema history
+- **All migrations are committed to git** — schema changes are version-controlled
 
 ---
 
@@ -124,9 +237,9 @@ Services are organized by responsibility:
 
 Push to `master` → GitHub Actions builds Docker image → pushes to GHCR → Northflank auto-deploys.
 
-- **Dockerfile** at `Fiolyn/Dockerfile`; CI workflow specifies `file: Fiolyn/Dockerfile` with `context: .` (repo root).
-- App listens on port 8080 (`ASPNETCORE_URLS=http://+:8080`). Northflank terminates TLS externally.
-- **Do not use `UseHttpsRedirection`** — Northflank reverse proxy sends plain HTTP; HTTPS redirect causes failures.
+- **Dockerfile** at `Fiolyn/Dockerfile`; CI workflow specifies `file: Fiolyn/Dockerfile` with `context: .` (repo root)
+- App listens on port 8080 (`ASPNETCORE_URLS=http://+:8080`). Northflank terminates TLS externally
+- **Do not use `UseHttpsRedirection`** — Northflank reverse proxy sends plain HTTP; HTTPS redirect causes failures
 - **Secrets in Northflank env vars** (use `__` for nested keys):
   ```
   CONNECTIONSTRINGS__NEONDATABASEURL=postgresql://...
@@ -134,7 +247,7 @@ Push to `master` → GitHub Actions builds Docker image → pushes to GHCR → N
   NOTIONSETTING__NOTIONAPIKEY=...
   NOTIONSETTING__NOTIONDATABASEID=...
   ```
-- **GitHub Actions secrets**: `NORTHFLANK_API_TOKEN` (for API deployments).
+- **GitHub Actions secrets**: `NORTHFLANK_API_TOKEN` (for API deployments)
 
 ---
 
@@ -148,23 +261,35 @@ public class MyServiceRegister : IServiceRegister
   public int Order => 1 ;  // lower values run first
   public void RegisterServices( IServiceCollection services, IConfiguration configuration )
   {
-    services.AddScoped<MyService>() ;
+    services.AddScoped<IMyService, MyService>() ;
   }
 }
 ```
 
 **Known registrars** (in order):
 - `WebApiServiceRegister` (Order 0) — Controllers, Swagger, CORS, HTTP client factory
-- `DatabaseServiceRegister` — DbContext and factory
-- `NotionServiceRegister` — Notion API configuration
+- `DatabaseServiceRegister` (Order 0) — DbContext and factory
+- `RepositoriesServiceRegister` (Order 1) — Generic repository pattern
+- `NotionServiceRegister` (Order 1) — Notion API configuration + named HTTP client
 - `ScopedServicesRegister` (Order 1) — Business logic services
+
+**Adding a new service:**
+1. Create interface + implementation in `Services/External/` or `Services/Internal/`
+2. Create new `IServiceRegister` in `ServiceRegisters/`
+3. No need to update `Program.cs` — auto-discovered
+
+---
 
 ## Key Rules
 
-- **Always return 200 from Telegram webhook** — Telegram retries non-2xx responses. Controller returns 200 even on errors.
-- **Services throw on failure** — don't silently fail. Let controller handle and log.
-- **Use primary constructors** — `public class Foo( ILogger logger )`.
-- **Never use `EnsureCreated()`** — bypasses migrations, corrupts schema history.
-- **Never edit migration files** — regenerate instead with `dotnet ef migrations add`.
-- **Never delete applied migrations** — create a new down migration if needed.
-- **Call `mcp__ide__getDiagnostics` after code changes** — before committing.
+- **Always return 200 from Telegram webhook** — Telegram retries non-2xx responses. Controller returns 200 even on errors
+- **Services throw on failure** — don't silently fail. Let controller handle and log
+- **Use primary constructors** — `public class Foo( ILogger logger )`
+- **Use interface injection** — all services accept interfaces, not concrete implementations
+- **Use generic repository** — never create entity-specific data access services (e.g., no `AllowedUsersRepository`)
+- **Implement IAuditable on audit-trail entities** — timestamps are auto-managed
+- **Implement ISoftDelete for logical deletion** — use `repository.QueryActive()` to exclude deleted records
+- **Call `mcp__ide__getDiagnostics` after code changes** — before committing
+- **Never use `EnsureCreated()`** — bypasses migrations, corrupts schema history
+- **Never edit migration files** — regenerate instead with `dotnet ef migrations add`
+- **Never delete applied migrations** — create a new down migration if needed

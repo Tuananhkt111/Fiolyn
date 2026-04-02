@@ -1,20 +1,44 @@
 using Fiolyn.Entities ;
+using Fiolyn.Entities.Base ;
 using Microsoft.EntityFrameworkCore ;
 
 namespace Fiolyn.Data ;
 
 public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext( options )
 {
-  public DbSet<AllowedUser> AllowedUsers => Set<AllowedUser>() ;
+  public DbSet<TelegramUserInfo> TelegramUserInfo => Set<TelegramUserInfo>() ;
 
-  protected override void OnModelCreating( ModelBuilder modelBuilder ) =>
-    modelBuilder.Entity<AllowedUser>( e =>
+  public override int SaveChanges()
+  {
+    SetDefaultValues() ;
+    return base.SaveChanges() ;
+  }
+
+  public override Task<int> SaveChangesAsync( CancellationToken cancellationToken = new() )
+  {
+    SetDefaultValues() ;
+    return base.SaveChangesAsync( cancellationToken ) ;
+  }
+
+  private void SetDefaultValues()
+  {
+    var entries = ChangeTracker.Entries()
+      .Where( e => e.State is EntityState.Added or EntityState.Modified )
+      .ToList() ;
+
+    var now = DateTime.UtcNow ;
+
+    foreach ( var entry in entries )
     {
-      e.ToTable( "allowed_users" ) ;
-      e.HasKey( x => x.Id ) ;
-      e.Property( x => x.TelegramId ).HasColumnName( "telegram_id" ).IsRequired() ;
-      e.Property( x => x.Label ).HasColumnName( "label" ) ;
-      e.Property( x => x.CreatedAt ).HasColumnName( "created_at" ).HasDefaultValueSql( "NOW()" ) ;
-      e.HasIndex( x => x.TelegramId ).IsUnique() ;
-    } ) ;
+      if ( entry.Entity is IAuditable auditableEntity )
+      {
+        if ( entry.State == EntityState.Added )
+        {
+          auditableEntity.Created = now ;
+        }
+
+        auditableEntity.LastModified = now ;
+      }
+    }
+  }
 }

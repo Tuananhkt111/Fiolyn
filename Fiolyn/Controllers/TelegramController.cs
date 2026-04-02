@@ -8,7 +8,7 @@ namespace Fiolyn.Controllers ;
 /// </summary>
 [ApiController]
 [Route( "api/[controller]" )]
-public class TelegramController( TelegramMessageService messageService ) : ControllerBase
+public class TelegramController( ITelegramMessageService messageService ) : ControllerBase
 {
   /// <summary>
   /// Processes a Telegram webhook update.
