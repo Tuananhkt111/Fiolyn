@@ -1,6 +1,6 @@
 using Fiolyn.ServiceRegisters.Base ;
 using Fiolyn.ServiceRegisters.Settings ;
-using Fiolyn.Services.External ;
+using Fiolyn.Services.External.Notion ;
 
 namespace Fiolyn.ServiceRegisters ;
 

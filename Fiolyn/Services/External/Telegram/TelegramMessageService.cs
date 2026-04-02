@@ -1,7 +1,8 @@
 using System.Text.Json ;
+using Fiolyn.Services.External.Notion ;
 using Fiolyn.Services.Internal ;
 
-namespace Fiolyn.Services.External ;
+namespace Fiolyn.Services.External.Telegram ;
 
 /// <summary>
 /// Processes incoming Telegram webhook messages and orchestrates saving to Notion.
@@ -75,21 +76,5 @@ public class TelegramMessageService(
       logger.LogError( ex, "Unexpected error processing webhook" ) ;
       return ProcessResult.Error( "Internal error" ) ;
     }
-  }
-
-  public class ProcessResult
-  {
-    public bool IsSuccess { get ; private set ; }
-    public string Message { get ; private set ; }
-
-    private ProcessResult( bool success, string message )
-    {
-      IsSuccess = success ;
-      Message = message ;
-    }
-
-    public static ProcessResult Success() => new( true, "Success" ) ;
-    public static ProcessResult Skipped( string reason ) => new( false, $"Skipped: {reason}" ) ;
-    public static ProcessResult Error( string error ) => new( false, $"Error: {error}" ) ;
   }
 }

@@ -1,5 +1,5 @@
 using Fiolyn.ServiceRegisters.Base ;
-using Fiolyn.Services.External ;
+using Fiolyn.Services.External.Telegram ;
 using Fiolyn.Services.Internal ;
 
 namespace Fiolyn.ServiceRegisters ;

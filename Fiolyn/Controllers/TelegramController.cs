@@ -1,4 +1,4 @@
-using Fiolyn.Services.External ;
+using Fiolyn.Services.External.Telegram ;
 using Microsoft.AspNetCore.Mvc ;
 
 namespace Fiolyn.Controllers ;
