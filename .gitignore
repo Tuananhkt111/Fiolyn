@@ -9,3 +9,6 @@ riderModule.iml
 # dotenv files
 .env
 .env.example
+
+# Local configuration with secrets
+Fiolyn/appsettings.Development.json

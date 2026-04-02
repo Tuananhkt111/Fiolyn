@@ -1,26 +1,11 @@
 using Fiolyn.Data ;
-using Fiolyn.Services ;
+using Fiolyn.ServiceRegisters.Extensions ;
 using Microsoft.EntityFrameworkCore ;
 
 var builder = WebApplication.CreateBuilder( args ) ;
 
-// Database
-builder.Services.AddDbContext<AppDbContext>( options =>
-  options.UseNpgsql( Environment.GetEnvironmentVariable( "DATABASE_URL" ) ) ) ;
-
-// Notion
-builder.Services.AddSingleton( sp => new NotionService(
-  Environment.GetEnvironmentVariable( "NOTION_API_KEY" )!,
-  Environment.GetEnvironmentVariable( "NOTION_DATABASE_ID" )!,
-  sp.GetRequiredService<ILogger<NotionService>>()
-) ) ;
-
-// Add services to the container.
-
-builder.Services.AddControllers() ;
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer() ;
-builder.Services.AddSwaggerGen() ;
+// Register services
+builder.Services.RegisterAllServices( builder.Configuration ) ;
 
 var app = builder.Build() ;
 
@@ -38,6 +23,9 @@ if ( app.Environment.IsDevelopment() )
   app.UseSwaggerUI() ;
 }
 
+app.UseCors() ;
+app.UseAuthentication() ;
+app.UseAuthorization() ;
 app.MapControllers() ;
 
 app.Run() ;

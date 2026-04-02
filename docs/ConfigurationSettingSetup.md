@@ -2,7 +2,7 @@
 
 ## Overview
 
-Fiolyn uses .NET's built-in `IConfiguration` pipeline to manage secrets and settings across environments. The pipeline merges sources in priority order (lowest → highest):
+Fiolyn uses .NET's built-in `IConfiguration` pipeline with the **Options Pattern** to manage secrets and settings across environments. The pipeline merges sources in priority order (lowest → highest):
 
 ```
 appsettings.json
@@ -10,34 +10,60 @@ appsettings.json
     → Environment variables         (Northflank prod, overrides appsettings)
 ```
 
-This means the same code works in both local and production — no manual `export` needed locally.
+Configuration is bound to strongly-typed classes in `ServiceRegisters/Settings/` using `IOptions<T>`.
 
 ---
 
-## Why IConfiguration over `Environment.GetEnvironmentVariable`
+## Configuration Structure
 
-| Capability                           | `IConfiguration`      | `Environment.GetEnvironmentVariable` |
-|--------------------------------------|-----------------------|--------------------------------------|
-| Reads `appsettings.*.json`           | Yes                   | No                                   |
-| Reads env vars                       | Yes (higher priority) | Yes                                  |
-| Works locally without manual exports | Yes                   | No                                   |
-| .NET idiomatic                       | Yes                   | No                                   |
+Nested configuration uses `:` (colon) in JSON and `__` (double underscore) in environment variables.
 
-Using `Environment.GetEnvironmentVariable` bypasses the config pipeline entirely, which means `appsettings.Development.json` is never read locally.
+### appsettings.json (or appsettings.Development.json)
+
+```json
+{
+  "ConnectionStrings": {
+    "NeonDatabaseUrl": "postgresql://..."
+  },
+  "TelegramBotToken": "...",
+  "NotionSetting": {
+    "NotionApiKey": "...",
+    "NotionDatabaseId": "..."
+  }
+}
+```
+
+### Environment Variables (Northflank)
+
+```
+CONNECTIONSTRINGS__NEONDATABASEURL=postgresql://...
+TELEGRAMBOTTOKEN=...
+NOTIONSETTING__NOTIONAPIKEY=...
+NOTIONSETTING__NOTIONDATABASEID=...
+```
 
 ---
 
-## Key Names
+## Options Classes
 
-All config keys use **PascalCase** to match `appsettings.json` conventions:
+All configuration is bound to strongly-typed classes via `IOptions<T>`:
 
-| Key                | Description                      |
-|--------------------|----------------------------------|
-| `DatabaseUrl`      | PostgreSQL connection URI (Neon) |
-| `TelegramBotToken` | Telegram bot token               |
-| `NotionApiKey`     | Notion integration token         |
-| `NotionDatabaseId` | Target Notion database ID        |
+- **`NotionSettings`** — `Fiolyn/ServiceRegisters/Settings/NotionSettings.cs`
+  ```csharp
+  public class NotionSettings
+  {
+    public string NotionApiKey { get; set; }
+    public string NotionDatabaseId { get; set; }
+  }
+  ```
 
+Services receive configuration via primary constructor:
+```csharp
+public class NotionService( IOptions<NotionSettings> options, ... )
+{
+  var settings = options.Value ;
+}
+```
 
 ---
 
@@ -47,33 +73,37 @@ All config keys use **PascalCase** to match `appsettings.json` conventions:
 
 ```json
 {
-  "DatabaseUrl": "postgresql://user:password@host/dbname?sslmode=require",
-  "TelegramBotToken": "your-telegram-token",
-  "NotionApiKey": "your-notion-api-key",
-  "NotionDatabaseId": "your-notion-database-id"
+  "ConnectionStrings": {
+    "NeonDatabaseUrl": "Host=..;Database=..;Username=..;Password=..;SSL Mode=Require"
+  },
+  "TelegramBotToken": "your-token",
+  "NotionSetting": {
+    "NotionApiKey": "your-api-key",
+    "NotionDatabaseId": "your-db-id"
+  }
 }
 ```
 
-1. Run the project — `launchSettings.json` sets `ASPNETCORE_ENVIRONMENT=Development`, which causes .NET to automatically load `appsettings.Development.json`:
+2. Run the project — `launchSettings.json` sets `ASPNETCORE_ENVIRONMENT=Development`, which causes .NET to automatically load `appsettings.Development.json`:
 
 ```bash
 cd Fiolyn
 dotnet run
 ```
 
-No environment variables need to be manually exported.
+No manual environment variable exports needed.
 
 ---
 
 ## Production (Northflank)
 
-Set these environment variables in the Northflank dashboard:
+Set these environment variables in the Northflank dashboard (use `__` for nested keys):
 
 ```
-DatabaseUrl=postgresql://...
-TelegramBotToken=...
-NotionApiKey=...
-NotionDatabaseId=...
+CONNECTIONSTRINGS__NEONDATABASEURL=postgresql://...
+TELEGRAMBOTTOKEN=...
+NOTIONSETTING__NOTIONAPIKEY=...
+NOTIONSETTING__NOTIONDATABASEID=...
 ```
 
-Env vars take higher priority than `appsettings.json`, so they override any defaults automatically.
+Environment variables take higher priority than `appsettings.json`, so they override any defaults automatically.

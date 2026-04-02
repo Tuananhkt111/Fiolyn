@@ -1,59 +1,32 @@
-using System.Text.Json ;
-using Fiolyn.Data ;
 using Fiolyn.Services ;
 using Microsoft.AspNetCore.Mvc ;
-using Microsoft.EntityFrameworkCore ;
 
 namespace Fiolyn.Controllers ;
 
+/// <summary>
+/// Handles incoming Telegram webhook messages.
+/// </summary>
 [ApiController]
 [Route( "api/[controller]" )]
-public class TelegramController( AppDbContext db, NotionService notion ) : ControllerBase
+public class TelegramController( TelegramMessageService messageService ) : ControllerBase
 {
+  /// <summary>
+  /// Processes a Telegram webhook update.
+  /// </summary>
+  /// <remarks>
+  /// Always returns HTTP 200 OK per Telegram webhook requirements.
+  /// Processing failures are logged but don't affect the response status.
+  /// </remarks>
+  /// <returns>HTTP 200 OK with processing result.</returns>
   [HttpPost]
   public async Task<IActionResult> PostAsync()
   {
     using var reader = new StreamReader( Request.Body ) ;
     var raw = await reader.ReadToEndAsync() ;
-    using var doc = JsonDocument.Parse( raw ) ;
-    var body = doc.RootElement ;
 
-    if ( ! body.TryGetProperty( "message", out var message )
-         || ! message.TryGetProperty( "from", out var from ) )
-    {
-      return Ok( new
-      {
-        ok = true,
-        skipped = true
-      } ) ;
-    }
+    var result = await messageService.ProcessWebhookAsync( raw ) ;
 
-    var fromId = from.GetProperty( "id" ).GetInt64() ;
-
-    var isAllowed = await db.AllowedUsers.AnyAsync( u => u.TelegramId == fromId ) ;
-    if ( ! isAllowed || ! message.TryGetProperty( "text", out var textElement ) )
-    {
-      return Ok( new
-      {
-        ok = true,
-        skipped = true
-      } ) ;
-    }
-
-    var text = textElement.GetString() ;
-    if ( string.IsNullOrEmpty( text ) )
-    {
-      return Ok( new
-      {
-        ok = true,
-        skipped = true
-      } ) ;
-    }
-
-    await notion.AppendAsync( text ) ;
-    return Ok( new
-    {
-      ok = true
-    } ) ;
+    // Always return 200 to Telegram, regardless of success/skip
+    return Ok( result ) ;
   }
 }
