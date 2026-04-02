@@ -6,21 +6,21 @@ using Microsoft.Extensions.Options ;
 namespace Fiolyn.Services.External.Notion ;
 
 /// <summary>
-/// Integrates with the Notion API to create database pages.
+///   Integrates with the Notion API to create database pages.
 /// </summary>
 public class NotionService( IOptions<NotionSettings> notionSettings, IHttpClientFactory httpClientFactory, ILogger<NotionService> logger )
 {
   private readonly NotionSettings _notionSettings = notionSettings.Value ;
 
   /// <summary>
-  /// Appends a new page to the configured Notion database.
+  ///   Appends a new page to the configured Notion database.
   /// </summary>
   /// <param name="text">The text content to save as a new Notion page.</param>
   /// <returns>A task representing the asynchronous operation.</returns>
   /// <exception cref="InvalidOperationException">Thrown if the Notion API request fails.</exception>
   /// <remarks>
-  /// Creates a new page in the configured Notion database with the given text as the page title.
-  /// All pages are created with a single Title property.
+  ///   Creates a new page in the configured Notion database with the given text as the page title.
+  ///   All pages are created with a single Title property.
   /// </remarks>
   public async Task AppendAsync( string text )
   {

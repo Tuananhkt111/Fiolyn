@@ -5,7 +5,7 @@ using Fiolyn.Services.Internal ;
 namespace Fiolyn.Services.External.Telegram ;
 
 /// <summary>
-/// Processes incoming Telegram webhook messages and orchestrates saving to Notion.
+///   Processes incoming Telegram webhook messages and orchestrates saving to Notion.
 /// </summary>
 public class TelegramMessageService(
   AllowedUsersService allowedUsersService,
@@ -13,13 +13,13 @@ public class TelegramMessageService(
   ILogger<TelegramMessageService> logger )
 {
   /// <summary>
-  /// Processes a raw Telegram webhook JSON payload.
+  ///   Processes a raw Telegram webhook JSON payload.
   /// </summary>
   /// <param name="rawJson">The raw JSON body from the Telegram webhook.</param>
-  /// <returns>A <see cref="ProcessResult"/> indicating success, skip, or error.</returns>
+  /// <returns>A <see cref="ProcessResult" /> indicating success, skip, or error.</returns>
   /// <remarks>
-  /// Validates the sender against the allowed users list before saving to Notion.
-  /// Returns appropriate result codes for all outcomes (success, skipped, error).
+  ///   Validates the sender against the allowed users list before saving to Notion.
+  ///   Returns appropriate result codes for all outcomes (success, skipped, error).
   /// </remarks>
   public async Task<ProcessResult> ProcessWebhookAsync( string rawJson )
   {
