@@ -17,7 +17,7 @@ Create a pull request using `gh pr create` with a structured description followi
    git branch --show-current && git log master..HEAD --oneline && git diff master...HEAD
    ```
 
-2. **Generate PR title and body**, show to user and ask: *"Create this PR? (yes / no)"* — only proceed on confirmation.
+2. **Generate PR title and body**.
 
 3. **Push branch if needed**:
    ```bash
@@ -58,10 +58,10 @@ Use this **exact structure**. Do not add or remove sections.
 <what changed technically — specific files/methods, include before/after code snippets where useful>
 
 ## Cause
-<root cause of the bug — only for bug fix tasks, skip entirely otherwise>
+<root cause of the bug (both versions for non-tech and tech readers)) — only for bug fix tasks, skip entirely otherwise>
 
 ## Solution
-<how it was fixed — only for bug fix tasks, skip entirely otherwise>
+<how it was fixed (both versions for non-tech and tech readers) — only for bug fix tasks, skip entirely otherwise>
 
 ## Impact of This Pull Request
 <what areas of the app are affected>
