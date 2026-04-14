@@ -20,6 +20,13 @@ dotnet ef migrations add <Name> --output-dir Data/Migrations      # new migratio
 dotnet ef database update                                         # apply migrations
 ```
 
+Run tests from the repo root:
+
+```bash
+dotnet test Fiolyn.Tests/Fiolyn.Tests.csproj                      # run all tests
+dotnet test Fiolyn.Tests/Fiolyn.Tests.csproj --verbosity normal   # with output
+```
+
 Build/publish is handled by Docker — no manual `dotnet publish` needed locally.
 
 ---
@@ -280,6 +287,61 @@ public class MyServiceRegister : IServiceRegister
 
 ---
 
+## Testing
+
+### Project: `Fiolyn.Tests/`
+
+**Framework:** xUnit 2.x · NSubstitute 5.x · FluentAssertions 6.x · EF Core InMemory · MockQueryable.NSubstitute
+
+**Structure:**
+```
+Fiolyn.Tests/
+├── GlobalUsings.cs                          # global using Xunit
+├── Helpers/
+│   └── MockHttpMessageHandler.cs           # captures HTTP request + body for assertions
+├── Unit/
+│   ├── Services/
+│   │   ├── TelegramMessageServiceTests.cs  # 8 tests — webhook processing scenarios
+│   │   └── NotionServiceTests.cs           # 4 tests — HTTP payload, auth header, error handling
+│   └── Controllers/
+│       └── TelegramControllerTests.cs      # 4 tests — always returns 200
+└── Integration/
+    ├── Helpers/
+    │   ├── TestEntity.cs                   # minimal IAuditable + ISoftDelete entity for tests
+    │   ├── TestDbContext.cs                # extends AppDbContext, adds DbSet<TestEntity>
+    │   └── TestDbContextFactory.cs        # creates isolated in-memory DB per test
+    └── Data/
+        ├── RepositoryTests.cs              # 6 tests — soft delete, restore, query filtering
+        └── AppDbContextTests.cs            # 2 tests — audit timestamp auto-population
+```
+
+### Unit Tests
+
+- Mock all external dependencies (`IRepository<T>`, `INotionService`, `ITelegramMessageService`) with NSubstitute
+- Use `MockQueryable` `BuildMock()` to make mocked `QueryActive()` work with EF Core async operators (`AnyAsync`, `ToListAsync`)
+- Use `MockHttpMessageHandler` to test `NotionService` without real HTTP calls
+- Use `DefaultHttpContext` to test `TelegramController` without spinning up a full web host
+
+### Integration Tests
+
+- Use `TestEntity` (not production entities) — decoupled from `TelegramUserInfo` or any future entity
+- `TestDbContext` extends `AppDbContext` so audit logic (`SetDefaultValues`) is inherited automatically
+- `TestDbContextFactory.Create()` uses `Guid.NewGuid()` as DB name for full test isolation
+- Each test class implements `IDisposable` or `await using` to clean up DbContext
+
+### Adding Tests for a New Entity or Service
+
+**New service (unit test):**
+1. Create `Unit/Services/MyServiceTests.cs`
+2. Substitute all constructor dependencies with `Substitute.For<IMyDependency>()`
+3. Use `BuildMock()` on a `List<T>` if the service calls `QueryActive()` on a repository
+
+**New repository behavior (integration test):**
+- `TestEntity` already implements `IAuditable` + `ISoftDelete` — use it directly in `RepositoryTests`
+- No need to add entity-specific test cases; the generic tests already cover new entities
+
+---
+
 ## Key Rules
 
 - **Always return 200 from Telegram webhook** — Telegram retries non-2xx responses. Controller returns 200 even on errors
@@ -290,6 +352,7 @@ public class MyServiceRegister : IServiceRegister
 - **Implement IAuditable on audit-trail entities** — timestamps are auto-managed
 - **Implement ISoftDelete for logical deletion** — use `repository.QueryActive()` to exclude deleted records
 - **Call `mcp__ide__getDiagnostics` after code changes** — before committing
+- **Run `dotnet test` after code changes** — ensure all 24 tests still pass
 - **Never use `EnsureCreated()`** — bypasses migrations, corrupts schema history
 - **Never edit migration files** — regenerate instead with `dotnet ef migrations add`
 - **Never delete applied migrations** — create a new down migration if needed
