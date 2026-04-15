@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Fiolyn is a .NET 8 web API that receives Telegram bot messages via webhook, checks the sender against an allowed-user whitelist (Neon PostgreSQL via EF Core), and saves the message as a new page in a Notion database.
+Fiolyn is a .NET 8 web API that:
+- Receives Telegram bot messages via webhook, checks the sender against an allowed-user whitelist (Neon PostgreSQL via EF Core), and saves the message as a new page in a Notion database.
+- Parses stock transaction commands from Telegram messages (`stock buy/sell/div`) and persists them via a full CRUD REST API.
 
 **Stack:** C# .NET 8 · Northflank (Docker) · GitHub Actions → GHCR · Neon PostgreSQL · Notion API · Telegram Bot API
 
@@ -73,11 +75,21 @@ TelegramController (thin orchestrator)
   ↓
 ITelegramMessageService (External — webhook coordination)
   ├→ IRepository<TelegramUserInfo> (Generic — DB whitelist check + soft-delete filtering)
+  ├→ IStockTransactionService (External — parses "stock …" messages, saves transactions)
+  │    └→ IRepository<BrokerAccount> (Generic — broker lookup by name)
   └→ INotionService (External — Notion API integration)
   ↓
 AppDbContext (Data — EF Core, auto-manages audit timestamps)
   ↓
 PostgreSQL (Neon)
+
+POST/GET/PUT/DELETE /api/stock-transactions
+  ↓
+StockTransactionController → IStockTransactionService → IRepository<StockTransaction>
+
+POST/GET/PUT/DELETE /api/broker-accounts
+  ↓
+BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 ```
 
 ### Architecture Patterns
@@ -104,11 +116,24 @@ PostgreSQL (Neon)
 - `Program.cs` — top-level wiring (DI, middleware, migrations). No logic.
 - `Controllers/TelegramController.cs` — HTTP orchestrator only (parse body, delegate to service, return 200).
 
-**Services/External/** — external system integrations
+**Services/External/Telegram/**
 - `ITelegramMessageService.cs` — interface defining webhook processing contract
-- `TelegramMessageService.cs` — implementation; orchestrates whitelist checks and Notion persistence
+- `TelegramMessageService.cs` — implementation; orchestrates whitelist checks, stock parsing, and Notion persistence
+
+**Services/External/Stock/**
+- `IStockTransactionService.cs` — interface for stock transaction management + Telegram parsing
+- `StockTransactionService.cs` — implementation; parses Telegram messages (`stock buy/sell/div`), looks up broker by name, persists transactions
+- `IBrokerAccountService.cs` — interface for broker account CRUD
+- `BrokerAccountService.cs` — implementation
+
+**Services/External/Notion/**
 - `INotionService.cs` — interface for Notion API operations
 - `NotionService.cs` — implementation; HTTP client integration with automatic header management
+
+**Controllers/**
+- `TelegramController.cs` — HTTP orchestrator for webhook (always returns 200)
+- `StockTransactionController.cs` — REST CRUD at `/api/stock-transactions`
+- `BrokerAccountController.cs` — REST CRUD at `/api/broker-accounts`
 
 **Data Access Layer**
 - `Data/AppDbContext.cs` — EF Core DbContext; overrides SaveChangesAsync() to auto-populate audit fields
@@ -118,6 +143,8 @@ PostgreSQL (Neon)
 
 **Entity Model**
 - `Entities/TelegramUserInfo.cs` — implements `IAuditable` and `ISoftDelete`
+- `Entities/StockTransaction.cs` — implements `IAuditable` and `ISoftDelete`; references `BrokerAccount` via FK
+- `Entities/BrokerAccount.cs` — implements `IAuditable` and `ISoftDelete`; name-keyed broker/account
 - `Entities/Base/IAuditable.cs` — provides `Created` and `LastModified` timestamp properties
 - `Entities/Base/ISoftDelete.cs` — provides `IsDeleted` boolean property
 
@@ -279,6 +306,8 @@ public class MyServiceRegister : IServiceRegister
 - `RepositoriesServiceRegister` (Order 1) — Generic repository pattern
 - `NotionServiceRegister` (Order 1) — Notion API configuration + named HTTP client
 - `ScopedServicesRegister` (Order 1) — Business logic services
+- `StockTransactionServiceRegister` (Order 1) — `IStockTransactionService`
+- `BrokerAccountServiceRegister` (Order 1) — `IBrokerAccountService`
 
 **Adding a new service:**
 1. Create interface + implementation in `Services/External/` or `Services/Internal/`
@@ -296,23 +325,24 @@ public class MyServiceRegister : IServiceRegister
 **Structure:**
 ```
 Fiolyn.Tests/
-├── GlobalUsings.cs                          # global using Xunit
+├── GlobalUsings.cs                              # global using Xunit
 ├── Helpers/
-│   └── MockHttpMessageHandler.cs           # captures HTTP request + body for assertions
+│   └── MockHttpMessageHandler.cs               # captures HTTP request + body for assertions
 ├── Unit/
 │   ├── Services/
-│   │   ├── TelegramMessageServiceTests.cs  # 8 tests — webhook processing scenarios
-│   │   └── NotionServiceTests.cs           # 4 tests — HTTP payload, auth header, error handling
+│   │   ├── TelegramMessageServiceTests.cs      # 8 tests — webhook processing scenarios
+│   │   ├── NotionServiceTests.cs               # 4 tests — HTTP payload, auth header, error handling
+│   │   └── StockTransactionServiceTests.cs     # 10 tests — parse, broker lookup, CRUD
 │   └── Controllers/
-│       └── TelegramControllerTests.cs      # 4 tests — always returns 200
+│       └── TelegramControllerTests.cs          # 4 tests — always returns 200
 └── Integration/
     ├── Helpers/
-    │   ├── TestEntity.cs                   # minimal IAuditable + ISoftDelete entity for tests
-    │   ├── TestDbContext.cs                # extends AppDbContext, adds DbSet<TestEntity>
-    │   └── TestDbContextFactory.cs        # creates isolated in-memory DB per test
+    │   ├── TestEntity.cs                       # minimal IAuditable + ISoftDelete entity for tests
+    │   ├── TestDbContext.cs                    # extends AppDbContext, adds DbSet<TestEntity>
+    │   └── TestDbContextFactory.cs            # creates isolated in-memory DB per test
     └── Data/
-        ├── RepositoryTests.cs              # 6 tests — soft delete, restore, query filtering
-        └── AppDbContextTests.cs            # 2 tests — audit timestamp auto-population
+        ├── RepositoryTests.cs                  # 6 tests — soft delete, restore, query filtering
+        └── AppDbContextTests.cs                # 2 tests — audit timestamp auto-population
 ```
 
 ### Unit Tests
@@ -352,7 +382,9 @@ Fiolyn.Tests/
 - **Implement IAuditable on audit-trail entities** — timestamps are auto-managed
 - **Implement ISoftDelete for logical deletion** — use `repository.QueryActive()` to exclude deleted records
 - **Call `mcp__ide__getDiagnostics` after code changes** — before committing
-- **Run `dotnet test` after code changes** — ensure all 24 tests still pass
+- **Run `dotnet test` after code changes** — ensure all 40 tests still pass
+- **DbSet property names are singular** — match the entity class name exactly (e.g. `StockTransaction`, `BrokerAccount`, not plurals)
+- **`ParseMessageAsync` is async** — `IStockTransactionService.ParseMessageAsync` requires DB access to resolve `BrokerAccount` by name; returns null if broker not found
 - **Never use `EnsureCreated()`** — bypasses migrations, corrupts schema history
 - **Never edit migration files** — regenerate instead with `dotnet ef migrations add`
 - **Never delete applied migrations** — create a new down migration if needed
