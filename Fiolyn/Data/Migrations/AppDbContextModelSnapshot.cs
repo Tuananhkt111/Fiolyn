@@ -71,7 +71,7 @@ namespace Fiolyn.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("StockTransactions");
+                    b.ToTable("StockTransaction");
                 });
 
             modelBuilder.Entity("Fiolyn.Entities.TelegramUserInfo", b =>
