@@ -53,11 +53,15 @@ public class StockTransaction : IAuditable, ISoftDelete
   public DateTime TransactionDate { get ; set ; }
 
   /// <summary>
-  ///   Gets or sets the broker or account name.
+  ///   Gets or sets the foreign key to the associated broker account.
   /// </summary>
   [Required]
-  [MaxLength( 100 )]
-  public string Broker { get ; set ; } = "" ;
+  public long BrokerAccountId { get ; set ; }
+
+  /// <summary>
+  ///   Gets or sets the associated broker account.
+  /// </summary>
+  public BrokerAccount BrokerAccount { get ; set ; } = null! ;
 
   /// <summary>
   ///   Gets or sets optional free-text notes.

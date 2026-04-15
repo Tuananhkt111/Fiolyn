@@ -7,6 +7,7 @@ namespace Fiolyn.Data ;
 public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext( options )
 {
   public DbSet<TelegramUserInfo> TelegramUserInfo => Set<TelegramUserInfo>() ;
+  public DbSet<BrokerAccount> BrokerAccount => Set<BrokerAccount>() ;
   public DbSet<StockTransaction> StockTransaction => Set<StockTransaction>() ;
 
   public override int SaveChanges()

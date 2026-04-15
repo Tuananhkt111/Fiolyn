@@ -11,17 +11,39 @@ namespace Fiolyn.Tests.Unit.Services ;
 
 public class StockTransactionServiceTests
 {
+  private readonly IRepository<BrokerAccount> _brokerRepository = Substitute.For<IRepository<BrokerAccount>>() ;
   private readonly ILogger<StockTransactionService> _logger = Substitute.For<ILogger<StockTransactionService>>() ;
   private readonly IRepository<StockTransaction> _repository = Substitute.For<IRepository<StockTransaction>>() ;
 
-  private StockTransactionService CreateSut() => new(_repository, _logger) ;
+  private StockTransactionService CreateSut() => new(_repository, _brokerRepository, _logger) ;
+
+  private void SetupBroker( string name, long id )
+  {
+    var brokers = new List<BrokerAccount>
+    {
+      new()
+      {
+        Id = id,
+        Name = name,
+        IsDeleted = false
+      }
+    }.BuildMock() ;
+    _brokerRepository.QueryActive().Returns( brokers ) ;
+  }
+
+  private void SetupNoBrokers()
+  {
+    var brokers = new List<BrokerAccount>().BuildMock() ;
+    _brokerRepository.QueryActive().Returns( brokers ) ;
+  }
 
   [Fact]
-  public void ParseMessage_BuyMessage_ReturnsBuyTransaction()
+  public async Task ParseMessageAsync_BuyMessage_ReturnsBuyTransaction()
   {
+    SetupBroker( "VPS", 1L ) ;
     var sut = CreateSut() ;
 
-    var result = sut.ParseMessage( "stock buy VNM 100 45000 4501500 [broker:VPS] [date:2026-04-14] [notes:bought at support]" ) ;
+    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 [broker:VPS] [date:2026-04-14] [notes:bought at support]" ) ;
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;
@@ -29,17 +51,18 @@ public class StockTransactionServiceTests
     result.Quantity.Should().Be( 100m ) ;
     result.Price.Should().Be( 45000m ) ;
     result.TotalAmount.Should().Be( 4501500m ) ;
-    result.Broker.Should().Be( "VPS" ) ;
+    result.BrokerAccountId.Should().Be( 1L ) ;
     result.Notes.Should().Be( "bought at support" ) ;
     result.TransactionDate.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
   }
 
   [Fact]
-  public void ParseMessage_SellMessage_ReturnsSellTransaction()
+  public async Task ParseMessageAsync_SellMessage_ReturnsSellTransaction()
   {
+    SetupBroker( "Fidelity", 2L ) ;
     var sut = CreateSut() ;
 
-    var result = sut.ParseMessage( "stock sell AAPL 10 150.5 1500 [broker:Fidelity] [notes:profit taking]" ) ;
+    var result = await sut.ParseMessageAsync( "stock sell AAPL 10 150.5 1500 [broker:Fidelity] [notes:profit taking]" ) ;
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "AAPL" ) ;
@@ -47,16 +70,17 @@ public class StockTransactionServiceTests
     result.Quantity.Should().Be( 10m ) ;
     result.Price.Should().Be( 150.5m ) ;
     result.TotalAmount.Should().Be( 1500m ) ;
-    result.Broker.Should().Be( "Fidelity" ) ;
+    result.BrokerAccountId.Should().Be( 2L ) ;
     result.Notes.Should().Be( "profit taking" ) ;
   }
 
   [Fact]
-  public void ParseMessage_DividendMessage_ReturnsDividendTransaction()
+  public async Task ParseMessageAsync_DividendMessage_ReturnsDividendTransaction()
   {
+    SetupBroker( "VPS", 1L ) ;
     var sut = CreateSut() ;
 
-    var result = sut.ParseMessage( "stock div VNM 500000 [date:2026-04-14] [notes:Q2 dividend]" ) ;
+    var result = await sut.ParseMessageAsync( "stock div VNM 500000 [broker:VPS] [date:2026-04-14] [notes:Q2 dividend]" ) ;
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;
@@ -76,26 +100,36 @@ public class StockTransactionServiceTests
   [InlineData( "stock buy VNM" )]
   [InlineData( "stock buy VNM abc 45000 4501500" )]
   [InlineData( "stock unknown VNM 100 45000 4501500" )]
-  public void ParseMessage_InvalidFormat_ReturnsNull( string text )
+  public async Task ParseMessageAsync_InvalidFormat_ReturnsNull( string text )
   {
+    SetupNoBrokers() ;
     var sut = CreateSut() ;
 
-    var result = sut.ParseMessage( text ) ;
+    var result = await sut.ParseMessageAsync( text ) ;
 
     result.Should().BeNull() ;
   }
 
   [Fact]
-  public void ParseMessage_BuyMessageNoOptionalParams_DefaultsCorrectly()
+  public async Task ParseMessageAsync_BrokerNotFound_ReturnsNull()
   {
+    SetupNoBrokers() ;
     var sut = CreateSut() ;
 
-    var result = sut.ParseMessage( "stock buy VNM 100 45000 4501500" ) ;
+    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 [broker:UNKNOWN]" ) ;
 
-    result.Should().NotBeNull() ;
-    result!.Broker.Should().Be( "" ) ;
-    result.Notes.Should().Be( "" ) ;
-    result.TransactionDate.Should().BeCloseTo( DateTime.UtcNow, TimeSpan.FromSeconds( 5 ) ) ;
+    result.Should().BeNull() ;
+  }
+
+  [Fact]
+  public async Task ParseMessageAsync_NoBrokerParam_ReturnsNull()
+  {
+    SetupNoBrokers() ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500" ) ;
+
+    result.Should().BeNull() ;
   }
 
   [Fact]
@@ -110,7 +144,7 @@ public class StockTransactionServiceTests
       Price = 45000,
       TotalAmount = 4501500,
       TransactionDate = DateTime.UtcNow,
-      Broker = "VPS"
+      BrokerAccountId = 1
     } ;
 
     var result = await sut.CreateAsync( transaction ) ;

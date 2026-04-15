@@ -61,7 +61,7 @@ public class TelegramMessageService(
       // Route stock messages to StockTransactionService
       if ( text.StartsWith( "stock ", StringComparison.OrdinalIgnoreCase ) )
       {
-        var transaction = stockTransactionService.ParseMessage( text ) ;
+        var transaction = await stockTransactionService.ParseMessageAsync( text ) ;
         if ( transaction is null )
         {
           logger.LogWarning( "Invalid stock message format from {UserId}: {Text}", fromId, text ) ;

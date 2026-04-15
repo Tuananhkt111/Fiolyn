@@ -13,5 +13,5 @@ public record StockTransactionRequest(
   [Required] decimal Price,
   [Required] decimal TotalAmount,
   [Required] DateTime TransactionDate,
-  [Required] [MaxLength( 100 )] string Broker,
+  [Required] long BrokerAccountId,
   [MaxLength( 500 )] string Notes = "" ) ;

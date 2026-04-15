@@ -11,11 +11,12 @@ namespace Fiolyn.Services.External.Stock ;
 ///   Manages stock transactions and parses Telegram message format.
 /// </summary>
 public partial class StockTransactionService(
-  IRepository<StockTransaction> repository,
+  IRepository<StockTransaction> stockTransactionRepository,
+  IRepository<BrokerAccount> brokerRepository,
   ILogger<StockTransactionService> logger ) : IStockTransactionService
 {
   /// <inheritdoc />
-  public StockTransaction? ParseMessage( string text )
+  public async Task<StockTransaction?> ParseMessageAsync( string text )
   {
     try
     {
@@ -29,8 +30,8 @@ public partial class StockTransactionService(
 
       return typeStr switch
       {
-        "buy" or "sell" => ParseBuySell( text, parts, typeStr ),
-        "div" => ParseDividend( text, parts ),
+        "buy" or "sell" => await ParseBuySellAsync( text, parts, typeStr ),
+        "div" => await ParseDividendAsync( text, parts ),
         _ => null
       } ;
     }
@@ -44,15 +45,15 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task<StockTransaction> CreateAsync( StockTransaction transaction )
   {
-    await repository.AddAsync( transaction ) ;
-    await repository.SaveAsync() ;
+    await stockTransactionRepository.AddAsync( transaction ) ;
+    await stockTransactionRepository.SaveAsync() ;
     return transaction ;
   }
 
   /// <inheritdoc />
   public async Task<List<StockTransaction>> GetAllAsync( string? symbol = null )
   {
-    var query = repository.QueryActive() ;
+    var query = stockTransactionRepository.QueryActive() ;
 
     if ( ! string.IsNullOrWhiteSpace( symbol ) )
     {
@@ -65,7 +66,7 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task<StockTransaction?> GetByIdAsync( long id )
   {
-    var transaction = await repository.GetByIdAsync( id ) ;
+    var transaction = await stockTransactionRepository.GetByIdAsync( id ) ;
     if ( transaction is { IsDeleted: true } )
     {
       return null ;
@@ -77,23 +78,23 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task UpdateAsync( StockTransaction transaction )
   {
-    repository.Update( transaction ) ;
-    await repository.SaveAsync() ;
+    stockTransactionRepository.Update( transaction ) ;
+    await stockTransactionRepository.SaveAsync() ;
   }
 
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id )
   {
-    var transaction = await repository.GetByIdAsync( id )
+    var transaction = await stockTransactionRepository.GetByIdAsync( id )
                       ?? throw new KeyNotFoundException( $"StockTransaction {id} not found" ) ;
-    repository.SoftDelete( transaction ) ;
-    await repository.SaveAsync() ;
+    stockTransactionRepository.SoftDelete( transaction ) ;
+    await stockTransactionRepository.SaveAsync() ;
   }
 
   [GeneratedRegex( @"\[(\w+):([^\]]*)\]" )]
   private static partial Regex NamedParamRegex() ;
 
-  private static StockTransaction? ParseBuySell( string text, string[] parts, string typeStr )
+  private async Task<StockTransaction?> ParseBuySellAsync( string text, string[] parts, string typeStr )
   {
     // stock {type} {symbol} {qty} {price} {total} [named params...]
     if ( parts.Length < 6 )
@@ -109,6 +110,11 @@ public partial class StockTransactionService(
     }
 
     var named = ExtractNamedParams( text ) ;
+    var brokerAccountId = await ResolveBrokerAsync( named.GetValueOrDefault( "broker", "" ) ) ;
+    if ( brokerAccountId is null )
+    {
+      return null ;
+    }
 
     return new StockTransaction
     {
@@ -118,12 +124,12 @@ public partial class StockTransactionService(
       Price = price,
       TotalAmount = total,
       TransactionDate = DateTimeUtils.ParseDateOrUtcNow( named.GetValueOrDefault( "date" ) ),
-      Broker = named.GetValueOrDefault( "broker", "" ),
+      BrokerAccountId = brokerAccountId.Value,
       Notes = named.GetValueOrDefault( "notes", "" )
     } ;
   }
 
-  private static StockTransaction? ParseDividend( string text, string[] parts )
+  private async Task<StockTransaction?> ParseDividendAsync( string text, string[] parts )
   {
     // stock div {symbol} {total} [named params...]
     if ( parts.Length < 4 )
@@ -137,6 +143,11 @@ public partial class StockTransactionService(
     }
 
     var named = ExtractNamedParams( text ) ;
+    var brokerAccountId = await ResolveBrokerAsync( named.GetValueOrDefault( "broker", "" ) ) ;
+    if ( brokerAccountId is null )
+    {
+      return null ;
+    }
 
     return new StockTransaction
     {
@@ -146,9 +157,16 @@ public partial class StockTransactionService(
       Price = 0,
       TotalAmount = total,
       TransactionDate = DateTimeUtils.ParseDateOrUtcNow( named.GetValueOrDefault( "date" ) ),
-      Broker = named.GetValueOrDefault( "broker", "" ),
+      BrokerAccountId = brokerAccountId.Value,
       Notes = named.GetValueOrDefault( "notes", "" )
     } ;
+  }
+
+  private async Task<long?> ResolveBrokerAsync( string brokerName )
+  {
+    var broker = await brokerRepository.QueryActive()
+      .FirstOrDefaultAsync( b => b.Name == brokerName ) ;
+    return broker?.Id ;
   }
 
   private static Dictionary<string, string> ExtractNamedParams( string text )

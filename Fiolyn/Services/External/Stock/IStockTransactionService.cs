@@ -8,11 +8,12 @@ namespace Fiolyn.Services.External.Stock ;
 public interface IStockTransactionService
 {
   /// <summary>
-  ///   Parses a Telegram message into a StockTransaction.
+  ///   Parses a Telegram message into a StockTransaction. Looks up BrokerAccount by name;
+  ///   returns null if the format is invalid or the broker is not found.
   /// </summary>
   /// <param name="text">The raw message text starting with "stock ".</param>
-  /// <returns>A populated StockTransaction, or null if the format is invalid.</returns>
-  StockTransaction? ParseMessage( string text ) ;
+  /// <returns>A populated StockTransaction, or null if the format is invalid or broker not found.</returns>
+  Task<StockTransaction?> ParseMessageAsync( string text ) ;
 
   /// <summary>
   ///   Creates a new stock transaction.

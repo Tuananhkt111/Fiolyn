@@ -22,6 +22,33 @@ namespace Fiolyn.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Fiolyn.Entities.BrokerAccount", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BrokerAccount");
+                });
+
             modelBuilder.Entity("Fiolyn.Entities.StockTransaction", b =>
                 {
                     b.Property<long>("Id")
@@ -30,10 +57,8 @@ namespace Fiolyn.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("Broker")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<long>("BrokerAccountId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime>("Created")
                         .HasColumnType("timestamp with time zone");
@@ -71,6 +96,8 @@ namespace Fiolyn.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BrokerAccountId");
+
                     b.ToTable("StockTransaction");
                 });
 
@@ -94,6 +121,17 @@ namespace Fiolyn.Data.Migrations
                     b.HasKey("TelegramId");
 
                     b.ToTable("TelegramUserInfo");
+                });
+
+            modelBuilder.Entity("Fiolyn.Entities.StockTransaction", b =>
+                {
+                    b.HasOne("Fiolyn.Entities.BrokerAccount", "BrokerAccount")
+                        .WithMany()
+                        .HasForeignKey("BrokerAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BrokerAccount");
                 });
 #pragma warning restore 612, 618
         }

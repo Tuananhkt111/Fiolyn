@@ -148,7 +148,7 @@ public class TelegramMessageServiceTests
       Price = 45000,
       TotalAmount = 4501500
     } ;
-    _stockTransactionService.ParseMessage( Arg.Any<string>() ).Returns( parsedTransaction ) ;
+    _stockTransactionService.ParseMessageAsync( Arg.Any<string>() ).Returns( Task.FromResult<StockTransaction?>( parsedTransaction ) ) ;
     _stockTransactionService.CreateAsync( parsedTransaction ).Returns( parsedTransaction ) ;
     var sut = CreateSut() ;
 
@@ -156,7 +156,7 @@ public class TelegramMessageServiceTests
       """{"message":{"from":{"id":123},"text":"stock buy VNM 100 45000 4501500"}}""" ) ;
 
     result.IsSuccess.Should().BeTrue() ;
-    _stockTransactionService.Received( 1 ).ParseMessage( "stock buy VNM 100 45000 4501500" ) ;
+    await _stockTransactionService.Received( 1 ).ParseMessageAsync( "stock buy VNM 100 45000 4501500" ) ;
     await _stockTransactionService.Received( 1 ).CreateAsync( parsedTransaction ) ;
     await _notionService.DidNotReceive().AppendAsync( Arg.Any<string>() ) ;
   }
@@ -165,7 +165,7 @@ public class TelegramMessageServiceTests
   public async Task ProcessWebhookAsync_InvalidStockFormat_ReturnsError()
   {
     SetupAllowedUser( 123L ) ;
-    _stockTransactionService.ParseMessage( Arg.Any<string>() ).Returns( (StockTransaction?)null ) ;
+    _stockTransactionService.ParseMessageAsync( Arg.Any<string>() ).Returns( Task.FromResult<StockTransaction?>( null ) ) ;
     var sut = CreateSut() ;
 
     var result = await sut.ProcessWebhookAsync(

@@ -31,7 +31,7 @@ public class StockTransactionController(
         Price = request.Price,
         TotalAmount = request.TotalAmount,
         TransactionDate = request.TransactionDate,
-        Broker = request.Broker,
+        BrokerAccountId = request.BrokerAccountId,
         Notes = request.Notes
       } ;
 
@@ -106,7 +106,7 @@ public class StockTransactionController(
       existing.Price = request.Price ;
       existing.TotalAmount = request.TotalAmount ;
       existing.TransactionDate = request.TransactionDate ;
-      existing.Broker = request.Broker ;
+      existing.BrokerAccountId = request.BrokerAccountId ;
       existing.Notes = request.Notes ;
 
       await stockTransactionService.UpdateAsync( existing ) ;
