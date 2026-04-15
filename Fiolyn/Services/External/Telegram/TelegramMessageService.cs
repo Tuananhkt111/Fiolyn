@@ -2,6 +2,7 @@ using System.Text.Json ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.External.Notion ;
+using Fiolyn.Services.External.Stock ;
 using Fiolyn.Services.External.Telegram.Results ;
 using Microsoft.EntityFrameworkCore ;
 
@@ -13,9 +14,10 @@ namespace Fiolyn.Services.External.Telegram ;
 public class TelegramMessageService(
   IRepository<TelegramUserInfo> userRepository,
   INotionService notionService,
+  IStockTransactionService stockTransactionService,
   ILogger<TelegramMessageService> logger ) : ITelegramMessageService
 {
-  /// <inheritdoc/>
+  /// <inheritdoc />
   public async Task<ProcessResult> ProcessWebhookAsync( string rawJson )
   {
     try
@@ -54,6 +56,22 @@ public class TelegramMessageService(
       {
         logger.LogInformation( "Empty text from user {UserId}", fromId ) ;
         return ProcessResult.Skipped( "Empty text" ) ;
+      }
+
+      // Route stock messages to StockTransactionService
+      if ( text.StartsWith( "stock ", StringComparison.OrdinalIgnoreCase ) )
+      {
+        var transaction = stockTransactionService.ParseMessage( text ) ;
+        if ( transaction is null )
+        {
+          logger.LogWarning( "Invalid stock message format from {UserId}: {Text}", fromId, text ) ;
+          return ProcessResult.Error( "Invalid stock message format" ) ;
+        }
+
+        await stockTransactionService.CreateAsync( transaction ) ;
+        logger.LogInformation( "Stock transaction from {UserId} saved: {Symbol} {Type}",
+          fromId, transaction.Symbol, transaction.TransactionType ) ;
+        return ProcessResult.Success() ;
       }
 
       // Save to Notion

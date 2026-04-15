@@ -1,6 +1,8 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
+using Fiolyn.Enums ;
 using Fiolyn.Services.External.Notion ;
+using Fiolyn.Services.External.Stock ;
 using Fiolyn.Services.External.Telegram ;
 using FluentAssertions ;
 using Microsoft.Extensions.Logging ;
@@ -13,9 +15,10 @@ public class TelegramMessageServiceTests
 {
   private readonly ILogger<TelegramMessageService> _logger = Substitute.For<ILogger<TelegramMessageService>>() ;
   private readonly INotionService _notionService = Substitute.For<INotionService>() ;
+  private readonly IStockTransactionService _stockTransactionService = Substitute.For<IStockTransactionService>() ;
   private readonly IRepository<TelegramUserInfo> _userRepository = Substitute.For<IRepository<TelegramUserInfo>>() ;
 
-  private TelegramMessageService CreateSut() => new(_userRepository, _notionService, _logger) ;
+  private TelegramMessageService CreateSut() => new(_userRepository, _notionService, _stockTransactionService, _logger) ;
 
   private void SetupAllowedUser( long telegramId )
   {
@@ -131,5 +134,46 @@ public class TelegramMessageServiceTests
 
     result.IsSuccess.Should().BeFalse() ;
     result.Message.Should().Contain( "Error" ) ;
+  }
+
+  [Fact]
+  public async Task ProcessWebhookAsync_StockMessage_SavesTransactionSkipsNotion()
+  {
+    SetupAllowedUser( 123L ) ;
+    var parsedTransaction = new StockTransaction
+    {
+      Symbol = "VNM",
+      TransactionType = TransactionType.Buy,
+      Quantity = 100,
+      Price = 45000,
+      TotalAmount = 4501500
+    } ;
+    _stockTransactionService.ParseMessage( Arg.Any<string>() ).Returns( parsedTransaction ) ;
+    _stockTransactionService.CreateAsync( parsedTransaction ).Returns( parsedTransaction ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ProcessWebhookAsync(
+      """{"message":{"from":{"id":123},"text":"stock buy VNM 100 45000 4501500"}}""" ) ;
+
+    result.IsSuccess.Should().BeTrue() ;
+    _stockTransactionService.Received( 1 ).ParseMessage( "stock buy VNM 100 45000 4501500" ) ;
+    await _stockTransactionService.Received( 1 ).CreateAsync( parsedTransaction ) ;
+    await _notionService.DidNotReceive().AppendAsync( Arg.Any<string>() ) ;
+  }
+
+  [Fact]
+  public async Task ProcessWebhookAsync_InvalidStockFormat_ReturnsError()
+  {
+    SetupAllowedUser( 123L ) ;
+    _stockTransactionService.ParseMessage( Arg.Any<string>() ).Returns( (StockTransaction?)null ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ProcessWebhookAsync(
+      """{"message":{"from":{"id":123},"text":"stock invalid"}}""" ) ;
+
+    result.IsSuccess.Should().BeFalse() ;
+    result.Message.Should().Contain( "Error" ) ;
+    await _notionService.DidNotReceive().AppendAsync( Arg.Any<string>() ) ;
+    await _stockTransactionService.DidNotReceive().CreateAsync( Arg.Any<StockTransaction>() ) ;
   }
 }
