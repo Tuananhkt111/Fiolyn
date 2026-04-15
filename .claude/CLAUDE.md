@@ -136,7 +136,7 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 - `BrokerAccountController.cs` — REST CRUD at `/api/broker-accounts`
 
 **Data Access Layer**
-- `Data/AppDbContext.cs` — EF Core DbContext; overrides SaveChangesAsync() to auto-populate audit fields
+- `Data/AppDbContext.cs` — EF Core DbContext; overrides SaveChangesAsync() to autopopulate audit fields
 - `Data/Repositories/IRepository<T>.cs` — generic repository interface for all entities
 - `Data/Repositories/Repository<T>.cs` — generic implementation; provides CRUD + soft-delete filtering
 - `Data/Migrations/` — EF Core migrations (auto-generated, committed, applied on startup via `Migrate()`)
