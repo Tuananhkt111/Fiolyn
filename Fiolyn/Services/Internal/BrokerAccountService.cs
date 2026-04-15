@@ -2,7 +2,7 @@ using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Microsoft.EntityFrameworkCore ;
 
-namespace Fiolyn.Services.External.Stock ;
+namespace Fiolyn.Services.Internal ;
 
 /// <summary>
 ///   Manages broker accounts.

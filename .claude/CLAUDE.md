@@ -114,13 +114,12 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 ### Files & Responsibilities
 
 - `Program.cs` — top-level wiring (DI, middleware, migrations). No logic.
-- `Controllers/TelegramController.cs` — HTTP orchestrator only (parse body, delegate to service, return 200).
 
 **Services/External/Telegram/**
 - `ITelegramMessageService.cs` — interface defining webhook processing contract
 - `TelegramMessageService.cs` — implementation; orchestrates whitelist checks, stock parsing, and Notion persistence
 
-**Services/External/Stock/**
+**Services/Internal/**
 - `IStockTransactionService.cs` — interface for stock transaction management + Telegram parsing
 - `StockTransactionService.cs` — implementation; parses Telegram messages (`stock buy/sell/div`), looks up broker by name, persists transactions
 - `IBrokerAccountService.cs` — interface for broker account CRUD
@@ -168,7 +167,8 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 
 **Namespaces:**
 - Controllers: `Fiolyn.Controllers`
-- External services: `Fiolyn.Services.External` (API integrations)
+- External services: `Fiolyn.Services.External` (Telegram, Notion API integrations)
+- Internal services: `Fiolyn.Services.Internal` (business logic — stock transactions, broker accounts)
 - Data repositories: `Fiolyn.Data.Repositories`
 - Configuration classes: `Fiolyn.ServiceRegisters.Settings`
 - Service registration: `Fiolyn.ServiceRegisters`
@@ -249,17 +249,6 @@ All modifications trigger `SetDefaultValues()` automatically, so audit timestamp
 
 ## Working with Migrations
 
-**Create a new migration:**
-```bash
-dotnet ef migrations add MigrationName --output-dir Data/Migrations
-```
-
-**Apply pending migrations to database:**
-```bash
-dotnet ef database update
-```
-
-**Key rules:**
 - **Never edit migration files manually** — regenerate with `dotnet ef migrations add`
 - **Never delete applied migrations** — create a new down migration if needed
 - **Never use `EnsureCreated()`** — bypasses migrations, corrupts schema history

@@ -2,7 +2,7 @@ using System.Text.Json ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.External.Notion ;
-using Fiolyn.Services.External.Stock ;
+using Fiolyn.Services.Internal ;
 using Fiolyn.Services.External.Telegram.Results ;
 using Microsoft.EntityFrameworkCore ;
 

@@ -1,7 +1,7 @@
 using Fiolyn.Controllers.DTOs.Requests.StockTransaction ;
 using Fiolyn.Controllers.DTOs.Responses ;
 using Fiolyn.Entities ;
-using Fiolyn.Services.External.Stock ;
+using Fiolyn.Services.Internal ;
 using Microsoft.AspNetCore.Mvc ;
 
 namespace Fiolyn.Controllers ;

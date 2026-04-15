@@ -1,7 +1,7 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
-using Fiolyn.Services.External.Stock ;
+using Fiolyn.Services.Internal ;
 using FluentAssertions ;
 using Microsoft.Extensions.Logging ;
 using MockQueryable ;

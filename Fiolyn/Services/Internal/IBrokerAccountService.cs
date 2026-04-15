@@ -1,6 +1,6 @@
 using Fiolyn.Entities ;
 
-namespace Fiolyn.Services.External.Stock ;
+namespace Fiolyn.Services.Internal ;
 
 /// <summary>
 ///   Defines operations for managing broker accounts.

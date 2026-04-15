@@ -5,7 +5,7 @@ using Fiolyn.Enums ;
 using Fiolyn.Utils ;
 using Microsoft.EntityFrameworkCore ;
 
-namespace Fiolyn.Services.External.Stock ;
+namespace Fiolyn.Services.Internal ;
 
 /// <summary>
 ///   Manages stock transactions and parses Telegram message format.

@@ -1,5 +1,5 @@
 using Fiolyn.ServiceRegisters.Base ;
-using Fiolyn.Services.External.Stock ;
+using Fiolyn.Services.Internal ;
 
 namespace Fiolyn.ServiceRegisters ;
 
