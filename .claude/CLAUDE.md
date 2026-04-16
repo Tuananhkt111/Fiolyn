@@ -75,7 +75,7 @@ TelegramController (thin orchestrator)
   ↓
 ITelegramMessageService (External — webhook coordination)
   ├→ IRepository<TelegramUserInfo> (Generic — DB whitelist check + soft-delete filtering)
-  ├→ IStockTransactionService (External — parses "stock …" messages, saves transactions)
+  ├→ IStockTransactionService (Internal — parses "stock …" messages, saves transactions)
   │    └→ IRepository<BrokerAccount> (Generic — broker lookup by name)
   └→ INotionService (External — Notion API integration)
   ↓
@@ -97,11 +97,13 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 **Service Layer**
 - **External Services**: Call external systems (Telegram, Notion APIs)
 - All services use **interface injection** for testability and decoupling
-- Services throw on errors; controllers handle gracefully and always return 200
+- Services throw on errors; `GlobalExceptionHandler` maps exceptions to RFC 7807 ProblemDetails responses
+- **REST controllers** return proper HTTP status codes (201, 200, 204, 404) — only `TelegramController` always returns 200
 
 **Generic Repository Pattern**
 - `IRepository<T>` provides CRUD operations for any entity
 - `QueryActive()` automatically filters soft-deleted entities
+- `GetActiveByIdAsync(id)` returns null for soft-deleted entities (use for public-facing lookups)
 - Registered globally via `RepositoriesServiceRegister`
 - Eliminates need for entity-specific data access layers
 
@@ -114,6 +116,7 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 ### Files & Responsibilities
 
 - `Program.cs` — top-level wiring (DI, middleware, migrations). No logic.
+- `Infrastructure/GlobalExceptionHandler.cs` — maps exceptions to ProblemDetails (e.g., `KeyNotFoundException` → 404). Never leaks exception messages to clients.
 
 **Services/External/Telegram/**
 - `ITelegramMessageService.cs` — interface defining webhook processing contract
@@ -121,18 +124,20 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 
 **Services/Internal/**
 - `IStockTransactionService.cs` — interface for stock transaction management + Telegram parsing
-- `StockTransactionService.cs` — implementation; parses Telegram messages (`stock buy/sell/div`), looks up broker by name, persists transactions
+- `StockTransactionService.cs` — implementation; parses Telegram messages (`stock buy/sell/div`), looks up broker by name (case-insensitive), persists transactions
 - `IBrokerAccountService.cs` — interface for broker account CRUD
 - `BrokerAccountService.cs` — implementation
 
 **Services/External/Notion/**
 - `INotionService.cs` — interface for Notion API operations
-- `NotionService.cs` — implementation; HTTP client integration with automatic header management
+- `NotionService.cs` — implementation; HTTP client integration (auth headers configured in `NotionServiceRegister`, not per-request)
 
 **Controllers/**
 - `TelegramController.cs` — HTTP orchestrator for webhook (always returns 200)
-- `StockTransactionController.cs` — REST CRUD at `/api/stock-transactions`
-- `BrokerAccountController.cs` — REST CRUD at `/api/broker-accounts`
+- `StockTransactionController.cs` — REST CRUD at `/api/stock-transactions` (proper HTTP status codes, response DTOs)
+- `BrokerAccountController.cs` — REST CRUD at `/api/broker-accounts` (proper HTTP status codes, response DTOs)
+- `Controllers/DTOs/Requests/` — request records (`BrokerAccountRequest`, `StockTransactionRequest`)
+- `Controllers/DTOs/Responses/` — response records (`BrokerAccountResponse`, `StockTransactionResponse`)
 
 **Data Access Layer**
 - `Data/AppDbContext.cs` — EF Core DbContext; overrides SaveChangesAsync() to autopopulate audit fields
@@ -142,7 +147,7 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 
 **Entity Model**
 - `Entities/TelegramUserInfo.cs` — implements `IAuditable` and `ISoftDelete`
-- `Entities/StockTransaction.cs` — implements `IAuditable` and `ISoftDelete`; references `BrokerAccount` via FK
+- `Entities/StockTransaction.cs` — implements `IAuditable` and `ISoftDelete`; references `BrokerAccount` via FK; `Symbol` setter auto-normalizes to uppercase via `NormalizeSymbol()`
 - `Entities/BrokerAccount.cs` — implements `IAuditable` and `ISoftDelete`; name-keyed broker/account
 - `Entities/Base/IAuditable.cs` — provides `Created` and `LastModified` timestamp properties
 - `Entities/Base/ISoftDelete.cs` — provides `IsDeleted` boolean property
@@ -161,12 +166,14 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 - `var` when type is obvious. `async`/`await` for all I/O — never `.Result`/`.Wait()`.
 - **Primary constructors (C# 12) required** — reduces boilerplate. `public class Foo( ILogger logger ) { }`.
 - `record` for DTOs. One class per file, file name matches class name.
-- Throw on errors in services (don't silently fail). Controllers log and always return 200.
+- Throw on errors in services (don't silently fail). REST controllers use proper HTTP status codes; only `TelegramController` always returns 200.
 - XML doc comments on public methods/endpoints only (suppress warnings with `NoWarn` in `.csproj`).
 - Synchronous methods for non-I/O operations (e.g., `Attach()`, `Update()`, `Delete()` in repository are sync)
 
 **Namespaces:**
 - Controllers: `Fiolyn.Controllers`
+- Request/Response DTOs: `Fiolyn.Controllers.DTOs.Requests.*` / `Fiolyn.Controllers.DTOs.Responses.*`
+- Infrastructure: `Fiolyn.Infrastructure` (global exception handler)
 - External services: `Fiolyn.Services.External` (Telegram, Notion API integrations)
 - Internal services: `Fiolyn.Services.Internal` (business logic — stock transactions, broker accounts)
 - Data repositories: `Fiolyn.Data.Repositories`
@@ -232,7 +239,8 @@ The generic `IRepository<T>` provides:
 **Query Methods:**
 - `Query()` — all entities (including soft-deleted)
 - `QueryActive()` — only non-deleted entities (filters automatically if entity implements `ISoftDelete`)
-- `GetByIdAsync(id)` — fetch by primary key
+- `GetByIdAsync(id)` — fetch by primary key (includes soft-deleted)
+- `GetActiveByIdAsync(id)` — fetch by primary key, returns null if soft-deleted (use for public-facing lookups)
 
 **Modification Methods:**
 - `AddAsync(entity)` / `InsertRangeAsync(entities)` — add new entities
@@ -290,17 +298,15 @@ public class MyServiceRegister : IServiceRegister
 ```
 
 **Known registrars** (in order):
-- `WebApiServiceRegister` (Order 0) — Controllers, Swagger, CORS, HTTP client factory
+- `WebApiServiceRegister` (Order 0) — Controllers, Swagger, CORS, HTTP client factory, ProblemDetails + GlobalExceptionHandler, camelCase JSON
 - `DatabaseServiceRegister` (Order 0) — DbContext and factory
 - `RepositoriesServiceRegister` (Order 1) — Generic repository pattern
-- `NotionServiceRegister` (Order 1) — Notion API configuration + named HTTP client
-- `ScopedServicesRegister` (Order 1) — Business logic services
-- `StockTransactionServiceRegister` (Order 1) — `IStockTransactionService`
-- `BrokerAccountServiceRegister` (Order 1) — `IBrokerAccountService`
+- `NotionServiceRegister` (Order 1) — Notion API configuration + named HTTP client (including Authorization header)
+- `ScopedBusinessServicesRegister` (Order 1) — All scoped business services (Telegram, StockTransaction, BrokerAccount)
 
 **Adding a new service:**
 1. Create interface + implementation in `Services/External/` or `Services/Internal/`
-2. Create new `IServiceRegister` in `ServiceRegisters/`
+2. Register in `ScopedBusinessServicesRegister` (for scoped business services) or create a new `IServiceRegister` if it needs custom configuration
 3. No need to update `Program.cs` — auto-discovered
 
 ---
@@ -319,9 +325,9 @@ Fiolyn.Tests/
 │   └── MockHttpMessageHandler.cs               # captures HTTP request + body for assertions
 ├── Unit/
 │   ├── Services/
-│   │   ├── TelegramMessageServiceTests.cs      # 8 tests — webhook processing scenarios
+│   │   ├── TelegramMessageServiceTests.cs      # 10 tests — webhook processing scenarios
 │   │   ├── NotionServiceTests.cs               # 4 tests — HTTP payload, auth header, error handling
-│   │   └── StockTransactionServiceTests.cs     # 10 tests — parse, broker lookup, CRUD
+│   │   └── StockTransactionServiceTests.cs     # 9 tests — parse, broker lookup (case-insensitive), CRUD
 │   └── Controllers/
 │       └── TelegramControllerTests.cs          # 4 tests — always returns 200
 └── Integration/
@@ -330,7 +336,7 @@ Fiolyn.Tests/
     │   ├── TestDbContext.cs                    # extends AppDbContext, adds DbSet<TestEntity>
     │   └── TestDbContextFactory.cs            # creates isolated in-memory DB per test
     └── Data/
-        ├── RepositoryTests.cs                  # 6 tests — soft delete, restore, query filtering
+        ├── RepositoryTests.cs                  # 9 tests — soft delete, restore, query filtering, GetActiveByIdAsync
         └── AppDbContextTests.cs                # 2 tests — audit timestamp auto-population
 ```
 
@@ -363,17 +369,24 @@ Fiolyn.Tests/
 
 ## Key Rules
 
-- **Always return 200 from Telegram webhook** — Telegram retries non-2xx responses. Controller returns 200 even on errors
-- **Services throw on failure** — don't silently fail. Let controller handle and log
+- **Always return 200 from Telegram webhook** — Telegram retries non-2xx responses. Only `TelegramController` returns 200 on errors
+- **REST controllers use proper HTTP status codes** — 201 Created, 200 OK, 204 NoContent, 404 NotFound. `GlobalExceptionHandler` catches unhandled exceptions and returns ProblemDetails
+- **Services throw on failure** — don't silently fail. `GlobalExceptionHandler` maps exceptions to HTTP responses (e.g., `KeyNotFoundException` → 404)
+- **Never leak exception messages to clients** — `GlobalExceptionHandler` logs the full exception but returns only the generic title in the ProblemDetails `Detail` field
 - **Use primary constructors** — `public class Foo( ILogger logger )`
 - **Use interface injection** — all services accept interfaces, not concrete implementations
 - **Use generic repository** — never create entity-specific data access services (e.g., no `AllowedUsersRepository`)
 - **Implement IAuditable on audit-trail entities** — timestamps are auto-managed
 - **Implement ISoftDelete for logical deletion** — use `repository.QueryActive()` to exclude deleted records
 - **Call `mcp__ide__getDiagnostics` after code changes** — before committing
-- **Run `dotnet test` after code changes** — ensure all 40 tests still pass
+- **Run `dotnet test` after code changes** — ensure all 44 tests still pass
 - **DbSet property names are singular** — match the entity class name exactly (e.g. `StockTransaction`, `BrokerAccount`, not plurals)
-- **`ParseMessageAsync` is async** — `IStockTransactionService.ParseMessageAsync` requires DB access to resolve `BrokerAccount` by name; returns null if broker not found
+- **`ParseMessageAsync` is async** — `IStockTransactionService.ParseMessageAsync` requires DB access to resolve `BrokerAccount` by name (case-insensitive); returns null if broker not found
+- **Use `GetActiveByIdAsync` for public lookups** — returns null for soft-deleted entities. Use `GetByIdAsync` only when you need to access deleted entities (rare)
+- **`StockTransaction.Symbol` auto-normalizes** — the setter calls `NormalizeSymbol()` (uppercase). No need to manually call `ToUpperInvariant()` on assignment
+- **Use response DTOs in REST controllers** — never return raw entities. Use `record` types in `Controllers/DTOs/Responses/`
+- **Use request DTOs for input validation** — `record` types in `Controllers/DTOs/Requests/` with `[Required]`/`[MaxLength]` annotations
+- **camelCase JSON responses** — configured globally via `CamelCasePropertyNamesContractResolver` in `WebApiServiceRegister`
 - **Never use `EnsureCreated()`** — bypasses migrations, corrupts schema history
 - **Never edit migration files** — regenerate instead with `dotnet ef migrations add`
 - **Never delete applied migrations** — create a new down migration if needed
