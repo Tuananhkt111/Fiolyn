@@ -14,6 +14,7 @@ public record StockTransactionResponse(
   decimal TotalAmount,
   DateTime TransactionDate,
   long BrokerAccountId,
+  string BrokerAccountName,
   string Notes,
   DateTime Created,
   DateTime LastModified )
@@ -22,7 +23,7 @@ public record StockTransactionResponse(
     : this(
       t.Id, t.Symbol, t.TransactionType, t.Quantity, t.Price,
       t.TotalAmount, t.TransactionDate, t.BrokerAccountId,
-      t.Notes, t.Created, t.LastModified )
+      t.BrokerAccount.Name, t.Notes, t.Created, t.LastModified )
   {
   }
 }

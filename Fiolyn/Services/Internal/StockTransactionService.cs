@@ -61,7 +61,7 @@ public partial class StockTransactionService(
       query = query.Where( t => t.Symbol == normalizedSymbol ) ;
     }
 
-    return await query.OrderByDescending( t => t.TransactionDate ).ToListAsync() ;
+    return await query.Include( t => t.BrokerAccount ).OrderByDescending( t => t.TransactionDate ).ToListAsync() ;
   }
 
   /// <inheritdoc />
@@ -70,7 +70,9 @@ public partial class StockTransactionService(
 
   /// <inheritdoc />
   public async Task<StockTransaction?> GetByIdAsync( long id )
-    => await stockTransactionRepository.GetActiveByIdAsync( id ) ;
+    => await stockTransactionRepository.QueryActive()
+      .Include( t => t.BrokerAccount )
+      .FirstOrDefaultAsync( t => t.Id == id ) ;
 
   /// <inheritdoc />
   public async Task UpdateAsync( StockTransaction transaction )
