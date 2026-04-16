@@ -1,5 +1,5 @@
 using Fiolyn.Controllers.DTOs.Requests.StockTransaction ;
-using Fiolyn.Controllers.DTOs.Responses ;
+using Fiolyn.Controllers.DTOs.Responses.StockTransaction ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal ;
 using Microsoft.AspNetCore.Mvc ;
@@ -12,8 +12,7 @@ namespace Fiolyn.Controllers ;
 [ApiController]
 [Route( "api/stock-transactions" )]
 public class StockTransactionController(
-  IStockTransactionService stockTransactionService,
-  ILogger<StockTransactionController> logger ) : ControllerBase
+  IStockTransactionService stockTransactionService ) : ControllerBase
 {
   /// <summary>
   ///   Creates a new stock transaction.
@@ -21,28 +20,23 @@ public class StockTransactionController(
   [HttpPost]
   public async Task<IActionResult> CreateAsync( [FromBody] StockTransactionRequest request )
   {
-    try
+    var transaction = new StockTransaction
     {
-      var transaction = new StockTransaction
-      {
-        Symbol = request.Symbol.ToUpperInvariant(),
-        TransactionType = request.TransactionType,
-        Quantity = request.Quantity,
-        Price = request.Price,
-        TotalAmount = request.TotalAmount,
-        TransactionDate = request.TransactionDate,
-        BrokerAccountId = request.BrokerAccountId,
-        Notes = request.Notes
-      } ;
+      Symbol = request.Symbol.ToUpperInvariant(),
+      TransactionType = request.TransactionType,
+      Quantity = request.Quantity,
+      Price = request.Price,
+      TotalAmount = request.TotalAmount,
+      TransactionDate = request.TransactionDate,
+      BrokerAccountId = request.BrokerAccountId,
+      Notes = request.Notes
+    } ;
 
-      var created = await stockTransactionService.CreateAsync( transaction ) ;
-      return Ok( new ApiResponse<StockTransaction>( true, created ) ) ;
-    }
-    catch ( Exception ex )
+    var created = await stockTransactionService.CreateAsync( transaction ) ;
+    return CreatedAtRoute( "GetStockTransactionById", new
     {
-      logger.LogError( ex, "Failed to create stock transaction" ) ;
-      return Ok( new ApiResponse<StockTransaction>( false, Error: ex.Message ) ) ;
-    }
+      id = created.Id
+    }, new StockTransactionResponse( created ) ) ;
   }
 
   /// <summary>
@@ -51,39 +45,33 @@ public class StockTransactionController(
   [HttpGet]
   public async Task<IActionResult> GetAllAsync( [FromQuery] string? symbol = null )
   {
-    try
-    {
-      var list = await stockTransactionService.GetAllAsync( symbol ) ;
-      return Ok( new ApiResponse<List<StockTransaction>>( true, list ) ) ;
-    }
-    catch ( Exception ex )
-    {
-      logger.LogError( ex, "Failed to list stock transactions" ) ;
-      return Ok( new ApiResponse<List<StockTransaction>>( false, Error: ex.Message ) ) ;
-    }
+    var list = await stockTransactionService.GetAllAsync( symbol ) ;
+    return Ok( list.Select( t => new StockTransactionResponse( t ) ).ToList() ) ;
   }
 
   /// <summary>
   ///   Gets a stock transaction by ID.
   /// </summary>
-  [HttpGet( "{id:long}" )]
+  [HttpGet( "{id:long}", Name = "GetStockTransactionById" )]
   public async Task<IActionResult> GetByIdAsync( long id )
   {
-    try
+    var transaction = await stockTransactionService.GetByIdAsync( id ) ;
+    if ( transaction is null )
     {
-      var transaction = await stockTransactionService.GetByIdAsync( id ) ;
-      if ( transaction is null )
-      {
-        return Ok( new ApiResponse<StockTransaction>( false, Error: "Not found" ) ) ;
-      }
+      return NotFound() ;
+    }
 
-      return Ok( new ApiResponse<StockTransaction>( true, transaction ) ) ;
-    }
-    catch ( Exception ex )
-    {
-      logger.LogError( ex, "Failed to get stock transaction {Id}", id ) ;
-      return Ok( new ApiResponse<StockTransaction>( false, Error: ex.Message ) ) ;
-    }
+    return Ok( new StockTransactionResponse( transaction ) ) ;
+  }
+
+  /// <summary>
+  ///   Checks whether an active stock transaction exists.
+  /// </summary>
+  [HttpHead( "{id:long}" )]
+  public async Task<IActionResult> ExistsAsync( long id )
+  {
+    var exists = await stockTransactionService.ExistsAsync( id ) ;
+    return exists ? Ok() : NotFound() ;
   }
 
   /// <summary>
@@ -92,31 +80,23 @@ public class StockTransactionController(
   [HttpPut( "{id:long}" )]
   public async Task<IActionResult> UpdateAsync( long id, [FromBody] StockTransactionRequest request )
   {
-    try
+    var existing = await stockTransactionService.GetByIdAsync( id ) ;
+    if ( existing is null )
     {
-      var existing = await stockTransactionService.GetByIdAsync( id ) ;
-      if ( existing is null )
-      {
-        return Ok( new ApiResponse<StockTransaction>( false, Error: "Not found" ) ) ;
-      }
-
-      existing.Symbol = request.Symbol.ToUpperInvariant() ;
-      existing.TransactionType = request.TransactionType ;
-      existing.Quantity = request.Quantity ;
-      existing.Price = request.Price ;
-      existing.TotalAmount = request.TotalAmount ;
-      existing.TransactionDate = request.TransactionDate ;
-      existing.BrokerAccountId = request.BrokerAccountId ;
-      existing.Notes = request.Notes ;
-
-      await stockTransactionService.UpdateAsync( existing ) ;
-      return Ok( new ApiResponse<StockTransaction>( true, existing ) ) ;
+      return NotFound() ;
     }
-    catch ( Exception ex )
-    {
-      logger.LogError( ex, "Failed to update stock transaction {Id}", id ) ;
-      return Ok( new ApiResponse<StockTransaction>( false, Error: ex.Message ) ) ;
-    }
+
+    existing.Symbol = request.Symbol.ToUpperInvariant() ;
+    existing.TransactionType = request.TransactionType ;
+    existing.Quantity = request.Quantity ;
+    existing.Price = request.Price ;
+    existing.TotalAmount = request.TotalAmount ;
+    existing.TransactionDate = request.TransactionDate ;
+    existing.BrokerAccountId = request.BrokerAccountId ;
+    existing.Notes = request.Notes ;
+
+    await stockTransactionService.UpdateAsync( existing ) ;
+    return Ok( new StockTransactionResponse( existing ) ) ;
   }
 
   /// <summary>
@@ -125,19 +105,7 @@ public class StockTransactionController(
   [HttpDelete( "{id:long}" )]
   public async Task<IActionResult> DeleteAsync( long id )
   {
-    try
-    {
-      await stockTransactionService.SoftDeleteAsync( id ) ;
-      return Ok( new ApiResponse<object>( true ) ) ;
-    }
-    catch ( KeyNotFoundException )
-    {
-      return Ok( new ApiResponse<object>( false, Error: "Not found" ) ) ;
-    }
-    catch ( Exception ex )
-    {
-      logger.LogError( ex, "Failed to delete stock transaction {Id}", id ) ;
-      return Ok( new ApiResponse<object>( false, Error: ex.Message ) ) ;
-    }
+    await stockTransactionService.SoftDeleteAsync( id ) ;
+    return NoContent() ;
   }
 }

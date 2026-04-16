@@ -64,6 +64,10 @@ public partial class StockTransactionService(
   }
 
   /// <inheritdoc />
+  public async Task<bool> ExistsAsync( long id )
+    => await stockTransactionRepository.QueryActive().AnyAsync( t => t.Id == id ) ;
+
+  /// <inheritdoc />
   public async Task<StockTransaction?> GetByIdAsync( long id )
   {
     var transaction = await stockTransactionRepository.GetByIdAsync( id ) ;

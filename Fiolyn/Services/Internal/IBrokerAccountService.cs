@@ -28,6 +28,13 @@ public interface IBrokerAccountService
   Task<BrokerAccount?> GetByIdAsync( long id ) ;
 
   /// <summary>
+  ///   Checks whether an active broker account exists for the given ID.
+  /// </summary>
+  /// <param name="id">The broker account primary key.</param>
+  /// <returns>True if an active broker account exists; otherwise false.</returns>
+  Task<bool> ExistsAsync( long id ) ;
+
+  /// <summary>
   ///   Updates an existing broker account.
   /// </summary>
   /// <param name="brokerAccount">The broker account with updated values.</param>

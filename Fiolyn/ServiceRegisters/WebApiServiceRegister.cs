@@ -1,7 +1,9 @@
 using System.Reflection ;
+using Fiolyn.Infrastructure ;
 using Fiolyn.ServiceRegisters.Base ;
 using Microsoft.OpenApi.Models ;
 using Newtonsoft.Json ;
+using Newtonsoft.Json.Serialization ;
 
 namespace Fiolyn.ServiceRegisters ;
 
@@ -18,8 +20,13 @@ public class WebApiServiceRegister : IServiceRegister
     // Controllers
     services.AddControllers().AddNewtonsoftJson( options =>
     {
+      options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver() ;
       options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore ;
     } ) ;
+
+    // Problem Details + Global Exception Handler
+    services.AddProblemDetails() ;
+    services.AddExceptionHandler<GlobalExceptionHandler>() ;
 
     // HTTP Client Factory
     services.AddHttpClient() ;

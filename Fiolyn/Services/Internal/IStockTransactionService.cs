@@ -37,6 +37,13 @@ public interface IStockTransactionService
   Task<StockTransaction?> GetByIdAsync( long id ) ;
 
   /// <summary>
+  ///   Checks whether an active stock transaction exists for the given ID.
+  /// </summary>
+  /// <param name="id">The transaction primary key.</param>
+  /// <returns>True if an active transaction exists; otherwise false.</returns>
+  Task<bool> ExistsAsync( long id ) ;
+
+  /// <summary>
   ///   Updates an existing transaction.
   /// </summary>
   /// <param name="transaction">The transaction with updated values.</param>
