@@ -19,7 +19,7 @@ public class BrokerAccount : IAuditable, ISoftDelete
   /// </summary>
   [Required]
   [MaxLength( 100 )]
-  public string Name { get ; set ; } = "" ;
+  public string Name { get ; set ; } = string.Empty ;
 
   /// <summary>
   ///   Gets or sets the UTC timestamp when this record was created.

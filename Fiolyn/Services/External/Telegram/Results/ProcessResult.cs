@@ -3,24 +3,8 @@ namespace Fiolyn.Services.External.Telegram.Results ;
 /// <summary>
 ///   Result of processing a Telegram webhook message.
 /// </summary>
-public class ProcessResult
+public record ProcessResult( bool IsSuccess, string Message )
 {
-  private ProcessResult( bool success, string message )
-  {
-    IsSuccess = success ;
-    Message = message ;
-  }
-
-  /// <summary>
-  ///   Gets whether the message was successfully processed.
-  /// </summary>
-  public bool IsSuccess { get ; private set ; }
-
-  /// <summary>
-  ///   Gets the result message describing the outcome.
-  /// </summary>
-  public string Message { get ; private set ; }
-
   /// <summary>
   ///   Creates a successful result.
   /// </summary>

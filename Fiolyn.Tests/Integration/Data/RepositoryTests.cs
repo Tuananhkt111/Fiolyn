@@ -126,4 +126,49 @@ public class RepositoryTests : IDisposable
     result.Should().NotBeNull() ;
     result!.Id.Should().Be( 50L ) ;
   }
+
+  [Fact]
+  public async Task GetActiveByIdAsync_ReturnsActiveEntity()
+  {
+    var repo = CreateRepository() ;
+    await repo.AddAsync( new TestEntity
+    {
+      Id = 60L
+    } ) ;
+    await repo.SaveAsync() ;
+
+    var result = await repo.GetActiveByIdAsync( 60L ) ;
+
+    result.Should().NotBeNull() ;
+    result!.Id.Should().Be( 60L ) ;
+  }
+
+  [Fact]
+  public async Task GetActiveByIdAsync_ReturnsNullForSoftDeletedEntity()
+  {
+    var repo = CreateRepository() ;
+    var entity = new TestEntity
+    {
+      Id = 70L
+    } ;
+    await repo.AddAsync( entity ) ;
+    await repo.SaveAsync() ;
+
+    repo.SoftDelete( entity ) ;
+    await repo.SaveAsync() ;
+
+    var result = await repo.GetActiveByIdAsync( 70L ) ;
+
+    result.Should().BeNull() ;
+  }
+
+  [Fact]
+  public async Task GetActiveByIdAsync_ReturnsNullForNonExistentEntity()
+  {
+    var repo = CreateRepository() ;
+
+    var result = await repo.GetActiveByIdAsync( 999L ) ;
+
+    result.Should().BeNull() ;
+  }
 }

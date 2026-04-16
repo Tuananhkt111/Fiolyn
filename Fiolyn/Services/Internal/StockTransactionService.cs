@@ -57,7 +57,8 @@ public partial class StockTransactionService(
 
     if ( ! string.IsNullOrWhiteSpace( symbol ) )
     {
-      query = query.Where( t => t.Symbol == symbol.ToUpperInvariant() ) ;
+      var normalizedSymbol = StockTransaction.NormalizeSymbol( symbol ) ;
+      query = query.Where( t => t.Symbol == normalizedSymbol ) ;
     }
 
     return await query.OrderByDescending( t => t.TransactionDate ).ToListAsync() ;
@@ -69,15 +70,7 @@ public partial class StockTransactionService(
 
   /// <inheritdoc />
   public async Task<StockTransaction?> GetByIdAsync( long id )
-  {
-    var transaction = await stockTransactionRepository.GetByIdAsync( id ) ;
-    if ( transaction is { IsDeleted: true } )
-    {
-      return null ;
-    }
-
-    return transaction ;
-  }
+    => await stockTransactionRepository.GetActiveByIdAsync( id ) ;
 
   /// <inheritdoc />
   public async Task UpdateAsync( StockTransaction transaction )
@@ -122,7 +115,7 @@ public partial class StockTransactionService(
 
     return new StockTransaction
     {
-      Symbol = parts[ 2 ].ToUpperInvariant(),
+      Symbol = parts[ 2 ],
       TransactionType = typeStr == "buy" ? TransactionType.Buy : TransactionType.Sell,
       Quantity = qty,
       Price = price,
@@ -155,7 +148,7 @@ public partial class StockTransactionService(
 
     return new StockTransaction
     {
-      Symbol = parts[ 2 ].ToUpperInvariant(),
+      Symbol = parts[ 2 ],
       TransactionType = TransactionType.Dividend,
       Quantity = 0,
       Price = 0,
@@ -169,7 +162,7 @@ public partial class StockTransactionService(
   private async Task<long?> ResolveBrokerAsync( string brokerName )
   {
     var broker = await brokerRepository.QueryActive()
-      .FirstOrDefaultAsync( b => b.Name == brokerName ) ;
+      .FirstOrDefaultAsync( b => b.Name.ToLower() == brokerName.ToLower() ) ;
     return broker?.Id ;
   }
 

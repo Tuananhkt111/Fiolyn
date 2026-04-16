@@ -22,7 +22,7 @@ public class GlobalExceptionHandler( ILogger<GlobalExceptionHandler> logger ) : 
 
     if ( statusCode == StatusCodes.Status500InternalServerError )
     {
-      logger.LogError( exception, "Unhandled exception" ) ;
+      logger.LogError( exception, "Unhandled exception: {Message}", exception.Message ) ;
     }
 
     httpContext.Response.StatusCode = statusCode ;
@@ -31,7 +31,7 @@ public class GlobalExceptionHandler( ILogger<GlobalExceptionHandler> logger ) : 
     {
       Status = statusCode,
       Title = title,
-      Detail = exception.Message
+      Detail = title
     }, cancellationToken ) ;
 
     return true ;

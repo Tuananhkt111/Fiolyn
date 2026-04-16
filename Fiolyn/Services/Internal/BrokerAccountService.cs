@@ -25,15 +25,7 @@ public class BrokerAccountService( IRepository<BrokerAccount> repository ) : IBr
 
   /// <inheritdoc />
   public async Task<BrokerAccount?> GetByIdAsync( long id )
-  {
-    var brokerAccount = await repository.GetByIdAsync( id ) ;
-    if ( brokerAccount is { IsDeleted: true } )
-    {
-      return null ;
-    }
-
-    return brokerAccount ;
-  }
+    => await repository.GetActiveByIdAsync( id ) ;
 
   /// <inheritdoc />
   public async Task UpdateAsync( BrokerAccount brokerAccount )

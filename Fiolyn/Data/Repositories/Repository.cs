@@ -35,6 +35,16 @@ public class Repository<T>( AppDbContext dbContext ) : IRepository<T> where T : 
   public async Task<T?> GetByIdAsync( object id ) => await dbContext.Set<T>().FindAsync( id ) ;
 
   /// <summary>
+  ///   Gets a non-deleted entity by its primary key.
+  ///   Returns null if the entity is not found or has been soft-deleted.
+  /// </summary>
+  public async Task<T?> GetActiveByIdAsync( object id )
+  {
+    var entity = await GetByIdAsync( id ) ;
+    return entity is ISoftDelete { IsDeleted: true } ? null : entity ;
+  }
+
+  /// <summary>
   ///   Adds a new entity to the database.
   /// </summary>
   public async Task AddAsync( T entity ) => await dbContext.Set<T>().AddAsync( entity ) ;

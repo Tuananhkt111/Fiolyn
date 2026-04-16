@@ -22,7 +22,7 @@ public class StockTransactionController(
   {
     var transaction = new StockTransaction
     {
-      Symbol = request.Symbol.ToUpperInvariant(),
+      Symbol = request.Symbol,
       TransactionType = request.TransactionType,
       Quantity = request.Quantity,
       Price = request.Price,
@@ -86,7 +86,7 @@ public class StockTransactionController(
       return NotFound() ;
     }
 
-    existing.Symbol = request.Symbol.ToUpperInvariant() ;
+    existing.Symbol = request.Symbol ;
     existing.TransactionType = request.TransactionType ;
     existing.Quantity = request.Quantity ;
     existing.Price = request.Price ;

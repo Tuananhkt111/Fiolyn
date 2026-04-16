@@ -111,6 +111,18 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  public async Task ParseMessageAsync_BrokerLookup_IsCaseInsensitive()
+  {
+    SetupBroker( "VPS", 1L ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 broker:vps" ) ;
+
+    result.Should().NotBeNull() ;
+    result!.BrokerAccountId.Should().Be( 1L ) ;
+  }
+
+  [Fact]
   public async Task ParseMessageAsync_BrokerNotFound_ReturnsNull()
   {
     SetupNoBrokers() ;
