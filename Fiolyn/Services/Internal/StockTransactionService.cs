@@ -82,7 +82,7 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id )
   {
-    var transaction = await stockTransactionRepository.GetByIdAsync( id )
+    var transaction = await stockTransactionRepository.GetActiveByIdAsync( id )
                       ?? throw new KeyNotFoundException( $"StockTransaction {id} not found" ) ;
     stockTransactionRepository.SoftDelete( transaction ) ;
     await stockTransactionRepository.SaveAsync() ;
@@ -106,12 +106,13 @@ public partial class StockTransactionService(
       return null ;
     }
 
-    var named = ExtractNamedParams( text ) ;
-    var brokerAccountId = await ResolveBrokerAsync( named.GetValueOrDefault( "broker", "" ) ) ;
-    if ( brokerAccountId is null )
+    var resolved = await ExtractParamsAndResolveBrokerAsync( text ) ;
+    if ( resolved is null )
     {
       return null ;
     }
+
+    var (named, brokerAccountId) = resolved.Value ;
 
     return new StockTransaction
     {
@@ -121,7 +122,7 @@ public partial class StockTransactionService(
       Price = price,
       TotalAmount = total,
       TransactionDate = DateTimeUtils.ParseDateOrUtcNow( named.GetValueOrDefault( "date" ) ),
-      BrokerAccountId = brokerAccountId.Value,
+      BrokerAccountId = brokerAccountId,
       Notes = named.GetValueOrDefault( "notes", "" )
     } ;
   }
@@ -139,12 +140,13 @@ public partial class StockTransactionService(
       return null ;
     }
 
-    var named = ExtractNamedParams( text ) ;
-    var brokerAccountId = await ResolveBrokerAsync( named.GetValueOrDefault( "broker", "" ) ) ;
-    if ( brokerAccountId is null )
+    var resolved = await ExtractParamsAndResolveBrokerAsync( text ) ;
+    if ( resolved is null )
     {
       return null ;
     }
+
+    var (named, brokerAccountId) = resolved.Value ;
 
     return new StockTransaction
     {
@@ -154,9 +156,16 @@ public partial class StockTransactionService(
       Price = 0,
       TotalAmount = total,
       TransactionDate = DateTimeUtils.ParseDateOrUtcNow( named.GetValueOrDefault( "date" ) ),
-      BrokerAccountId = brokerAccountId.Value,
+      BrokerAccountId = brokerAccountId,
       Notes = named.GetValueOrDefault( "notes", "" )
     } ;
+  }
+
+  private async Task<(Dictionary<string, string> Named, long BrokerAccountId)?> ExtractParamsAndResolveBrokerAsync( string text )
+  {
+    var named = ExtractNamedParams( text ) ;
+    var brokerAccountId = await ResolveBrokerAsync( named.GetValueOrDefault( "broker", "" ) ) ;
+    return brokerAccountId is null ? null : (named, brokerAccountId.Value) ;
   }
 
   private async Task<long?> ResolveBrokerAsync( string brokerName )

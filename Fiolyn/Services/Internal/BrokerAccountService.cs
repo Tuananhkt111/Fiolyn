@@ -37,7 +37,7 @@ public class BrokerAccountService( IRepository<BrokerAccount> repository ) : IBr
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id )
   {
-    var brokerAccount = await repository.GetByIdAsync( id )
+    var brokerAccount = await repository.GetActiveByIdAsync( id )
                         ?? throw new KeyNotFoundException( $"BrokerAccount {id} not found" ) ;
     repository.SoftDelete( brokerAccount ) ;
     await repository.SaveAsync() ;

@@ -39,8 +39,6 @@ public class NotionService( IOptions<NotionSettings> notionSettings, HttpClient 
       }
     } ;
 
-    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue( "Bearer", _notionSettings.NotionApiKey ) ;
-
     var json = JsonSerializer.Serialize( payload ) ;
     using var content = new StringContent( json, Encoding.UTF8, "application/json" ) ;
     var response = await httpClient.PostAsync( "pages", content ) ;
