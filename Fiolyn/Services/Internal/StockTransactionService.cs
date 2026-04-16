@@ -91,7 +91,7 @@ public partial class StockTransactionService(
     await stockTransactionRepository.SaveAsync() ;
   }
 
-  [GeneratedRegex( @"\[(\w+):([^\]]*)\]" )]
+  [GeneratedRegex( @"(\w+):(.+?)(?=\s+\w+:|\s*$)" )]
   private static partial Regex NamedParamRegex() ;
 
   private async Task<StockTransaction?> ParseBuySellAsync( string text, string[] parts, string typeStr )

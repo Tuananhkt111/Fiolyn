@@ -43,7 +43,7 @@ public class StockTransactionServiceTests
     SetupBroker( "VPS", 1L ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 [broker:VPS] [date:2026-04-14] [notes:bought at support]" ) ;
+    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 broker:VPS date:2026-04-14 notes:bought at support" ) ;
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;
@@ -62,7 +62,7 @@ public class StockTransactionServiceTests
     SetupBroker( "Fidelity", 2L ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.ParseMessageAsync( "stock sell AAPL 10 150.5 1500 [broker:Fidelity] [notes:profit taking]" ) ;
+    var result = await sut.ParseMessageAsync( "stock sell AAPL 10 150.5 1500 broker:Fidelity notes:profit taking" ) ;
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "AAPL" ) ;
@@ -80,7 +80,7 @@ public class StockTransactionServiceTests
     SetupBroker( "VPS", 1L ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.ParseMessageAsync( "stock div VNM 500000 [broker:VPS] [date:2026-04-14] [notes:Q2 dividend]" ) ;
+    var result = await sut.ParseMessageAsync( "stock div VNM 500000 broker:VPS date:2026-04-14 notes:Q2 dividend" ) ;
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;
@@ -116,7 +116,7 @@ public class StockTransactionServiceTests
     SetupNoBrokers() ;
     var sut = CreateSut() ;
 
-    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 [broker:UNKNOWN]" ) ;
+    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 broker:UNKNOWN" ) ;
 
     result.Should().BeNull() ;
   }
