@@ -124,7 +124,7 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 
 **Services/Internal/**
 - `IStockTransactionService.cs` — interface for stock transaction management + Telegram parsing
-- `StockTransactionService.cs` — implementation; parses Telegram messages (`stock buy/sell/div`), looks up broker by name (case-insensitive), persists transactions
+- `StockTransactionService.cs` — implementation; parses Telegram messages (`stock buy/sell/div`), looks up broker by name (case-insensitive), persists transactions. Uses `.Include(t => t.BrokerAccount)` in queries to eager-load the navigation property.
 - `IBrokerAccountService.cs` — interface for broker account CRUD
 - `BrokerAccountService.cs` — implementation
 
@@ -137,7 +137,7 @@ BrokerAccountController → IBrokerAccountService → IRepository<BrokerAccount>
 - `StockTransactionController.cs` — REST CRUD at `/api/stock-transactions` (proper HTTP status codes, response DTOs)
 - `BrokerAccountController.cs` — REST CRUD at `/api/broker-accounts` (proper HTTP status codes, response DTOs)
 - `Controllers/DTOs/Requests/` — request records (`BrokerAccountRequest`, `StockTransactionRequest`)
-- `Controllers/DTOs/Responses/` — response records (`BrokerAccountResponse`, `StockTransactionResponse`)
+- `Controllers/DTOs/Responses/` — response records (`BrokerAccountResponse`, `StockTransactionResponse`). `StockTransactionResponse` includes `BrokerAccountName` via eager-loaded navigation property.
 
 **Data Access Layer**
 - `Data/AppDbContext.cs` — EF Core DbContext; overrides SaveChangesAsync() to autopopulate audit fields
