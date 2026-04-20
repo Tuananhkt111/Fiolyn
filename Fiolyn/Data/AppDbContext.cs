@@ -28,8 +28,7 @@ public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext(
   private void SetDefaultValues()
   {
     var entries = ChangeTracker.Entries()
-      .Where( e => e.State is EntityState.Added or EntityState.Modified )
-      .ToList() ;
+      .Where( e => e.State is EntityState.Added or EntityState.Modified ) ;
 
     var now = DateTime.UtcNow ;
 

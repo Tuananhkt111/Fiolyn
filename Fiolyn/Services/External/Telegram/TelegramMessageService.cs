@@ -25,7 +25,6 @@ public class TelegramMessageService(
       using var doc = JsonDocument.Parse( rawJson ) ;
       var body = doc.RootElement ;
 
-      // Extract message and sender
       if ( ! body.TryGetProperty( "message", out var message )
            || ! message.TryGetProperty( "from", out var from ) )
       {
@@ -35,7 +34,6 @@ public class TelegramMessageService(
 
       var fromId = from.GetProperty( "id" ).GetInt64() ;
 
-      // Check if user is allowed
       var isAllowed = await userRepository.QueryActive()
         .AnyAsync( u => u.TelegramId == fromId ) ;
       if ( ! isAllowed )
@@ -44,7 +42,6 @@ public class TelegramMessageService(
         return ProcessResult.Skipped( "User not allowed" ) ;
       }
 
-      // Extract text
       if ( ! message.TryGetProperty( "text", out var textElement ) )
       {
         logger.LogInformation( "Message from {UserId} has no text", fromId ) ;
@@ -58,7 +55,6 @@ public class TelegramMessageService(
         return ProcessResult.Skipped( "Empty text" ) ;
       }
 
-      // Route stock messages to StockTransactionService
       if ( text.StartsWith( "stock ", StringComparison.OrdinalIgnoreCase ) )
       {
         var transaction = await stockTransactionService.ParseMessageAsync( text ) ;
@@ -74,7 +70,6 @@ public class TelegramMessageService(
         return ProcessResult.Success() ;
       }
 
-      // Save to Notion
       await notionService.AppendAsync( text ) ;
       logger.LogInformation( "Message from {UserId} saved to Notion", fromId ) ;
 

@@ -9,29 +9,21 @@ namespace Fiolyn.ServiceRegisters ;
 
 public class WebApiServiceRegister : IServiceRegister
 {
-  #region Private readonly variables
-
   private const string SwaggerTitle = "Fiolyn API" ;
-
-  #endregion
 
   public void RegisterServices( IServiceCollection services, IConfiguration configuration )
   {
-    // Controllers
     services.AddControllers().AddNewtonsoftJson( options =>
     {
       options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver() ;
       options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore ;
     } ) ;
 
-    // Problem Details + Global Exception Handler
     services.AddProblemDetails() ;
     services.AddExceptionHandler<GlobalExceptionHandler>() ;
 
-    // HTTP Client Factory
     services.AddHttpClient() ;
 
-    // Cors
     services.AddCors( options =>
     {
       options.AddDefaultPolicy( policy =>
@@ -40,10 +32,8 @@ public class WebApiServiceRegister : IServiceRegister
       } ) ;
     } ) ;
 
-    // Endpoints Api
     services.AddEndpointsApiExplorer() ;
 
-    // Swagger
     services.AddSwaggerGen( o =>
     {
       o.SwaggerDoc( "v1", new OpenApiInfo

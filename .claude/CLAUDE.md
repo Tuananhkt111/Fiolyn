@@ -204,7 +204,7 @@ AllowedEmailController → IAllowedEmailService → IRepository<AllowedEmail>
 - `UserController.cs` — class-level `[Authorize]` with admin endpoints decorated `[Authorize(Policy = AuthConstants.AdminPolicyName)]`. Reads caller ID via `User.GetUserId()`.
 - `AllowedEmailController.cs` — class-level `[Authorize(Policy = AuthConstants.AdminPolicyName)]`. Reads inviter ID via `User.TryGetUserId()`.
 - `Controllers/DTOs/Requests/` — request records grouped per resource: `Auth/{GoogleLoginRequest, RefreshTokenRequest}`, `AllowedEmail/AllowedEmailRequest`, `User/{UpdateMeRequest, UpdateRoleRequest}`, plus existing `StockTransaction` and `BrokerAccount`.
-- `Controllers/DTOs/Responses/` — response records: `Auth/AuthResponse`, `User/UserResponse`, `AllowedEmail/AllowedEmailResponse`, plus existing ones. `StockTransactionResponse` includes `BrokerAccountName` via eager-loaded navigation property.
+- `Controllers/DTOs/Responses/` — response records: `Auth/AuthResponse`, `User/UserResponse`, `AllowedEmail/AllowedEmailResponse`, plus existing ones. `StockTransactionResponse` includes `BrokerAccountName` via eager-loaded navigation property — `StockTransactionController.CreateAsync` re-fetches through `GetByIdAsync` after persisting so the navigation is populated (the freshly-added entity has only `BrokerAccountId`, not the nav reference).
 
 **Data Access Layer**
 - `Data/AppDbContext.cs` — EF Core DbContext; overrides `SaveChangesAsync()` to autopopulate audit fields. DbSets: `TelegramUserInfo`, `BrokerAccount`, `StockTransaction`, `AppUser`, `AllowedEmail`, `RefreshToken`.
@@ -389,7 +389,7 @@ public class MyServiceRegister : IServiceRegister
 - `WebApiServiceRegister` (Order 0) — Controllers, Swagger, CORS, HTTP client factory, ProblemDetails + GlobalExceptionHandler, camelCase JSON
 - `DatabaseServiceRegister` (Order 0) — DbContext and factory + `InitialAdminSeeder`. Exposes `app.InitializeDatabaseAsync()` extension that runs migrations + seeder (invoked from `Program.cs`).
 - `RepositoriesServiceRegister` (Order 1) — Generic repository pattern
-- `NotionServiceRegister` (Order 1) — Notion API configuration + named HTTP client (including Authorization header)
+- `NotionServiceRegister` (Order 1) — Notion API configuration via `AddHttpClient<INotionService, NotionService>` (typed client; `IHttpClientFactory` owns handler rotation). Authorization header is configured once at registration, not per-request
 - `AuthServiceRegister` (Order 1) — JWT bearer scheme, `Admin` authorization policy, `Jwt`/`GoogleAuth`/`InitialAdmin` settings binding, and the auth plumbing services (`IGoogleTokenVerifier`, `IJwtService`)
 - `ScopedBusinessServicesRegister` (Order 1) — All scoped business services (Telegram, StockTransaction, BrokerAccount, Auth, User, AllowedEmail)
 
@@ -495,3 +495,7 @@ Fiolyn.Tests/
 - **Refresh tokens never leave `JwtService.CreateRefreshToken()` raw twice** — the raw value is returned to the client once, and only its SHA-256 hash is persisted. Reuse detection relies on `ReplacedByTokenHash` forming a rotation chain
 - **Seeders use `IRepository<T>`** — not `AppDbContext` DbSets directly. The repository's `QueryActive()` is the one place that filters soft-deleted records
 - **Chain `.AsNoTracking()` on read-only list queries** — if a `List<T>` is being projected to DTOs and never mutated, skipping the change tracker is free performance. Already applied to all `GetAllAsync` methods. Don't apply to `GetByIdAsync` (update paths re-attach the fetched entity).
+- **Refetch with `.Include(...)` when a Create response needs a navigation property** — `AddAsync` + `SaveAsync` populates only the FK column, not the navigation reference. If the response DTO reads through a nav (e.g. `StockTransactionResponse(t)` → `t.BrokerAccount.Name`), the controller must re-read through a service method that applies `.Include(...)`. See `StockTransactionController.CreateAsync` for the pattern.
+- **Prefer `AddHttpClient<TInterface, TImplementation>(...)` for typed clients consumed through an interface** — do **not** combine `AddHttpClient<TImpl>` with a wrapping `AddSingleton<TInterface>(sp => sp.GetRequiredService<TImpl>())`: that pins a single `HttpClient` for the process lifetime, defeating `IHttpClientFactory`'s handler rotation (DNS refresh, socket recycling). The typed-client overload registers both interface and implementation correctly. See `NotionServiceRegister`.
+- **Don't duplicate interface XML docs on the implementation** — in `Repository<T>` and similar, use `/// <inheritdoc />` on every implementing member rather than copying the interface `<summary>`. Keeps the contract in one place and prevents drift.
+- **Hoist `.ToLower()` / `.ToLowerInvariant()` out of EF LINQ predicates** — compute the normalized comparand into a local before the `Where`/`FirstOrDefaultAsync`, so only the column-side call ends up in the translated expression tree. Use `ToLowerInvariant()` for the client-side side (project convention), e.g. `var lowered = brokerName.ToLowerInvariant(); … b.Name.ToLower() == lowered`. See `StockTransactionService.ResolveBrokerAsync`.

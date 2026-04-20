@@ -35,10 +35,11 @@ public class StockTransactionController(
     } ;
 
     var created = await stockTransactionService.CreateAsync( transaction ) ;
+    var withNavigation = await stockTransactionService.GetByIdAsync( created.Id ) ;
     return CreatedAtRoute( "GetStockTransactionById", new
     {
       id = created.Id
-    }, new StockTransactionResponse( created ) ) ;
+    }, new StockTransactionResponse( withNavigation! ) ) ;
   }
 
   /// <summary>

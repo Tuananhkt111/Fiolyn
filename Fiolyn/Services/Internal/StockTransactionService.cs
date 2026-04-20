@@ -172,8 +172,9 @@ public partial class StockTransactionService(
 
   private async Task<long?> ResolveBrokerAsync( string brokerName )
   {
+    var lowered = brokerName.ToLowerInvariant() ;
     var broker = await brokerRepository.QueryActive()
-      .FirstOrDefaultAsync( b => b.Name.ToLower() == brokerName.ToLower() ) ;
+      .FirstOrDefaultAsync( b => b.Name.ToLower() == lowered ) ;
     return broker?.Id ;
   }
 
