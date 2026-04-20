@@ -22,21 +22,21 @@ public class TelegramMessageServiceTests
 
   private void SetupAllowedUser( long telegramId )
   {
-    var users = new List<TelegramUserInfo>
-    {
+    List<TelegramUserInfo> users =
+    [
       new()
       {
         TelegramId = telegramId,
         IsDeleted = false
       }
-    }.BuildMock() ;
-    _userRepository.QueryActive().Returns( users ) ;
+    ] ;
+    _userRepository.QueryActive().Returns( users.BuildMock() ) ;
   }
 
   private void SetupNoAllowedUsers()
   {
-    var users = new List<TelegramUserInfo>().BuildMock() ;
-    _userRepository.QueryActive().Returns( users ) ;
+    List<TelegramUserInfo> users = [] ;
+    _userRepository.QueryActive().Returns( users.BuildMock() ) ;
   }
 
   [Fact]

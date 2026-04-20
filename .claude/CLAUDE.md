@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Fiolyn is a .NET 8 web API that:
+Fiolyn is a .NET 10 web API that:
 - Receives Telegram bot messages via webhook, checks the sender against an allowed-user whitelist (Neon PostgreSQL via EF Core), and saves the message as a new page in a Notion database.
 - Parses stock transaction commands from Telegram messages (`stock buy/sell/div`) and persists them via a full CRUD REST API.
 - Authenticates API callers (the future mobile stock-management app) via Google SSO; issues Fiolyn-signed JWT access + rotating refresh tokens gated on an admin-managed email whitelist.
 
-**Stack:** C# .NET 8 · Northflank (Docker) · GitHub Actions → GHCR · Neon PostgreSQL · Notion API · Telegram Bot API · Google Sign-In (ID token)
+**Stack:** C# 14 on .NET 10 (LTS) · Northflank (Docker) · GitHub Actions → GHCR · Neon PostgreSQL · Notion API · Telegram Bot API · Google Sign-In (ID token) · EF Core 10 · Swashbuckle 10 · xUnit 2 · NSubstitute 5 · FluentAssertions 6
 
 ---
 
@@ -235,7 +235,10 @@ AllowedEmailController → IAllowedEmailService → IRepository<AllowedEmail>
 - Opening brace `{` on its own line for types, methods, and lambdas.
 - Spaces inside all parentheses: `public class Foo( ILogger logger )`.
 - `var` when type is obvious. `async`/`await` for all I/O — never `.Result`/`.Wait()`.
-- **Primary constructors (C# 12) required** — reduces boilerplate. `public class Foo( ILogger logger ) { }`.
+- **Primary constructors required** (C# 12+, standard since .NET 8) — reduces boilerplate. `public class Foo( ILogger logger ) { }`.
+- **Use the `field` contextual keyword** (C# 14) for auto-properties that need setter logic (normalization, validation) — don't hand-roll a private backing field. Example pattern: `public string Email { get; set => field = NormalizeEmail( value ) ; } = string.Empty ;`. Already applied to `AppUser.Email`, `AllowedEmail.Email`, `StockTransaction.Symbol`.
+- **Extension members** (C# 14) — if you add read-only helpers over `ClaimsPrincipal` / `HttpContext` / etc., prefer an `extension( ClaimsPrincipal principal )` block over a static class full of `this`-parameter methods. `ClaimsPrincipalExtensions` already uses the `extension()` block — follow that pattern for new extensions.
+- **Collection expressions** (`[ ]` syntax, C# 12) for array/list literals. Don't use `new[] { ... }` or `new List<T> { ... }` in new code.
 - `record` for DTOs. One class per file, file name matches class name.
 - Throw on errors in services (don't silently fail). REST controllers use proper HTTP status codes; only `TelegramController` always returns 200.
 - XML doc comments on public methods/endpoints only (suppress warnings with `NoWarn` in `.csproj`).

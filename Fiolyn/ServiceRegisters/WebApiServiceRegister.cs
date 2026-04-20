@@ -1,7 +1,7 @@
 using System.Reflection ;
 using Fiolyn.Infrastructure ;
 using Fiolyn.ServiceRegisters.Base ;
-using Microsoft.OpenApi.Models ;
+using Microsoft.OpenApi ;
 using Newtonsoft.Json ;
 using Newtonsoft.Json.Serialization ;
 

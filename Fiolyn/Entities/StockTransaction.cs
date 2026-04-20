@@ -15,8 +15,6 @@ public class StockTransaction : IAuditable, ISoftDelete
   [Key]
   public long Id { get ; set ; }
 
-  private string _symbol = "" ;
-
   /// <summary>
   ///   Gets or sets the ticker symbol, e.g. VNM, AAPL. Auto-normalized to uppercase.
   /// </summary>
@@ -24,9 +22,9 @@ public class StockTransaction : IAuditable, ISoftDelete
   [MaxLength( 20 )]
   public string Symbol
   {
-    get => _symbol ;
-    set => _symbol = NormalizeSymbol( value ) ;
-  }
+    get ;
+    set => field = NormalizeSymbol( value ) ;
+  } = string.Empty ;
 
   /// <summary>
   ///   Gets or sets the transaction type (Buy, Sell, or Dividend).

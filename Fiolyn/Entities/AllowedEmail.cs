@@ -16,8 +16,6 @@ public class AllowedEmail : IAuditable, ISoftDelete
   [Key]
   public long Id { get ; set ; }
 
-  private string _email = "" ;
-
   /// <summary>
   ///   Gets or sets the whitelisted email address. Auto-normalized to lowercase.
   /// </summary>
@@ -25,9 +23,9 @@ public class AllowedEmail : IAuditable, ISoftDelete
   [MaxLength( 256 )]
   public string Email
   {
-    get => _email ;
-    set => _email = AppUser.NormalizeEmail( value ) ;
-  }
+    get ;
+    set => field = AppUser.NormalizeEmail( value ) ;
+  } = string.Empty ;
 
   /// <summary>
   ///   Gets or sets a free-text note explaining the invitation.

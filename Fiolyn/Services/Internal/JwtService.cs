@@ -29,13 +29,13 @@ public class JwtService( IOptions<JwtSettings> settings ) : IJwtService
     var settingsValue = settings.Value ;
     var expiresAt = DateTime.UtcNow.AddMinutes( settingsValue.AccessTokenExpiryMinutes ) ;
 
-    var claims = new List<Claim>
-    {
-      new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-      new(JwtRegisteredClaimNames.Email, user.Email),
-      new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-      new(AuthConstants.AdminClaimName, user.IsAdmin ? AuthConstants.AdminClaimTrueValue : "false")
-    } ;
+    List<Claim> claims =
+    [
+      new( JwtRegisteredClaimNames.Sub, user.Id.ToString() ),
+      new( JwtRegisteredClaimNames.Email, user.Email ),
+      new( JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString() ),
+      new( AuthConstants.AdminClaimName, user.IsAdmin ? AuthConstants.AdminClaimTrueValue : "false" )
+    ] ;
 
     if ( ! string.IsNullOrWhiteSpace( user.DisplayName ) )
     {

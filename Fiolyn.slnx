@@ -1,0 +1,4 @@
+<Solution>
+    <Project Path="Fiolyn/Fiolyn.csproj"/>
+    <Project Path="Fiolyn.Tests/Fiolyn.Tests.csproj"/>
+</Solution>

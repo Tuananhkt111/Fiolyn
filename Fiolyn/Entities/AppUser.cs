@@ -17,8 +17,6 @@ public class AppUser : IAuditable, ISoftDelete
   [Key]
   public long Id { get ; set ; }
 
-  private string _email = "" ;
-
   /// <summary>
   ///   Gets or sets the user's email address. Auto-normalized to lowercase.
   /// </summary>
@@ -26,9 +24,9 @@ public class AppUser : IAuditable, ISoftDelete
   [MaxLength( 256 )]
   public string Email
   {
-    get => _email ;
-    set => _email = NormalizeEmail( value ) ;
-  }
+    get ;
+    set => field = NormalizeEmail( value ) ;
+  } = string.Empty ;
 
   /// <summary>
   ///   Gets or sets the stable Google account ID (ID token `sub` claim).
@@ -63,7 +61,7 @@ public class AppUser : IAuditable, ISoftDelete
   /// <summary>
   ///   Gets or sets the refresh tokens issued to this user.
   /// </summary>
-  public ICollection<RefreshToken> RefreshTokens { get ; set ; } = new List<RefreshToken>() ;
+  public ICollection<RefreshToken> RefreshTokens { get ; set ; } = [] ;
 
   /// <summary>
   ///   Gets or sets the UTC timestamp when this record was created.

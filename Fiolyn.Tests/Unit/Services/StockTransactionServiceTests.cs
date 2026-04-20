@@ -19,22 +19,22 @@ public class StockTransactionServiceTests
 
   private void SetupBroker( string name, long id )
   {
-    var brokers = new List<BrokerAccount>
-    {
+    List<BrokerAccount> brokers =
+    [
       new()
       {
         Id = id,
         Name = name,
         IsDeleted = false
       }
-    }.BuildMock() ;
-    _brokerRepository.QueryActive().Returns( brokers ) ;
+    ] ;
+    _brokerRepository.QueryActive().Returns( brokers.BuildMock() ) ;
   }
 
   private void SetupNoBrokers()
   {
-    var brokers = new List<BrokerAccount>().BuildMock() ;
-    _brokerRepository.QueryActive().Returns( brokers ) ;
+    List<BrokerAccount> brokers = [] ;
+    _brokerRepository.QueryActive().Returns( brokers.BuildMock() ) ;
   }
 
   [Fact]
@@ -169,8 +169,8 @@ public class StockTransactionServiceTests
   [Fact]
   public async Task GetAllAsync_WithSymbolFilter_FiltersCorrectly()
   {
-    var transactions = new List<StockTransaction>
-    {
+    List<StockTransaction> transactions =
+    [
       new()
       {
         Id = 1,
@@ -183,8 +183,8 @@ public class StockTransactionServiceTests
         Symbol = "AAPL",
         TransactionDate = DateTime.UtcNow
       }
-    }.BuildMock() ;
-    _repository.QueryActive().Returns( transactions ) ;
+    ] ;
+    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllAsync( "vnm" ) ;
