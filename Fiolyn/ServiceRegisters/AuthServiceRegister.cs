@@ -24,7 +24,6 @@ public class AuthServiceRegister : IServiceRegister
     var jwtSection = configuration.GetSection( "Jwt" ) ;
     services.Configure<JwtSettings>( jwtSection ) ;
     services.Configure<GoogleAuthSettings>( configuration.GetSection( "GoogleAuth" ) ) ;
-    services.Configure<InitialAdminSettings>( configuration.GetSection( "InitialAdmin" ) ) ;
 
     var jwtSettings = jwtSection.Get<JwtSettings>() ?? new JwtSettings() ;
     if ( string.IsNullOrWhiteSpace( jwtSettings.SigningKey ) || jwtSettings.SigningKey.Length < 32 )

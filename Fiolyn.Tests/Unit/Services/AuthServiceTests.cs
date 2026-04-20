@@ -1,12 +1,10 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Infrastructure.Exceptions ;
-using Fiolyn.ServiceRegisters.Settings ;
 using Fiolyn.Services.External.Google ;
 using Fiolyn.Services.Internal ;
 using Fiolyn.Services.Internal.Interfaces ;
 using FluentAssertions ;
-using Microsoft.Extensions.Options ;
 using MockQueryable ;
 using NSubstitute ;
 
@@ -16,15 +14,12 @@ public class AuthServiceTests
 {
   private readonly IRepository<AllowedEmail> _allowedEmails = Substitute.For<IRepository<AllowedEmail>>() ;
   private readonly IGoogleTokenVerifier _google = Substitute.For<IGoogleTokenVerifier>() ;
-  private readonly InitialAdminSettings _initialAdmin = new() ;
   private readonly IJwtService _jwt = Substitute.For<IJwtService>() ;
   private readonly IRepository<RefreshToken> _refreshTokens = Substitute.For<IRepository<RefreshToken>>() ;
   private readonly IRepository<AppUser> _users = Substitute.For<IRepository<AppUser>>() ;
 
   private AuthService CreateSut() =>
-    new(
-      _google, _jwt, _users, _allowedEmails, _refreshTokens,
-      Options.Create( _initialAdmin )) ;
+    new( _google, _jwt, _users, _allowedEmails, _refreshTokens ) ;
 
   private void SetupAllowedEmails( params string[] emails )
   {
@@ -67,12 +62,11 @@ public class AuthServiceTests
   }
 
   [Fact]
-  public async Task LoginWithGoogleAsync_FirstLoginOfInitialAdmin_CreatesAdminUser()
+  public async Task LoginWithGoogleAsync_FirstLogin_CreatesNonAdminUser()
   {
-    _initialAdmin.Email = "owner@example.com" ;
     _google.VerifyAsync( "token" )
-      .Returns( new GooglePayload( "owner@example.com", "sub-1", "Owner", "pic.jpg" ) ) ;
-    SetupAllowedEmails( "owner@example.com" ) ;
+      .Returns( new GooglePayload( "friend@example.com", "sub-2", "Friend", null ) ) ;
+    SetupAllowedEmails( "friend@example.com" ) ;
     SetupUsers() ;
     SetupJwtIssues() ;
 
@@ -83,27 +77,11 @@ public class AuthServiceTests
     result.RefreshToken.Should().Be( "refresh-raw" ) ;
 
     await _users.Received( 1 ).AddAsync( Arg.Is<AppUser>( u =>
-      u.Email == "owner@example.com"
-      && u.GoogleSub == "sub-1"
-      && u.IsAdmin ) ) ;
+      u.Email == "friend@example.com"
+      && u.GoogleSub == "sub-2"
+      && ! u.IsAdmin ) ) ;
 
     await _refreshTokens.Received( 1 ).AddAsync( Arg.Is<RefreshToken>( r => r.TokenHash == "refresh-hash" ) ) ;
-  }
-
-  [Fact]
-  public async Task LoginWithGoogleAsync_NonAdminLogin_CreatesNonAdminUser()
-  {
-    _initialAdmin.Email = "owner@example.com" ;
-    _google.VerifyAsync( "token" )
-      .Returns( new GooglePayload( "friend@example.com", "sub-2", "Friend", null ) ) ;
-    SetupAllowedEmails( "friend@example.com" ) ;
-    SetupUsers() ;
-    SetupJwtIssues() ;
-
-    var sut = CreateSut() ;
-    await sut.LoginWithGoogleAsync( "token" ) ;
-
-    await _users.Received( 1 ).AddAsync( Arg.Is<AppUser>( u => u.Email == "friend@example.com" && ! u.IsAdmin ) ) ;
   }
 
   [Fact]

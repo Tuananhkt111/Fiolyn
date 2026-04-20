@@ -2,11 +2,9 @@ using Fiolyn.Controllers.DTOs.Responses.Auth ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Infrastructure.Exceptions ;
-using Fiolyn.ServiceRegisters.Settings ;
 using Fiolyn.Services.External.Google ;
 using Fiolyn.Services.Internal.Interfaces ;
 using Microsoft.EntityFrameworkCore ;
-using Microsoft.Extensions.Options ;
 
 namespace Fiolyn.Services.Internal ;
 
@@ -18,8 +16,7 @@ public class AuthService(
   IJwtService jwtService,
   IRepository<AppUser> userRepository,
   IRepository<AllowedEmail> allowedEmailRepository,
-  IRepository<RefreshToken> refreshTokenRepository,
-  IOptions<InitialAdminSettings> initialAdminSettings ) : IAuthService
+  IRepository<RefreshToken> refreshTokenRepository ) : IAuthService
 {
   /// <inheritdoc />
   public async Task<AuthResponse> LoginWithGoogleAsync( string idToken )
@@ -45,7 +42,7 @@ public class AuthService(
         GoogleSub = payload.Sub,
         DisplayName = payload.Name,
         PictureUrl = payload.Picture,
-        IsAdmin = IsInitialAdmin( normalizedEmail )
+        IsAdmin = false
       } ;
       await userRepository.AddAsync( user ) ;
     }
@@ -55,11 +52,6 @@ public class AuthService(
       user.GoogleSub = payload.Sub ;
       user.DisplayName = payload.Name ?? user.DisplayName ;
       user.PictureUrl = payload.Picture ?? user.PictureUrl ;
-      if ( ! user.IsAdmin && IsInitialAdmin( normalizedEmail ) )
-      {
-        user.IsAdmin = true ;
-      }
-
       userRepository.Update( user ) ;
     }
 
@@ -169,12 +161,5 @@ public class AuthService(
       refreshTokenRepository.UpdateRange( active ) ;
       await refreshTokenRepository.SaveAsync() ;
     }
-  }
-
-  private bool IsInitialAdmin( string normalizedEmail )
-  {
-    var configured = initialAdminSettings.Value.Email ;
-    return ! string.IsNullOrWhiteSpace( configured )
-           && AppUser.NormalizeEmail( configured ) == normalizedEmail ;
   }
 }

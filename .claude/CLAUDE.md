@@ -62,16 +62,12 @@ Create `Fiolyn/appsettings.Development.json` (gitignored) with all the local val
   },
   "GoogleAuth": {
     "ClientId": "<your-google-oauth-client-id>.apps.googleusercontent.com"
-  },
-  "InitialAdmin": {
-    "Email": "you@example.com"
   }
 }
 ```
 
 - `Jwt:SigningKey` must be ≥32 characters — the app **fails fast at startup** otherwise (both `AuthServiceRegister` and `JwtService.ctor` throw `InvalidOperationException`). No silent dev fallback.
 - `GoogleAuth:ClientId` is the OAuth 2.0 Client ID from Google Cloud Console — it's the expected `aud` claim when validating incoming Google ID tokens. No client secret needed for Flow 1A (mobile SDK → ID token).
-- `InitialAdmin:Email` is seeded into `AllowedEmail` on first boot; that email becomes admin on its first Google login.
 
 **In production (Northflank)**, set these environment variables (nested keys use `__`):
 ```
@@ -83,7 +79,6 @@ JWT__SIGNINGKEY=<random, >= 32 chars>
 JWT__ISSUER=Fiolyn
 JWT__AUDIENCE=FiolynMobile
 GOOGLEAUTH__CLIENTID=<google-oauth-client-id>.apps.googleusercontent.com
-INITIALADMIN__EMAIL=you@example.com
 ```
 
 Configuration is bound to strongly-typed classes via `IOptions<T>` (see `ServiceRegisters/Settings/`).
@@ -165,9 +160,9 @@ AllowedEmailController → IAllowedEmailService → IRepository<AllowedEmail>
 - **Refresh**: `POST /api/auth/refresh` rotates the refresh token (stored as SHA-256 hash). The INSERT of the new token and the UPDATE revoking the old one flush in a single `SaveChangesAsync` — one EF transaction, so rotation is atomic. Replaying a revoked token revokes the entire rotation chain for that user (reuse-detection).
 - **Logout**: `POST /api/auth/logout` sets `RevokedAt` on the presented refresh token.
 - **Authorization model**: `Authenticated` (default) vs `Admin` policy (requires `isAdmin=true` claim). Protected by class-level `[Authorize]` on `StockTransactionController` / `BrokerAccountController` / `UserController`; `[Authorize(Policy = AuthConstants.AdminPolicyName)]` on `AllowedEmailController` and admin-only endpoints on `UserController`. `TelegramController` is `[AllowAnonymous]` (webhook must accept unauthenticated).
-- **Admin bootstrap**: `InitialAdmin:Email` from config is seeded into `AllowedEmail` on startup by `InitialAdminSeeder` (invoked via `app.InitializeDatabaseAsync()` in `Data/Seeds/DatabaseInitializer.cs`). On that email's first Google login, `AuthService.IsInitialAdmin(...)` detects the match and sets `AppUser.IsAdmin = true`. No password — Google owns identity.
+- **Admin bootstrap**: the first admin is created manually — `INSERT` an `AllowedEmail` row for that email, let them log in once (Google creates the `AppUser`), then `UPDATE` `AppUser.IsAdmin = true` for that row. No code path auto-promotes anyone.
 - **Admin whitelist management**: `/api/allowed-emails` (GET/POST/DELETE) and `/api/users` (GET/PATCH/DELETE) — all admin-only.
-- **Settings**: `Jwt` (`SigningKey` ≥32 chars HS256 — **required, app fails fast at startup otherwise**; 15-min access / 30-day refresh by default), `GoogleAuth:ClientId` (no client secret needed), `InitialAdmin:Email`.
+- **Settings**: `Jwt` (`SigningKey` ≥32 chars HS256 — **required, app fails fast at startup otherwise**; 15-min access / 30-day refresh by default), `GoogleAuth:ClientId` (no client secret needed).
 - **Magic strings**: claim/policy names live in `Fiolyn/Constants/AuthConstants.cs` — `AdminClaimName` (`"isAdmin"`), `AdminClaimTrueValue` (`"true"`), `AdminPolicyName` (`"Admin"`). Never hard-code these.
 - **Extracting the caller**: inject nothing — use the `User.GetUserId()` / `User.TryGetUserId()` extensions from `Fiolyn.Extensions.ClaimsPrincipalExtensions` inside any controller. They read the JWT `sub` claim.
 
@@ -210,8 +205,7 @@ AllowedEmailController → IAllowedEmailService → IRepository<AllowedEmail>
 - `Data/AppDbContext.cs` — EF Core DbContext; overrides `SaveChangesAsync()` to autopopulate audit fields. DbSets: `TelegramUserInfo`, `BrokerAccount`, `StockTransaction`, `AppUser`, `AllowedEmail`, `RefreshToken`.
 - `Data/Repositories/IRepository<T>.cs` / `Repository<T>.cs` — generic CRUD + soft-delete filtering.
 - `Data/Migrations/` — EF Core migrations (auto-generated, committed, applied on startup via `MigrateAsync()` inside `DatabaseInitializer`).
-- `Data/Seeds/DatabaseInitializer.cs` — exposes `WebApplication.InitializeDatabaseAsync()` extension: runs `MigrateAsync()` then the seeder.
-- `Data/Seeds/InitialAdminSeeder.cs` — idempotent; inserts the `InitialAdmin:Email` into `AllowedEmail` on first boot. Uses `IRepository<AllowedEmail>` (not direct `DbSet`) for soft-delete filtering.
+- `Data/Seeds/DatabaseInitializer.cs` — exposes `WebApplication.InitializeDatabaseAsync()` extension: runs `MigrateAsync()`.
 
 **Entity Model**
 - `Entities/TelegramUserInfo.cs` — implements `IAuditable` + `ISoftDelete`.
@@ -225,7 +219,7 @@ AllowedEmailController → IAllowedEmailService → IRepository<AllowedEmail>
 
 **DI & Configuration**
 - `ServiceRegisters/` — DI registration via `IServiceRegister` interface (auto-discovered, ordered by `Order` property).
-- `ServiceRegisters/Settings/` — strongly-typed config classes bound via `IOptions<T>`: `NotionSettings`, `JwtSettings`, `GoogleAuthSettings`, `InitialAdminSettings`.
+- `ServiceRegisters/Settings/` — strongly-typed config classes bound via `IOptions<T>`: `NotionSettings`, `JwtSettings`, `GoogleAuthSettings`.
 
 ---
 
@@ -254,7 +248,7 @@ AllowedEmailController → IAllowedEmailService → IRepository<AllowedEmail>
 - Internal service implementations: `Fiolyn.Services.Internal`
 - Internal service interfaces: `Fiolyn.Services.Internal.Interfaces`
 - Data repositories: `Fiolyn.Data.Repositories`
-- Data seeding / startup: `Fiolyn.Data.Seeds` (`DatabaseInitializer`, `InitialAdminSeeder`)
+- Data seeding / startup: `Fiolyn.Data.Seeds` (`DatabaseInitializer`)
 - Configuration classes: `Fiolyn.ServiceRegisters.Settings`
 - Service registration: `Fiolyn.ServiceRegisters`
 - Entities: `Fiolyn.Entities` and `Fiolyn.Entities.Base`
@@ -364,7 +358,6 @@ Push to `master` → GitHub Actions builds Docker image → pushes to GHCR → N
   JWT__ISSUER=Fiolyn
   JWT__AUDIENCE=FiolynMobile
   GOOGLEAUTH__CLIENTID=<google-oauth-client-id>.apps.googleusercontent.com
-  INITIALADMIN__EMAIL=you@example.com
   ```
 - **GitHub Actions secrets**: `NORTHFLANK_API_TOKEN` (for API deployments)
 
@@ -387,10 +380,10 @@ public class MyServiceRegister : IServiceRegister
 
 **Known registrars** (in order):
 - `WebApiServiceRegister` (Order 0) — Controllers, Swagger, CORS, HTTP client factory, ProblemDetails + GlobalExceptionHandler, camelCase JSON
-- `DatabaseServiceRegister` (Order 0) — DbContext and factory + `InitialAdminSeeder`. Exposes `app.InitializeDatabaseAsync()` extension that runs migrations + seeder (invoked from `Program.cs`).
+- `DatabaseServiceRegister` (Order 0) — DbContext and factory. Exposes `app.InitializeDatabaseAsync()` extension that runs migrations (invoked from `Program.cs`).
 - `RepositoriesServiceRegister` (Order 1) — Generic repository pattern
 - `NotionServiceRegister` (Order 1) — Notion API configuration via `AddHttpClient<INotionService, NotionService>` (typed client; `IHttpClientFactory` owns handler rotation). Authorization header is configured once at registration, not per-request
-- `AuthServiceRegister` (Order 1) — JWT bearer scheme, `Admin` authorization policy, `Jwt`/`GoogleAuth`/`InitialAdmin` settings binding, and the auth plumbing services (`IGoogleTokenVerifier`, `IJwtService`)
+- `AuthServiceRegister` (Order 1) — JWT bearer scheme, `Admin` authorization policy, `Jwt`/`GoogleAuth` settings binding, and the auth plumbing services (`IGoogleTokenVerifier`, `IJwtService`)
 - `ScopedBusinessServicesRegister` (Order 1) — All scoped business services (Telegram, StockTransaction, BrokerAccount, Auth, User, AllowedEmail)
 
 **Adding a new service:**
@@ -406,7 +399,7 @@ public class MyServiceRegister : IServiceRegister
 
 **Framework:** xUnit 2.x · NSubstitute 5.x · FluentAssertions 6.x · EF Core InMemory · MockQueryable.NSubstitute
 
-**Structure (74 tests total):**
+**Structure (73 tests total):**
 ```
 Fiolyn.Tests/
 ├── GlobalUsings.cs                              # global using Xunit
@@ -419,7 +412,7 @@ Fiolyn.Tests/
 │   │   ├── StockTransactionServiceTests.cs     # parse, broker lookup (case-insensitive), CRUD
 │   │   ├── JwtServiceTests.cs                  # access token claims, expiry, refresh uniqueness; ctor fails fast on missing/short SigningKey
 │   │   ├── GoogleTokenVerifierTests.cs         # guard paths (empty token, missing ClientId, malformed JWT)
-│   │   ├── AuthServiceTests.cs                 # whitelist enforcement, first-login admin promotion, refresh rotation, reuse-detection chain revoke, logout
+│   │   ├── AuthServiceTests.cs                 # whitelist enforcement, first-login user creation, refresh rotation, reuse-detection chain revoke, logout
 │   │   ├── AllowedEmailServiceTests.cs         # create (normalizes, dedupes), soft-delete
 │   │   └── UserServiceTests.cs                 # profile updates, admin toggle, soft-delete
 │   └── Controllers/
@@ -474,7 +467,7 @@ Fiolyn.Tests/
 - **Implement IAuditable on audit-trail entities** — timestamps are auto-managed
 - **Implement ISoftDelete for logical deletion** — use `repository.QueryActive()` to exclude deleted records
 - **Call `mcp__ide__getDiagnostics` after code changes** — before committing
-- **Run `dotnet test` after code changes** — ensure all 74 tests still pass
+- **Run `dotnet test` after code changes** — ensure all 73 tests still pass
 - **DbSet property names are singular** — match the entity class name exactly (e.g. `StockTransaction`, `BrokerAccount`, not plurals)
 - **`ParseMessageAsync` is async** — `IStockTransactionService.ParseMessageAsync` requires DB access to resolve `BrokerAccount` by name (case-insensitive); returns null if broker not found
 - **Use `GetActiveByIdOrThrowAsync` when "not found" is an error** — it throws `KeyNotFoundException` (→ 404 via `GlobalExceptionHandler`) so services don't each reinvent the same `?? throw new KeyNotFoundException(...)` line. Use `GetActiveByIdAsync` only when the caller needs to branch on null. Use `GetByIdAsync` only when you need access to soft-deleted records (rare).
@@ -489,7 +482,7 @@ Fiolyn.Tests/
 - **Put service interfaces + implementations in matching namespaces** — `Fiolyn.Services.Internal.Interfaces` for the interface, `Fiolyn.Services.Internal` for the implementation. Controllers inject interfaces via `using Fiolyn.Services.Internal.Interfaces ;`
 - **Auth claim/policy strings come from `AuthConstants`** — never hardcode `"Admin"` / `"isAdmin"` / `"true"` in attributes or policy config. Use `AuthConstants.AdminPolicyName` / `AdminClaimName` / `AdminClaimTrueValue`
 - **`Jwt:SigningKey` is mandatory** — both `AuthServiceRegister` (startup) and `JwtService` ctor throw `InvalidOperationException` if it's missing or <32 chars. There is no silent dev fallback
-- **`AppUser.NormalizeEmail(email)`** — the canonical email normalizer (lowercases + trims). Called by `AppUser.Email` / `AllowedEmail.Email` setters, by `AuthService`, and by `InitialAdminSeeder`. Don't roll your own
+- **`AppUser.NormalizeEmail(email)`** — the canonical email normalizer (lowercases + trims). Called by `AppUser.Email` / `AllowedEmail.Email` setters and by `AuthService`. Don't roll your own
 - **Read caller ID via `User.GetUserId()` / `User.TryGetUserId()`** — extensions in `Fiolyn.Extensions.ClaimsPrincipalExtensions`. Don't reach for `ClaimsPrincipal.FindFirst(...)` directly in controllers
 - **`AppUser` (entity) ≠ `User` (controller `ClaimsPrincipal`)** — inside a controller, `User` is the caller's identity. Reference the entity as `AppUser` (or fully-qualified `Entities.AppUser`) to avoid collision
 - **Refresh tokens never leave `JwtService.CreateRefreshToken()` raw twice** — the raw value is returned to the client once, and only its SHA-256 hash is persisted. Reuse detection relies on `ReplacedByTokenHash` forming a rotation chain
