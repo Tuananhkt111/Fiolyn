@@ -1,3 +1,4 @@
+using Fiolyn.Infrastructure.Exceptions ;
 using Microsoft.AspNetCore.Diagnostics ;
 using Microsoft.AspNetCore.Mvc ;
 
@@ -17,6 +18,8 @@ public class GlobalExceptionHandler( ILogger<GlobalExceptionHandler> logger ) : 
     var (statusCode, title) = exception switch
     {
       KeyNotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
+      UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
+      ForbiddenAccessException => (StatusCodes.Status403Forbidden, "Forbidden"),
       _ => (StatusCodes.Status500InternalServerError, "Internal Server Error")
     } ;
 

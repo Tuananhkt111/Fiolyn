@@ -1,4 +1,5 @@
 using Fiolyn.Services.External.Telegram ;
+using Microsoft.AspNetCore.Authorization ;
 using Microsoft.AspNetCore.Mvc ;
 
 namespace Fiolyn.Controllers ;
@@ -8,6 +9,7 @@ namespace Fiolyn.Controllers ;
 /// </summary>
 [ApiController]
 [Route( "api/[controller]" )]
+[AllowAnonymous]
 public class TelegramController( ITelegramMessageService messageService ) : ControllerBase
 {
   /// <summary>

@@ -1,7 +1,8 @@
 using Fiolyn.Controllers.DTOs.Requests.StockTransaction ;
 using Fiolyn.Controllers.DTOs.Responses.StockTransaction ;
 using Fiolyn.Entities ;
-using Fiolyn.Services.Internal ;
+using Fiolyn.Services.Internal.Interfaces ;
+using Microsoft.AspNetCore.Authorization ;
 using Microsoft.AspNetCore.Mvc ;
 
 namespace Fiolyn.Controllers ;
@@ -11,6 +12,7 @@ namespace Fiolyn.Controllers ;
 /// </summary>
 [ApiController]
 [Route( "api/stock-transactions" )]
+[Authorize]
 public class StockTransactionController(
   IStockTransactionService stockTransactionService ) : ControllerBase
 {

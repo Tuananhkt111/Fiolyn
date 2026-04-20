@@ -1,5 +1,6 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
+using Fiolyn.Services.Internal.Interfaces ;
 using Microsoft.EntityFrameworkCore ;
 
 namespace Fiolyn.Services.Internal ;
@@ -18,7 +19,7 @@ public class BrokerAccountService( IRepository<BrokerAccount> repository ) : IBr
   }
 
   /// <inheritdoc />
-  public async Task<List<BrokerAccount>> GetAllAsync() => await repository.QueryActive().OrderBy( b => b.Name ).ToListAsync() ;
+  public async Task<List<BrokerAccount>> GetAllAsync() => await repository.QueryActive().AsNoTracking().OrderBy( b => b.Name ).ToListAsync() ;
 
   /// <inheritdoc />
   public async Task<bool> ExistsAsync( long id ) => await repository.QueryActive().AnyAsync( b => b.Id == id ) ;
@@ -37,8 +38,7 @@ public class BrokerAccountService( IRepository<BrokerAccount> repository ) : IBr
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id )
   {
-    var brokerAccount = await repository.GetActiveByIdAsync( id )
-                        ?? throw new KeyNotFoundException( $"BrokerAccount {id} not found" ) ;
+    var brokerAccount = await repository.GetActiveByIdOrThrowAsync( id ) ;
     repository.SoftDelete( brokerAccount ) ;
     await repository.SaveAsync() ;
   }

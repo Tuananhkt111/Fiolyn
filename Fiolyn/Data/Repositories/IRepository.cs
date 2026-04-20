@@ -35,6 +35,13 @@ public interface IRepository<T> where T : class
   Task<T?> GetActiveByIdAsync( object id ) ;
 
   /// <summary>
+  ///   Gets a non-deleted entity by its primary key, or throws
+  ///   <see cref="KeyNotFoundException" /> (→ HTTP 404) if not found or soft-deleted.
+  /// </summary>
+  /// <param name="id">The primary key value.</param>
+  Task<T> GetActiveByIdOrThrowAsync( object id ) ;
+
+  /// <summary>
   ///   Adds a new entity to the database.
   /// </summary>
   /// <param name="entity">The entity to add.</param>

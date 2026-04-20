@@ -1,6 +1,7 @@
 using Fiolyn.ServiceRegisters.Base ;
 using Fiolyn.Services.External.Telegram ;
 using Fiolyn.Services.Internal ;
+using Fiolyn.Services.Internal.Interfaces ;
 
 namespace Fiolyn.ServiceRegisters ;
 
@@ -18,5 +19,8 @@ public class ScopedBusinessServicesRegister : IServiceRegister
     services.AddScoped<ITelegramMessageService, TelegramMessageService>() ;
     services.AddScoped<IStockTransactionService, StockTransactionService>() ;
     services.AddScoped<IBrokerAccountService, BrokerAccountService>() ;
+    services.AddScoped<IAuthService, AuthService>() ;
+    services.AddScoped<IAllowedEmailService, AllowedEmailService>() ;
+    services.AddScoped<IUserService, UserService>() ;
   }
 }

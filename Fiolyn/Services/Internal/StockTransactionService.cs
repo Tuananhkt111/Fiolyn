@@ -2,6 +2,7 @@ using System.Text.RegularExpressions ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
+using Fiolyn.Services.Internal.Interfaces ;
 using Fiolyn.Utils ;
 using Microsoft.EntityFrameworkCore ;
 
@@ -61,7 +62,7 @@ public partial class StockTransactionService(
       query = query.Where( t => t.Symbol == normalizedSymbol ) ;
     }
 
-    return await query.Include( t => t.BrokerAccount ).OrderByDescending( t => t.TransactionDate ).ToListAsync() ;
+    return await query.AsNoTracking().Include( t => t.BrokerAccount ).OrderByDescending( t => t.TransactionDate ).ToListAsync() ;
   }
 
   /// <inheritdoc />
@@ -84,8 +85,7 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id )
   {
-    var transaction = await stockTransactionRepository.GetActiveByIdAsync( id )
-                      ?? throw new KeyNotFoundException( $"StockTransaction {id} not found" ) ;
+    var transaction = await stockTransactionRepository.GetActiveByIdOrThrowAsync( id ) ;
     stockTransactionRepository.SoftDelete( transaction ) ;
     await stockTransactionRepository.SaveAsync() ;
   }

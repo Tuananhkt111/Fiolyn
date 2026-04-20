@@ -1,3 +1,4 @@
+using Fiolyn.Data.Seeds ;
 using Fiolyn.ServiceRegisters.Extensions ;
 
 var builder = WebApplication.CreateBuilder( args ) ;
@@ -6,6 +7,9 @@ var builder = WebApplication.CreateBuilder( args ) ;
 builder.Services.RegisterAllServices( builder.Configuration ) ;
 
 var app = builder.Build() ;
+
+// Apply EF Core migrations and run the initial-admin seeder.
+await app.InitializeDatabaseAsync() ;
 
 // Configure the HTTP request pipeline.
 if ( app.Environment.IsDevelopment() )

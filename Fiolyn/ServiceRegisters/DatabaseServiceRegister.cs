@@ -1,4 +1,5 @@
 using Fiolyn.Data ;
+using Fiolyn.Data.Seeds ;
 using Fiolyn.ServiceRegisters.Base ;
 using Microsoft.EntityFrameworkCore ;
 
@@ -13,5 +14,7 @@ public class DatabaseServiceRegister : IServiceRegister
       options.UseNpgsql( connectionString ) ) ;
 
     services.AddDbContextFactory<AppDbContext>( options => options.UseNpgsql( connectionString ), ServiceLifetime.Scoped ) ;
+
+    services.AddScoped<InitialAdminSeeder>() ;
   }
 }

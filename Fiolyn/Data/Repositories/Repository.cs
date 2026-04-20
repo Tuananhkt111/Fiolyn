@@ -45,6 +45,14 @@ public class Repository<T>( AppDbContext dbContext ) : IRepository<T> where T : 
   }
 
   /// <summary>
+  ///   Gets a non-deleted entity by its primary key, or throws
+  ///   <see cref="KeyNotFoundException" /> if not found or soft-deleted.
+  /// </summary>
+  public async Task<T> GetActiveByIdOrThrowAsync( object id )
+    => await GetActiveByIdAsync( id )
+       ?? throw new KeyNotFoundException( $"{typeof( T ).Name} {id} not found" ) ;
+
+  /// <summary>
   ///   Adds a new entity to the database.
   /// </summary>
   public async Task AddAsync( T entity ) => await dbContext.Set<T>().AddAsync( entity ) ;
