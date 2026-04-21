@@ -18,8 +18,7 @@ public class AuthServiceTests
   private readonly IRepository<RefreshToken> _refreshTokens = Substitute.For<IRepository<RefreshToken>>() ;
   private readonly IRepository<AppUser> _users = Substitute.For<IRepository<AppUser>>() ;
 
-  private AuthService CreateSut() =>
-    new( _google, _jwt, _users, _allowedEmails, _refreshTokens ) ;
+  private AuthService CreateSut() => new(_google, _jwt, _users, _allowedEmails, _refreshTokens) ;
 
   private void SetupAllowedEmails( params string[] emails )
   {
@@ -42,10 +41,11 @@ public class AuthServiceTests
     _refreshTokens.Query().Returns( list ) ;
   }
 
-  private void SetupJwtIssues( string accessToken = "access", string refreshRaw = "refresh-raw", string refreshHash = "refresh-hash" )
+  private void SetupJwtIssues( string accessToken = "access", string refreshRaw = "refresh-raw",
+    string refreshHash = "refresh-hash" )
   {
-    _jwt.CreateAccessToken( Arg.Any<AppUser>() ).Returns( (accessToken, DateTime.UtcNow.AddMinutes( 15 )) ) ;
-    _jwt.CreateRefreshToken().Returns( (refreshRaw, refreshHash, DateTime.UtcNow.AddDays( 30 )) ) ;
+    _jwt.CreateAccessToken( Arg.Any<AppUser>() ).Returns( ( accessToken, DateTime.UtcNow.AddMinutes( 15 ) ) ) ;
+    _jwt.CreateRefreshToken().Returns( ( refreshRaw, refreshHash, DateTime.UtcNow.AddDays( 30 ) ) ) ;
     _jwt.HashRefreshToken( refreshRaw ).Returns( refreshHash ) ;
   }
 
@@ -132,8 +132,8 @@ public class AuthServiceTests
     SetupRefreshTokens( existing ) ;
     _jwt.HashRefreshToken( "old-raw" ).Returns( "old-hash" ) ;
     _jwt.HashRefreshToken( "refresh-raw" ).Returns( "refresh-hash" ) ;
-    _jwt.CreateAccessToken( user ).Returns( ("access", DateTime.UtcNow.AddMinutes( 15 )) ) ;
-    _jwt.CreateRefreshToken().Returns( ("refresh-raw", "refresh-hash", DateTime.UtcNow.AddDays( 30 )) ) ;
+    _jwt.CreateAccessToken( user ).Returns( ( "access", DateTime.UtcNow.AddMinutes( 15 ) ) ) ;
+    _jwt.CreateRefreshToken().Returns( ( "refresh-raw", "refresh-hash", DateTime.UtcNow.AddDays( 30 ) ) ) ;
 
     var sut = CreateSut() ;
     var result = await sut.RefreshAsync( "old-raw" ) ;

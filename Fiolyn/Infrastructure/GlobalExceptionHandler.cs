@@ -17,10 +17,10 @@ public class GlobalExceptionHandler( ILogger<GlobalExceptionHandler> logger ) : 
   {
     var (statusCode, title) = exception switch
     {
-      KeyNotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
-      UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
-      ForbiddenAccessException => (StatusCodes.Status403Forbidden, "Forbidden"),
-      _ => (StatusCodes.Status500InternalServerError, "Internal Server Error")
+      KeyNotFoundException => ( StatusCodes.Status404NotFound, "Not Found" ),
+      UnauthorizedAccessException => ( StatusCodes.Status401Unauthorized, "Unauthorized" ),
+      ForbiddenAccessException => ( StatusCodes.Status403Forbidden, "Forbidden" ),
+      _ => ( StatusCodes.Status500InternalServerError, "Internal Server Error" )
     } ;
 
     if ( statusCode == StatusCodes.Status500InternalServerError )

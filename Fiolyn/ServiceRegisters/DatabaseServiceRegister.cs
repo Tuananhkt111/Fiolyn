@@ -12,6 +12,7 @@ public class DatabaseServiceRegister : IServiceRegister
     services.AddDbContext<AppDbContext>( options =>
       options.UseNpgsql( connectionString ) ) ;
 
-    services.AddDbContextFactory<AppDbContext>( options => options.UseNpgsql( connectionString ), ServiceLifetime.Scoped ) ;
+    services.AddDbContextFactory<AppDbContext>( options => options.UseNpgsql( connectionString ),
+      ServiceLifetime.Scoped ) ;
   }
 }

@@ -18,7 +18,7 @@ public class Repository<T>( AppDbContext dbContext ) : IRepository<T> where T : 
 
     if ( typeof( ISoftDelete ).IsAssignableFrom( typeof( T ) ) )
     {
-      query = query.Where( e => ! ((ISoftDelete)e).IsDeleted ) ;
+      query = query.Where( e => ! ( ( ISoftDelete )e ).IsDeleted ) ;
     }
 
     return query ;
@@ -35,9 +35,9 @@ public class Repository<T>( AppDbContext dbContext ) : IRepository<T> where T : 
   }
 
   /// <inheritdoc />
-  public async Task<T> GetActiveByIdOrThrowAsync( object id )
-    => await GetActiveByIdAsync( id )
-       ?? throw new KeyNotFoundException( $"{typeof( T ).Name} {id} not found" ) ;
+  public async Task<T> GetActiveByIdOrThrowAsync( object id ) =>
+    await GetActiveByIdAsync( id )
+    ?? throw new KeyNotFoundException( $"{typeof( T ).Name} {id} not found" ) ;
 
   /// <inheritdoc />
   public async Task AddAsync( T entity ) => await dbContext.Set<T>().AddAsync( entity ) ;

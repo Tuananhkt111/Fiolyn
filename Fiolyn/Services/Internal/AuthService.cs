@@ -97,7 +97,7 @@ public class AuthService(
     stored.RevokedAt = DateTime.UtcNow ;
     stored.ReplacedByTokenHash = jwtService.HashRefreshToken( newPair.RefreshToken ) ;
     refreshTokenRepository.Update( stored ) ;
-    await refreshTokenRepository.SaveAsync() ;  // one flush: INSERT new token + UPDATE old token in one transaction
+    await refreshTokenRepository.SaveAsync() ; // one flush: INSERT new token + UPDATE old token in one transaction
 
     return newPair ;
   }

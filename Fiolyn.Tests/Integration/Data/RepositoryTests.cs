@@ -27,7 +27,7 @@ public class RepositoryTests : IDisposable
     } ) ;
     await repo.SaveAsync() ;
 
-    repo.SoftDelete( (await repo.GetByIdAsync( 2L ))! ) ;
+    repo.SoftDelete( ( await repo.GetByIdAsync( 2L ) )! ) ;
     await repo.SaveAsync() ;
 
     var result = await repo.QueryActive().ToListAsync() ;
@@ -65,7 +65,7 @@ public class RepositoryTests : IDisposable
     } ) ;
     await repo.SaveAsync() ;
 
-    repo.SoftDelete( (await repo.GetByIdAsync( 20L ))! ) ;
+    repo.SoftDelete( ( await repo.GetByIdAsync( 20L ) )! ) ;
     await repo.SaveAsync() ;
 
     var saved = await repo.GetByIdAsync( 20L ) ;

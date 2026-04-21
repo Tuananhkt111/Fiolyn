@@ -10,7 +10,7 @@ public static class ServiceRegistrarExtensions
       .GetTypes()
       .Where( t => typeof( IServiceRegister ).IsAssignableFrom( t ) && ! t.IsInterface && ! t.IsAbstract )
       .Where( t => t.GetConstructor( Type.EmptyTypes ) != null )
-      .Select( t => (IServiceRegister)Activator.CreateInstance( t )! )
+      .Select( t => ( IServiceRegister )Activator.CreateInstance( t )! )
       .OrderBy( r => r.Order ) ;
 
     foreach ( var registrar in registrars )

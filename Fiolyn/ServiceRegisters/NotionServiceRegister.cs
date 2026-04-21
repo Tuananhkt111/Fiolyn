@@ -16,7 +16,8 @@ public class NotionServiceRegister : IServiceRegister
     {
       client.BaseAddress = new Uri( "https://api.notion.com/v1/" ) ;
       client.DefaultRequestHeaders.Add( "Notion-Version", "2022-06-28" ) ;
-      client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue( "Bearer", notionSection[ "NotionApiKey" ] ) ;
+      client.DefaultRequestHeaders.Authorization =
+        new AuthenticationHeaderValue( "Bearer", notionSection[ "NotionApiKey" ] ) ;
       client.Timeout = TimeSpan.FromSeconds( 30 ) ;
     } ) ;
   }

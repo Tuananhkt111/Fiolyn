@@ -31,10 +31,10 @@ public class JwtService( IOptions<JwtSettings> settings ) : IJwtService
 
     List<Claim> claims =
     [
-      new( JwtRegisteredClaimNames.Sub, user.Id.ToString() ),
-      new( JwtRegisteredClaimNames.Email, user.Email ),
-      new( JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString() ),
-      new( AuthConstants.AdminClaimName, user.IsAdmin ? AuthConstants.AdminClaimTrueValue : "false" )
+      new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+      new(JwtRegisteredClaimNames.Email, user.Email),
+      new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+      new(AuthConstants.AdminClaimName, user.IsAdmin ? AuthConstants.AdminClaimTrueValue : "false")
     ] ;
 
     if ( ! string.IsNullOrWhiteSpace( user.DisplayName ) )
@@ -54,7 +54,7 @@ public class JwtService( IOptions<JwtSettings> settings ) : IJwtService
       expiresAt,
       credentials ) ;
 
-    return (_tokenHandler.WriteToken( token ), expiresAt) ;
+    return ( _tokenHandler.WriteToken( token ), expiresAt ) ;
   }
 
   /// <inheritdoc />
@@ -64,7 +64,7 @@ public class JwtService( IOptions<JwtSettings> settings ) : IJwtService
     var raw = Convert.ToBase64String( bytes ) ;
     var hash = HashRefreshToken( raw ) ;
     var expiresAt = DateTime.UtcNow.AddDays( settings.Value.RefreshTokenExpiryDays ) ;
-    return (raw, hash, expiresAt) ;
+    return ( raw, hash, expiresAt ) ;
   }
 
   /// <inheritdoc />

@@ -2,7 +2,8 @@ using System.Net ;
 
 namespace Fiolyn.Tests.Helpers ;
 
-public class MockHttpMessageHandler( HttpStatusCode statusCode = HttpStatusCode.OK, string responseBody = "{}" ) : HttpMessageHandler
+public class MockHttpMessageHandler( HttpStatusCode statusCode = HttpStatusCode.OK, string responseBody = "{}" )
+  : HttpMessageHandler
 {
   public HttpRequestMessage? LastRequest { get ; private set ; }
   public string? LastRequestContent { get ; private set ; }

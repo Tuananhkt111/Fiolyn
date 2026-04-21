@@ -14,7 +14,8 @@ public class UserService( IRepository<AppUser> repository ) : IUserService
   public Task<AppUser> GetByIdAsync( long id ) => repository.GetActiveByIdOrThrowAsync( id ) ;
 
   /// <inheritdoc />
-  public async Task<List<AppUser>> GetAllAsync() => await repository.QueryActive().AsNoTracking().OrderBy( u => u.Email ).ToListAsync() ;
+  public async Task<List<AppUser>> GetAllAsync() =>
+    await repository.QueryActive().AsNoTracking().OrderBy( u => u.Email ).ToListAsync() ;
 
   /// <inheritdoc />
   public async Task<AppUser> UpdateDisplayNameAsync( long id, string? displayName )

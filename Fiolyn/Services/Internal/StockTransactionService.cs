@@ -62,16 +62,17 @@ public partial class StockTransactionService(
       query = query.Where( t => t.Symbol == normalizedSymbol ) ;
     }
 
-    return await query.AsNoTracking().Include( t => t.BrokerAccount ).OrderByDescending( t => t.TransactionDate ).ToListAsync() ;
+    return await query.AsNoTracking().Include( t => t.BrokerAccount ).OrderByDescending( t => t.TransactionDate )
+      .ToListAsync() ;
   }
 
   /// <inheritdoc />
-  public async Task<bool> ExistsAsync( long id )
-    => await stockTransactionRepository.QueryActive().AnyAsync( t => t.Id == id ) ;
+  public async Task<bool> ExistsAsync( long id ) =>
+    await stockTransactionRepository.QueryActive().AnyAsync( t => t.Id == id ) ;
 
   /// <inheritdoc />
-  public async Task<StockTransaction?> GetByIdAsync( long id )
-    => await stockTransactionRepository.QueryActive()
+  public async Task<StockTransaction?> GetByIdAsync( long id ) =>
+    await stockTransactionRepository.QueryActive()
       .Include( t => t.BrokerAccount )
       .FirstOrDefaultAsync( t => t.Id == id ) ;
 
@@ -163,11 +164,12 @@ public partial class StockTransactionService(
     } ;
   }
 
-  private async Task<(Dictionary<string, string> Named, long BrokerAccountId)?> ExtractParamsAndResolveBrokerAsync( string text )
+  private async Task<(Dictionary<string, string> Named, long BrokerAccountId)?>
+    ExtractParamsAndResolveBrokerAsync( string text )
   {
     var named = ExtractNamedParams( text ) ;
     var brokerAccountId = await ResolveBrokerAsync( named.GetValueOrDefault( "broker", "" ) ) ;
-    return brokerAccountId is null ? null : (named, brokerAccountId.Value) ;
+    return brokerAccountId is null ? null : ( named, brokerAccountId.Value ) ;
   }
 
   private async Task<long?> ResolveBrokerAsync( string brokerName )

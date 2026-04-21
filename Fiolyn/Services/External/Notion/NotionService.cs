@@ -8,11 +8,14 @@ namespace Fiolyn.Services.External.Notion ;
 /// <summary>
 ///   Integrates with the Notion API to create database pages.
 /// </summary>
-public class NotionService( IOptions<NotionSettings> notionSettings, HttpClient httpClient, ILogger<NotionService> logger ) : INotionService
+public class NotionService(
+  IOptions<NotionSettings> notionSettings,
+  HttpClient httpClient,
+  ILogger<NotionService> logger ) : INotionService
 {
   private readonly NotionSettings _notionSettings = notionSettings.Value ;
 
-  /// <inheritdoc/>
+  /// <inheritdoc />
   public async Task AppendAsync( string text )
   {
     var payload = new
@@ -46,7 +49,7 @@ public class NotionService( IOptions<NotionSettings> notionSettings, HttpClient 
     if ( ! response.IsSuccessStatusCode )
     {
       var body = await response.Content.ReadAsStringAsync() ;
-      logger.LogError( "Notion API error {Status}: {Body}", (int)response.StatusCode, body ) ;
+      logger.LogError( "Notion API error {Status}: {Body}", ( int )response.StatusCode, body ) ;
       throw new InvalidOperationException( $"Notion API failed with status {response.StatusCode}: {body}" ) ;
     }
   }

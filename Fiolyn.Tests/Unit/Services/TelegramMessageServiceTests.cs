@@ -18,7 +18,8 @@ public class TelegramMessageServiceTests
   private readonly IStockTransactionService _stockTransactionService = Substitute.For<IStockTransactionService>() ;
   private readonly IRepository<TelegramUserInfo> _userRepository = Substitute.For<IRepository<TelegramUserInfo>>() ;
 
-  private TelegramMessageService CreateSut() => new(_userRepository, _notionService, _stockTransactionService, _logger) ;
+  private TelegramMessageService CreateSut() =>
+    new(_userRepository, _notionService, _stockTransactionService, _logger) ;
 
   private void SetupAllowedUser( long telegramId )
   {
@@ -148,7 +149,8 @@ public class TelegramMessageServiceTests
       Price = 45000,
       TotalAmount = 4501500
     } ;
-    _stockTransactionService.ParseMessageAsync( Arg.Any<string>() ).Returns( Task.FromResult<StockTransaction?>( parsedTransaction ) ) ;
+    _stockTransactionService.ParseMessageAsync( Arg.Any<string>() )
+      .Returns( Task.FromResult<StockTransaction?>( parsedTransaction ) ) ;
     _stockTransactionService.CreateAsync( parsedTransaction ).Returns( parsedTransaction ) ;
     var sut = CreateSut() ;
 
@@ -165,7 +167,8 @@ public class TelegramMessageServiceTests
   public async Task ProcessWebhookAsync_InvalidStockFormat_ReturnsError()
   {
     SetupAllowedUser( 123L ) ;
-    _stockTransactionService.ParseMessageAsync( Arg.Any<string>() ).Returns( Task.FromResult<StockTransaction?>( null ) ) ;
+    _stockTransactionService.ParseMessageAsync( Arg.Any<string>() )
+      .Returns( Task.FromResult<StockTransaction?>( null ) ) ;
     var sut = CreateSut() ;
 
     var result = await sut.ProcessWebhookAsync(

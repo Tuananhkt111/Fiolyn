@@ -19,14 +19,14 @@ public class BrokerAccountService( IRepository<BrokerAccount> repository ) : IBr
   }
 
   /// <inheritdoc />
-  public async Task<List<BrokerAccount>> GetAllAsync() => await repository.QueryActive().AsNoTracking().OrderBy( b => b.Name ).ToListAsync() ;
+  public async Task<List<BrokerAccount>> GetAllAsync() =>
+    await repository.QueryActive().AsNoTracking().OrderBy( b => b.Name ).ToListAsync() ;
 
   /// <inheritdoc />
   public async Task<bool> ExistsAsync( long id ) => await repository.QueryActive().AnyAsync( b => b.Id == id ) ;
 
   /// <inheritdoc />
-  public async Task<BrokerAccount?> GetByIdAsync( long id )
-    => await repository.GetActiveByIdAsync( id ) ;
+  public async Task<BrokerAccount?> GetByIdAsync( long id ) => await repository.GetActiveByIdAsync( id ) ;
 
   /// <inheritdoc />
   public async Task UpdateAsync( BrokerAccount brokerAccount )

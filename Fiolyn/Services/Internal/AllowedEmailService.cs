@@ -11,7 +11,8 @@ namespace Fiolyn.Services.Internal ;
 public class AllowedEmailService( IRepository<AllowedEmail> repository ) : IAllowedEmailService
 {
   /// <inheritdoc />
-  public async Task<List<AllowedEmail>> GetAllAsync() => await repository.QueryActive().AsNoTracking().OrderBy( a => a.Email ).ToListAsync() ;
+  public async Task<List<AllowedEmail>> GetAllAsync() =>
+    await repository.QueryActive().AsNoTracking().OrderBy( a => a.Email ).ToListAsync() ;
 
   /// <inheritdoc />
   public async Task<AllowedEmail> CreateAsync( string email, string? note, long? invitedByUserId )

@@ -43,7 +43,9 @@ public class StockTransactionServiceTests
     SetupBroker( "VPS", 1L ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 broker:VPS date:2026-04-14 notes:bought at support" ) ;
+    var result =
+      await sut.ParseMessageAsync(
+        "stock buy VNM 100 45000 4501500 broker:VPS date:2026-04-14 notes:bought at support" ) ;
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;

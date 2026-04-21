@@ -1,4 +1,5 @@
 using System.Net ;
+using System.Net.Http.Headers ;
 using Fiolyn.ServiceRegisters.Settings ;
 using Fiolyn.Services.External.Notion ;
 using Fiolyn.Tests.Helpers ;
@@ -26,11 +27,11 @@ public class NotionServiceTests
       BaseAddress = new Uri( "https://api.notion.com/v1/" )
     } ;
     httpClient.DefaultRequestHeaders.Authorization =
-      new System.Net.Http.Headers.AuthenticationHeaderValue( "Bearer", _settings.NotionApiKey ) ;
+      new AuthenticationHeaderValue( "Bearer", _settings.NotionApiKey ) ;
     var options = Options.Create( _settings ) ;
     var logger = Substitute.For<ILogger<NotionService>>() ;
     var sut = new NotionService( options, httpClient, logger ) ;
-    return (sut, handler) ;
+    return ( sut, handler ) ;
   }
 
   [Fact]
