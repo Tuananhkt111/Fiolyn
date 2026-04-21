@@ -1,0 +1,20 @@
+# Normalize all text files to LF in the repo and on disk.
+# Deployment target is Linux (Northflank); this keeps devs, CI, and runtime consistent.
+* text=auto eol=lf
+
+# Windows-only tooling files — keep CRLF
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+*.sln   text eol=crlf
+
+# Binary — never convert
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.dll   binary
+*.exe   binary
