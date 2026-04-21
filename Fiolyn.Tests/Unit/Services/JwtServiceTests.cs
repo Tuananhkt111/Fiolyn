@@ -12,7 +12,7 @@ public class JwtServiceTests
   private readonly JwtSettings _settings = new()
   {
     Issuer = "Fiolyn",
-    Audience = "FiolynMobile",
+    Audience = "FiolynWeb",
     SigningKey = "this-is-a-test-signing-key-of-at-least-32-chars",
     AccessTokenExpiryMinutes = 15,
     RefreshTokenExpiryDays = 30
@@ -39,7 +39,7 @@ public class JwtServiceTests
     var jwt = handler.ReadJwtToken( tokenString ) ;
 
     jwt.Issuer.Should().Be( "Fiolyn" ) ;
-    jwt.Audiences.Should().Contain( "FiolynMobile" ) ;
+    jwt.Audiences.Should().Contain( "FiolynWeb" ) ;
     jwt.Claims.Should().Contain( c => c.Type == JwtRegisteredClaimNames.Sub && c.Value == "42" ) ;
     jwt.Claims.Should().Contain( c => c.Type == JwtRegisteredClaimNames.Email && c.Value == "alice@example.com" ) ;
     jwt.Claims.Should().Contain( c => c.Type == "isAdmin" && c.Value == "true" ) ;

@@ -19,7 +19,7 @@ Nested keys use `:` in JSON and `__` in env vars. Each section binds to a strong
 | `NotionSettings:NotionDatabaseId`   | `NOTIONSETTINGS__NOTIONDATABASEID`   | `NotionSettings`     |                                                                    |
 | `Jwt:SigningKey`                    | `JWT__SIGNINGKEY`                    | `JwtSettings`        | **Required, ≥32 chars** — app fails fast at startup                |
 | `Jwt:Issuer`                        | `JWT__ISSUER`                        | `JwtSettings`        | Default `Fiolyn`                                                   |
-| `Jwt:Audience`                      | `JWT__AUDIENCE`                      | `JwtSettings`        | Default `FiolynMobile`                                             |
+| `Jwt:Audience`                      | `JWT__AUDIENCE`                      | `JwtSettings`        | Default `FiolynWeb`                                                |
 | `Jwt:AccessTokenExpiryMinutes`      | `JWT__ACCESSTOKENEXPIRYMINUTES`      | `JwtSettings`        | Default `15`                                                       |
 | `Jwt:RefreshTokenExpiryDays`        | `JWT__REFRESHTOKENEXPIRYDAYS`        | `JwtSettings`        | Default `30`                                                       |
 | `GoogleAuth:ClientId`               | `GOOGLEAUTH__CLIENTID`               | `GoogleAuthSettings` | Google OAuth 2.0 Client ID — expected `aud` for incoming ID tokens |

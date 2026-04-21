@@ -12,7 +12,7 @@ public interface IAuthService
   ///   Verifies a Google ID token, enforces the AllowedEmail whitelist, upserts the User,
   ///   and issues a Fiolyn access + refresh token pair.
   /// </summary>
-  /// <param name="idToken">Google ID token supplied by the mobile client.</param>
+  /// <param name="idToken">Google ID token supplied by the web client.</param>
   /// <exception cref="UnauthorizedAccessException">Token invalid.</exception>
   /// <exception cref="ForbiddenAccessException">Email not whitelisted.</exception>
   Task<AuthResponse> LoginWithGoogleAsync( string idToken ) ;

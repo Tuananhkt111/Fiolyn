@@ -4,7 +4,7 @@ Detailed rules for Google SSO + JWT auth in Fiolyn. Read this when touching anyt
 
 ## Flow
 
-Mobile client gets a Google ID token via Google Sign-In SDK → `POST /api/auth/google` → `GoogleTokenVerifier` validates against `GoogleAuth:ClientId` → `AllowedEmail` whitelist check → `AppUser` upsert (merged lookup by `GoogleSub` OR `Email`) → `JwtService` issues HS256 access token + opaque refresh token (64 random bytes, returned raw once, persisted as SHA-256 hash). `POST /api/auth/refresh` rotates the refresh token atomically (new insert + old revoke in one `SaveChangesAsync`); replaying a revoked token revokes the whole rotation chain for that user. `POST /api/auth/logout` sets `RevokedAt`.
+Web client gets a Google ID token via Google Identity Services (GIS) → `POST /api/auth/google` → `GoogleTokenVerifier` validates against `GoogleAuth:ClientId` → `AllowedEmail` whitelist check → `AppUser` upsert (merged lookup by `GoogleSub` OR `Email`) → `JwtService` issues HS256 access token + opaque refresh token (64 random bytes, returned raw once, persisted as SHA-256 hash). `POST /api/auth/refresh` rotates the refresh token atomically (new insert + old revoke in one `SaveChangesAsync`); replaying a revoked token revokes the whole rotation chain for that user. `POST /api/auth/logout` sets `RevokedAt`.
 
 Authorization uses class-level `[Authorize]` plus a named `Admin` policy (requires `isAdmin=true` claim).
 

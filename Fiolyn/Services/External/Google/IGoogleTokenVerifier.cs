@@ -9,7 +9,7 @@ public interface IGoogleTokenVerifier
   ///   Validates the given Google ID token. Returns the identity payload on success,
   ///   throws <see cref="UnauthorizedAccessException" /> on any validation failure.
   /// </summary>
-  /// <param name="idToken">The raw Google ID token JWT from the mobile client.</param>
+  /// <param name="idToken">The raw Google ID token JWT from the web client.</param>
   /// <returns>The verified Google identity payload.</returns>
   Task<GooglePayload> VerifyAsync( string idToken ) ;
 }

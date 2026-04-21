@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Fiolyn is a .NET 10 web API with two responsibilities:
 
 - **Telegram ingest** — receives webhook messages, checks the sender against a DB whitelist (`TelegramUserInfo`), saves the raw message as a page in a Notion database, and parses `stock buy/sell/div` commands into stock transaction records.
-- **Mobile REST API** — exposes CRUD endpoints for the stock-management mobile app, authenticated via Google SSO + Fiolyn-signed JWT.
+- **Web REST API** — exposes CRUD endpoints for the stock-management web app, authenticated via Google SSO + Fiolyn-signed JWT.
 
 **User model:** `AppUser` rows are created on first Google login, gated by an admin-managed `AllowedEmail` whitelist. Admins (`AppUser.IsAdmin = true`) can manage the whitelist and other users' roles.
 
