@@ -1,109 +1,85 @@
 # Configuration Setup
 
-## Overview
-
-Fiolyn uses .NET's built-in `IConfiguration` pipeline with the **Options Pattern** to manage secrets and settings across environments. The pipeline merges sources in priority order (lowest → highest):
+Fiolyn uses .NET's `IConfiguration` + Options Pattern. Sources merge in priority order (lowest → highest):
 
 ```
-appsettings.json
-  → appsettings.Development.json   (local secrets, gitignored)
-    → Environment variables         (Northflank prod, overrides appsettings)
+appsettings.json → appsettings.Development.json (local, gitignored) → env vars (prod)
 ```
 
-Configuration is bound to strongly-typed classes in `ServiceRegisters/Settings/` using `IOptions<T>`.
+Nested keys use `:` in JSON and `__` in env vars. Each section binds to a strongly-typed class in `Fiolyn/ServiceRegisters/Settings/` via `IOptions<T>`.
 
 ---
 
-## Configuration Structure
+## Required keys
 
-Nested configuration uses `:` (colon) in JSON and `__` (double underscore) in environment variables.
+| Config path                         | Env var                              | Bound to             | Notes                                                              |
+|-------------------------------------|--------------------------------------|----------------------|--------------------------------------------------------------------|
+| `ConnectionStrings:NeonDatabaseUrl` | `CONNECTIONSTRINGS__NEONDATABASEURL` | —                    | Neon Postgres connection string                                    |
+| `NotionSettings:NotionApiKey`       | `NOTIONSETTINGS__NOTIONAPIKEY`       | `NotionSettings`     |                                                                    |
+| `NotionSettings:NotionDatabaseId`   | `NOTIONSETTINGS__NOTIONDATABASEID`   | `NotionSettings`     |                                                                    |
+| `Jwt:SigningKey`                    | `JWT__SIGNINGKEY`                    | `JwtSettings`        | **Required, ≥32 chars** — app fails fast at startup                |
+| `Jwt:Issuer`                        | `JWT__ISSUER`                        | `JwtSettings`        | Default `Fiolyn`                                                   |
+| `Jwt:Audience`                      | `JWT__AUDIENCE`                      | `JwtSettings`        | Default `FiolynMobile`                                             |
+| `Jwt:AccessTokenExpiryMinutes`      | `JWT__ACCESSTOKENEXPIRYMINUTES`      | `JwtSettings`        | Default `15`                                                       |
+| `Jwt:RefreshTokenExpiryDays`        | `JWT__REFRESHTOKENEXPIRYDAYS`        | `JwtSettings`        | Default `30`                                                       |
+| `GoogleAuth:ClientId`               | `GOOGLEAUTH__CLIENTID`               | `GoogleAuthSettings` | Google OAuth 2.0 Client ID — expected `aud` for incoming ID tokens |
 
-### appsettings.json (or appsettings.Development.json)
+Note the section key is `Jwt` / `GoogleAuth` / `NotionSettings` (not `JwtSettings` / `GoogleAuthSettings` / `NotionSetting`).
+
+---
+
+## Local setup
+
+Create `Fiolyn/appsettings.Development.json` (gitignored):
 
 ```json
 {
   "ConnectionStrings": {
-    "NeonDatabaseUrl": "postgresql://..."
+    "NeonDatabaseUrl": "postgresql://user:password@host/database?sslmode=require"
   },
-  "TelegramBotToken": "...",
-  "NotionSetting": {
-    "NotionApiKey": "...",
-    "NotionDatabaseId": "..."
-  }
-}
-```
-
-### Environment Variables (Northflank)
-
-```
-CONNECTIONSTRINGS__NEONDATABASEURL=postgresql://...
-TELEGRAMBOTTOKEN=...
-NOTIONSETTING__NOTIONAPIKEY=...
-NOTIONSETTING__NOTIONDATABASEID=...
-```
-
----
-
-## Options Classes
-
-All configuration is bound to strongly-typed classes via `IOptions<T>`:
-
-- **`NotionSettings`** — `Fiolyn/ServiceRegisters/Settings/NotionSettings.cs`
-  ```csharp
-  public class NotionSettings
-  {
-    public string NotionApiKey { get; set; }
-    public string NotionDatabaseId { get; set; }
-  }
-  ```
-
-Services receive configuration via primary constructor:
-```csharp
-public class NotionService( IOptions<NotionSettings> options, ... )
-{
-  var settings = options.Value ;
-}
-```
-
----
-
-## Local Setup
-
-1. Create `Fiolyn/appsettings.Development.json` (gitignored):
-
-```json
-{
-  "ConnectionStrings": {
-    "NeonDatabaseUrl": "Host=..;Database=..;Username=..;Password=..;SSL Mode=Require"
+  "NotionSettings": {
+    "NotionApiKey": "your-notion-api-key",
+    "NotionDatabaseId": "your-notion-database-id"
   },
-  "TelegramBotToken": "your-token",
-  "NotionSetting": {
-    "NotionApiKey": "your-api-key",
-    "NotionDatabaseId": "your-db-id"
+  "Jwt": {
+    "SigningKey": "<random >= 32 chars — e.g. `openssl rand -base64 48`>"
+  },
+  "GoogleAuth": {
+    "ClientId": "<your-google-oauth-client-id>.apps.googleusercontent.com"
   }
 }
 ```
 
-2. Run the project — `launchSettings.json` sets `ASPNETCORE_ENVIRONMENT=Development`, which causes .NET to automatically load `appsettings.Development.json`:
+`launchSettings.json` sets `ASPNETCORE_ENVIRONMENT=Development`, so `dotnet run` picks this up automatically.
 
-```bash
-cd Fiolyn
-dotnet run
-```
-
-No manual environment variable exports needed.
+`Jwt:Issuer`, `Jwt:Audience`, and the expiry values can be omitted locally — the `JwtSettings` class defaults cover them.
 
 ---
 
 ## Production (Northflank)
 
-Set these environment variables in the Northflank dashboard (use `__` for nested keys):
+Set the env vars in the Northflank dashboard. Env vars override `appsettings.json` automatically.
 
-```
-CONNECTIONSTRINGS__NEONDATABASEURL=postgresql://...
-TELEGRAMBOTTOKEN=...
-NOTIONSETTING__NOTIONAPIKEY=...
-NOTIONSETTING__NOTIONDATABASEID=...
+---
+
+## Service registration
+
+Each settings class is bound in its service register:
+
+- `NotionSettings` → `NotionServiceRegister` (`configuration.GetSection("NotionSettings")`)
+- `JwtSettings` + `GoogleAuthSettings` → `AuthServiceRegister` (`configuration.GetSection("Jwt")` / `"GoogleAuth"`)
+
+`AuthServiceRegister` and `JwtService`'s constructor both throw `InvalidOperationException` if `Jwt:SigningKey` is missing or <32 chars — defence in depth.
+
+---
+
+## Telegram bot webhook setup
+
+The Telegram bot token is **not** read by the running app — Fiolyn only ingests inbound webhooks. The token is only needed **once**, externally, to register the webhook URL with Telegram:
+
+```bash
+curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
+  -d "url=https://<your-host>/api/telegram"
 ```
 
-Environment variables take higher priority than `appsettings.json`, so they override any defaults automatically.
+See `docs/LocalWebhookTesting.md` for the full flow.
