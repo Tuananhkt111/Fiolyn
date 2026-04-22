@@ -51,7 +51,7 @@ See **`docs/ConfigurationSettingSetup.md`** for the full key list (JSON shape, e
 - **Repository** is generic (`IRepository<T>` in `Data/Repositories/`). Don't build entity-specific repositories.
 - **Entities** implement `IAuditable` (Created/LastModified autopopulated on `SaveChangesAsync`) and usually `ISoftDelete` (`IsDeleted` flag). `RefreshToken` is the exception — revocation is explicit via `RevokedAt`, not soft-delete.
 - **DI** is auto-discovered via `IServiceRegister` implementations in `ServiceRegisters/`, ordered by `Order`. Add new business services to `ScopedBusinessServicesRegister`. Use typed `AddHttpClient<TInterface, TImpl>` for HTTP clients (see `NotionServiceRegister`) — **don't** wrap with `AddSingleton<TInterface>(sp => sp.GetRequiredService<TImpl>())`, that pins one `HttpClient` forever and defeats `IHttpClientFactory` handler rotation.
-- **Migrations** apply on startup via `app.InitializeDatabaseAsync()` (`Data/Seeds/DatabaseInitializer`). DbSet names are singular and match the entity class (`StockTransaction`, not `StockTransactions`).
+- **Migrations do NOT apply on startup.** Run `dotnet ef database update` from `Fiolyn/` locally, and ensure the equivalent runs as part of deploy (Northflank release step or a pre-start command) before the app boots — the app will fail on any query against an un-migrated schema. DbSet names are singular and match the entity class (`StockTransaction`, not `StockTransactions`).
 
 **Auth:** see **`.claude/rules/auth.md`** for the flow and rules.
 

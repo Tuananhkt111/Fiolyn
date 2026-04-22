@@ -1,4 +1,3 @@
-using Fiolyn.Data.Seeds ;
 using Fiolyn.ServiceRegisters.Extensions ;
 
 var builder = WebApplication.CreateBuilder( args ) ;
@@ -6,8 +5,6 @@ var builder = WebApplication.CreateBuilder( args ) ;
 builder.Services.RegisterAllServices( builder.Configuration ) ;
 
 var app = builder.Build() ;
-
-await app.InitializeDatabaseAsync() ;
 
 if ( app.Environment.IsDevelopment() )
 {
