@@ -2,6 +2,7 @@ using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal ;
 using FluentAssertions ;
+using Microsoft.Extensions.Logging ;
 using MockQueryable ;
 using NSubstitute ;
 using NSubstitute.ExceptionExtensions ;
@@ -10,9 +11,10 @@ namespace Fiolyn.Tests.Unit.Services ;
 
 public class AllowedEmailServiceTests
 {
+  private readonly ILogger<AllowedEmailService> _logger = Substitute.For<ILogger<AllowedEmailService>>() ;
   private readonly IRepository<AllowedEmail> _repository = Substitute.For<IRepository<AllowedEmail>>() ;
 
-  private AllowedEmailService CreateSut() => new(_repository) ;
+  private AllowedEmailService CreateSut() => new(_repository, _logger) ;
 
   private void SetupExisting( params string[] emails )
   {

@@ -2,6 +2,7 @@ using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal ;
 using FluentAssertions ;
+using Microsoft.Extensions.Logging ;
 using NSubstitute ;
 using NSubstitute.ExceptionExtensions ;
 
@@ -9,9 +10,10 @@ namespace Fiolyn.Tests.Unit.Services ;
 
 public class UserServiceTests
 {
+  private readonly ILogger<UserService> _logger = Substitute.For<ILogger<UserService>>() ;
   private readonly IRepository<AppUser> _repository = Substitute.For<IRepository<AppUser>>() ;
 
-  private UserService CreateSut() => new(_repository) ;
+  private UserService CreateSut() => new(_repository, _logger) ;
 
   [Fact]
   public async Task GetByIdAsync_Missing_ThrowsKeyNotFound()

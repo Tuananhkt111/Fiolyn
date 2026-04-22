@@ -8,7 +8,7 @@ namespace Fiolyn.Services.Internal ;
 /// <summary>
 ///   User profile reads plus admin-only management operations.
 /// </summary>
-public class UserService( IRepository<AppUser> repository ) : IUserService
+public class UserService( IRepository<AppUser> repository, ILogger<UserService> logger ) : IUserService
 {
   /// <inheritdoc />
   public Task<AppUser> GetByIdAsync( long id ) => repository.GetActiveByIdOrThrowAsync( id ) ;
@@ -34,6 +34,7 @@ public class UserService( IRepository<AppUser> repository ) : IUserService
     user.IsAdmin = isAdmin ;
     repository.Update( user ) ;
     await repository.SaveAsync() ;
+    logger.LogInformation( "Admin flag for user {UserId} set to {IsAdmin}", id, isAdmin ) ;
     return user ;
   }
 

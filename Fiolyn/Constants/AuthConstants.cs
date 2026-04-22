@@ -15,4 +15,7 @@ public static class AuthConstants
 
   /// <summary>Authorization policy that requires the admin claim.</summary>
   public const string AdminPolicyName = "Admin" ;
+
+  /// <summary>Minimum acceptable length (in characters) for the HS256 signing key.</summary>
+  public const int MinJwtSigningKeyLength = 32 ;
 }

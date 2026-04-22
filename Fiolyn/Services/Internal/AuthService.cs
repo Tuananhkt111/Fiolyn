@@ -16,7 +16,8 @@ public class AuthService(
   IJwtService jwtService,
   IRepository<AppUser> userRepository,
   IRepository<AllowedEmail> allowedEmailRepository,
-  IRepository<RefreshToken> refreshTokenRepository ) : IAuthService
+  IRepository<RefreshToken> refreshTokenRepository,
+  ILogger<AuthService> logger ) : IAuthService
 {
   /// <inheritdoc />
   public async Task<AuthResponse> LoginWithGoogleAsync( string idToken )
@@ -45,6 +46,8 @@ public class AuthService(
         IsAdmin = false
       } ;
       await userRepository.AddAsync( user ) ;
+      logger.LogInformation( "First-time login: created user for {Email} with Google sub {Sub}",
+        normalizedEmail, payload.Sub ) ;
     }
     else
     {
@@ -53,6 +56,7 @@ public class AuthService(
       user.DisplayName = payload.Name ?? user.DisplayName ;
       user.PictureUrl = payload.Picture ?? user.PictureUrl ;
       userRepository.Update( user ) ;
+      logger.LogInformation( "User {UserId} re-authenticated via Google", user.Id ) ;
     }
 
     user.LastLoginAt = DateTime.UtcNow ;
@@ -82,7 +86,8 @@ public class AuthService(
 
     if ( stored.RevokedAt is not null )
     {
-      // Reuse detected — revoke the entire chain for this user.
+      logger.LogWarning( "Refresh token reuse detected for user {UserId} — revoking rotation chain",
+        stored.UserId ) ;
       await RevokeAllActiveTokensAsync( stored.UserId ) ;
       throw new UnauthorizedAccessException() ;
     }
@@ -124,6 +129,7 @@ public class AuthService(
       stored.RevokedAt = DateTime.UtcNow ;
       refreshTokenRepository.Update( stored ) ;
       await refreshTokenRepository.SaveAsync() ;
+      logger.LogInformation( "User {UserId} logged out", stored.UserId ) ;
     }
   }
 

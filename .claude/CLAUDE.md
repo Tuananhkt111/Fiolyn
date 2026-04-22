@@ -105,4 +105,6 @@ See **`docs/ConfigurationSettingSetup.md`** for the full key list (JSON shape, e
 
 ### Workflow
 
-- **After every code change:** call `mcp__ide__getDiagnostics` if available (else run `dotnet build` from the repo root) to catch compile/analyzer errors, then run `dotnet test Fiolyn.Tests/Fiolyn.Tests.csproj` (all should pass) before committing.
+- **After every code change:** call `mcp__ide__getDiagnostics` if available (else run `dotnet build` from the repo root) to catch compile/analyzer errors, then run **only the test classes covering the files you touched** via `--filter`, e.g.
+  `dotnet test Fiolyn.Tests/Fiolyn.Tests.csproj --filter "FullyQualifiedName~AuthServiceTests|FullyQualifiedName~AuthControllerTests"`.
+  Map each changed production file to its `*Tests.cs` (e.g. `AuthService.cs` → `AuthServiceTests`; a new `Controllers/FooController.cs` → `FooControllerTests`). Only fall back to the full suite (`dotnet test Fiolyn.Tests/Fiolyn.Tests.csproj`) when the change is cross-cutting (e.g. `IRepository<T>`, `AppDbContext`, `ServiceRegisters/*`, shared base classes) **or** as the pre-commit gate — all tests must pass before committing.

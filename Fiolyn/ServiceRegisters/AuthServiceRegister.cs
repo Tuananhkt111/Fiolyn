@@ -26,9 +26,11 @@ public class AuthServiceRegister : IServiceRegister
     services.Configure<GoogleAuthSettings>( configuration.GetSection( "GoogleAuth" ) ) ;
 
     var jwtSettings = jwtSection.Get<JwtSettings>() ?? new JwtSettings() ;
-    if ( string.IsNullOrWhiteSpace( jwtSettings.SigningKey ) || jwtSettings.SigningKey.Length < 32 )
+    if ( string.IsNullOrWhiteSpace( jwtSettings.SigningKey )
+      || jwtSettings.SigningKey.Length < AuthConstants.MinJwtSigningKeyLength )
     {
-      throw new InvalidOperationException( "Jwt:SigningKey must be configured and at least 32 characters long." ) ;
+      throw new InvalidOperationException(
+        $"Jwt:SigningKey must be configured and at least {AuthConstants.MinJwtSigningKeyLength} characters long." ) ;
     }
 
     var signingKeyBytes = Encoding.UTF8.GetBytes( jwtSettings.SigningKey ) ;

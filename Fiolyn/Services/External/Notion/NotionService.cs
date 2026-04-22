@@ -52,5 +52,7 @@ public class NotionService(
       logger.LogError( "Notion API error {Status}: {Body}", ( int )response.StatusCode, body ) ;
       throw new InvalidOperationException( $"Notion API failed with status {response.StatusCode}: {body}" ) ;
     }
+
+    logger.LogDebug( "Appended Notion page (text length {Length})", text.Length ) ;
   }
 }

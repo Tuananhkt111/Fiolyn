@@ -76,9 +76,10 @@ public class JwtService( IOptions<JwtSettings> settings ) : IJwtService
 
   private static byte[] EncodeSigningKey( string signingKey )
   {
-    if ( string.IsNullOrWhiteSpace( signingKey ) || signingKey.Length < 32 )
+    if ( string.IsNullOrWhiteSpace( signingKey ) || signingKey.Length < AuthConstants.MinJwtSigningKeyLength )
     {
-      throw new InvalidOperationException( "Jwt:SigningKey must be set and at least 32 characters long." ) ;
+      throw new InvalidOperationException(
+        $"Jwt:SigningKey must be set and at least {AuthConstants.MinJwtSigningKeyLength} characters long." ) ;
     }
 
     return Encoding.UTF8.GetBytes( signingKey ) ;

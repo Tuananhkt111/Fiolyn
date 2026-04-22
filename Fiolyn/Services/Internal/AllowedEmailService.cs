@@ -8,7 +8,9 @@ namespace Fiolyn.Services.Internal ;
 /// <summary>
 ///   CRUD over the admin-managed email whitelist.
 /// </summary>
-public class AllowedEmailService( IRepository<AllowedEmail> repository ) : IAllowedEmailService
+public class AllowedEmailService(
+  IRepository<AllowedEmail> repository,
+  ILogger<AllowedEmailService> logger ) : IAllowedEmailService
 {
   /// <inheritdoc />
   public async Task<List<AllowedEmail>> GetAllAsync() =>
@@ -35,6 +37,8 @@ public class AllowedEmailService( IRepository<AllowedEmail> repository ) : IAllo
 
     await repository.AddAsync( entry ) ;
     await repository.SaveAsync() ;
+    logger.LogInformation( "Email {Email} whitelisted by user {InvitedByUserId}",
+      normalizedEmail, invitedByUserId ) ;
     return entry ;
   }
 
@@ -44,5 +48,6 @@ public class AllowedEmailService( IRepository<AllowedEmail> repository ) : IAllo
     var entry = await repository.GetActiveByIdOrThrowAsync( id ) ;
     repository.SoftDelete( entry ) ;
     await repository.SaveAsync() ;
+    logger.LogInformation( "Whitelist entry {Id} ({Email}) removed", id, entry.Email ) ;
   }
 }

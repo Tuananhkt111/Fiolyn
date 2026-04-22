@@ -5,6 +5,7 @@ using Fiolyn.Services.External.Google ;
 using Fiolyn.Services.Internal ;
 using Fiolyn.Services.Internal.Interfaces ;
 using FluentAssertions ;
+using Microsoft.Extensions.Logging ;
 using MockQueryable ;
 using NSubstitute ;
 
@@ -15,10 +16,11 @@ public class AuthServiceTests
   private readonly IRepository<AllowedEmail> _allowedEmails = Substitute.For<IRepository<AllowedEmail>>() ;
   private readonly IGoogleTokenVerifier _google = Substitute.For<IGoogleTokenVerifier>() ;
   private readonly IJwtService _jwt = Substitute.For<IJwtService>() ;
+  private readonly ILogger<AuthService> _logger = Substitute.For<ILogger<AuthService>>() ;
   private readonly IRepository<RefreshToken> _refreshTokens = Substitute.For<IRepository<RefreshToken>>() ;
   private readonly IRepository<AppUser> _users = Substitute.For<IRepository<AppUser>>() ;
 
-  private AuthService CreateSut() => new(_google, _jwt, _users, _allowedEmails, _refreshTokens) ;
+  private AuthService CreateSut() => new(_google, _jwt, _users, _allowedEmails, _refreshTokens, _logger) ;
 
   private void SetupAllowedEmails( params string[] emails )
   {
