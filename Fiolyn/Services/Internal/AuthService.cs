@@ -136,7 +136,7 @@ public class AuthService(
 
     await refreshTokenRepository.AddAsync( new RefreshToken
     {
-      UserId = user.Id,
+      User = user,
       TokenHash = refresh.Hash,
       ExpiresAt = refresh.ExpiresAt
     } ) ;
