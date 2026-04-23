@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Fiolyn is a .NET 10 web API with two responsibilities:
 
 - **Telegram ingest** — receives webhook messages, checks the sender against a DB whitelist (`TelegramUserInfo`), saves the raw message as a page in a Notion database, and parses `stock buy/sell/div` commands into stock transaction records.
-- **Web REST API** — exposes CRUD endpoints for the stock-management web app, authenticated via Google SSO + Fiolyn-signed JWT.
+- **Web REST API** — exposes CRUD endpoints for the personal-finance web app (stock transactions, broker accounts, and user-owned spend accounts), authenticated via Google SSO + Fiolyn-signed JWT.
 
 **User model:** `AppUser` rows are created on first Google login, gated by an admin-managed `AllowedEmail` whitelist. Admins (`AppUser.IsAdmin = true`) can manage the whitelist and other users' roles.
 
@@ -80,6 +80,8 @@ See **`docs/ConfigurationSettingSetup.md`** for the full key list (JSON shape, e
 - **`TelegramController` always returns 200.** Telegram retries non-2xx; every other controller uses proper status codes (201 Created, 200 OK, 204 NoContent, 404 NotFound).
 - **Never return raw entities** from REST controllers. Use `record` DTOs in `Controllers/DTOs/Responses/{Resource}/`. Use request records in `Controllers/DTOs/Requests/{Resource}/` with `[Required]` / `[MaxLength]` annotations.
 - **Refetch through the service's read method when a Create response reads through a nav.** `AddAsync` + `SaveAsync` populates only the FK; the nav reference is null. The generic `IRepository<T>.GetByIdAsync` does *not* eager-load — service-layer read methods do (e.g. `StockTransactionService.GetByIdAsync` calls `.Include( t => t.BrokerAccount )`). Go back through the service before building the response DTO. See `StockTransactionController.CreateAsync`.
+- **User-owned resources: enforce ownership in the service, not the controller.** When a resource belongs to a specific `AppUser` (has an `AppUserId` FK), give the service user-scoped methods (`GetAllForUserAsync(userId)`, `GetByIdForUserAsync(id, userId)`, `SoftDeleteAsync(id, userId)`) that filter by `AppUserId` and treat "not owned by caller" as 404. Controllers pipe `User.GetUserId()` into every call.
+- **Admin cross-user endpoints go in a separate `Admin<X>Controller`.** Route `/api/admin/<resource>`, `[Authorize(Policy = AuthConstants.AdminPolicyName)]` at class level, and the *same* service interface — add admin methods (no user scoping, usually with `.Include(a => a.AppUser)` for owner enrichment). See `AdminSpendAccountController` vs `SpendAccountController`. The split avoids both response-shape overloading and policy-per-action sprawl.
 
 ### Auth
 
@@ -95,6 +97,7 @@ See **`docs/ConfigurationSettingSetup.md`** for the full key list (JSON shape, e
 - **Hoist `.ToLowerInvariant()` out of EF LINQ predicates.** Compute the normalized comparand into a local first, so only the column-side call ends up in the translated expression tree: `var lowered = name.ToLowerInvariant(); ... b.Name.ToLower() == lowered`. See `StockTransactionService.ResolveBrokerAsync`.
 - **When a child references a parent staged in the same transaction, set the nav, not the scalar FK.** A freshly-`AddAsync`-ed parent has `Id == 0` until `SaveChangesAsync` round-trips to the DB, so `child.ParentId = parent.Id` persists `0` and hits a FK violation (`23503`). Use `child.Parent = parent` — EF fills in the FK after the parent insert within the same transaction. See `AuthService.IssueTokensAsync` assigning `RefreshToken.User = user` on first-time Google login.
 - **`StockTransaction.Symbol` auto-normalizes** to uppercase via the setter. Don't manually `ToUpperInvariant()` on assignment.
+- **Money and quantity fields are `long`, not `decimal`.** The primary currency is VND, which has no fractional subunit, and VN exchanges trade in whole-share lots. Applies to balances, prices, totals, quantities — entity, DTO, and `Parse` layer. See `SpendAccount.Balance`, `StockTransaction.{Quantity,Price,TotalAmount}`. Only reintroduce `decimal` if a genuine sub-unit requirement appears (confirm first).
 - **Migrations:** never `EnsureCreated()` (bypasses migrations, corrupts history). Never edit or delete applied migrations — create a new down migration instead. To undo an *unapplied* migration, use `dotnet ef migrations remove`, not hand-deletion.
 
 ### Deployment (Northflank)
