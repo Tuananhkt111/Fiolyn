@@ -102,9 +102,9 @@ public partial class StockTransactionService(
       return null ;
     }
 
-    if ( ! decimal.TryParse( parts[ 3 ], out var qty )
-         || ! decimal.TryParse( parts[ 4 ], out var price )
-         || ! decimal.TryParse( parts[ 5 ], out var total ) )
+    if ( ! long.TryParse( parts[ 3 ], out var qty )
+         || ! long.TryParse( parts[ 4 ], out var price )
+         || ! long.TryParse( parts[ 5 ], out var total ) )
     {
       return null ;
     }
@@ -138,7 +138,7 @@ public partial class StockTransactionService(
       return null ;
     }
 
-    if ( ! decimal.TryParse( parts[ 3 ], out var total ) )
+    if ( ! long.TryParse( parts[ 3 ], out var total ) )
     {
       return null ;
     }

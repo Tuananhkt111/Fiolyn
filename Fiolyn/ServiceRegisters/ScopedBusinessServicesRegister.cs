@@ -19,6 +19,7 @@ public class ScopedBusinessServicesRegister : IServiceRegister
     services.AddScoped<ITelegramMessageService, TelegramMessageService>() ;
     services.AddScoped<IStockTransactionService, StockTransactionService>() ;
     services.AddScoped<IBrokerAccountService, BrokerAccountService>() ;
+    services.AddScoped<ISpendAccountService, SpendAccountService>() ;
     services.AddScoped<IAuthService, AuthService>() ;
     services.AddScoped<IAllowedEmailService, AllowedEmailService>() ;
     services.AddScoped<IUserService, UserService>() ;

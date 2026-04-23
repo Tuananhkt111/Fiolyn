@@ -50,9 +50,9 @@ public class StockTransactionServiceTests
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;
     result.TransactionType.Should().Be( TransactionType.Buy ) ;
-    result.Quantity.Should().Be( 100m ) ;
-    result.Price.Should().Be( 45000m ) ;
-    result.TotalAmount.Should().Be( 4501500m ) ;
+    result.Quantity.Should().Be( 100L ) ;
+    result.Price.Should().Be( 45000L ) ;
+    result.TotalAmount.Should().Be( 4501500L ) ;
     result.BrokerAccountId.Should().Be( 1L ) ;
     result.Notes.Should().Be( "bought at support" ) ;
     result.TransactionDate.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
@@ -64,14 +64,14 @@ public class StockTransactionServiceTests
     SetupBroker( "Fidelity", 2L ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.ParseMessageAsync( "stock sell AAPL 10 150.5 1500 broker:Fidelity notes:profit taking" ) ;
+    var result = await sut.ParseMessageAsync( "stock sell AAPL 10 150 1500 broker:Fidelity notes:profit taking" ) ;
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "AAPL" ) ;
     result.TransactionType.Should().Be( TransactionType.Sell ) ;
-    result.Quantity.Should().Be( 10m ) ;
-    result.Price.Should().Be( 150.5m ) ;
-    result.TotalAmount.Should().Be( 1500m ) ;
+    result.Quantity.Should().Be( 10L ) ;
+    result.Price.Should().Be( 150L ) ;
+    result.TotalAmount.Should().Be( 1500L ) ;
     result.BrokerAccountId.Should().Be( 2L ) ;
     result.Notes.Should().Be( "profit taking" ) ;
   }
@@ -87,9 +87,9 @@ public class StockTransactionServiceTests
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;
     result.TransactionType.Should().Be( TransactionType.Dividend ) ;
-    result.Quantity.Should().Be( 0m ) ;
-    result.Price.Should().Be( 0m ) ;
-    result.TotalAmount.Should().Be( 500000m ) ;
+    result.Quantity.Should().Be( 0L ) ;
+    result.Price.Should().Be( 0L ) ;
+    result.TotalAmount.Should().Be( 500000L ) ;
     result.Notes.Should().Be( "Q2 dividend" ) ;
     result.TransactionDate.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
   }

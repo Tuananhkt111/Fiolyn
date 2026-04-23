@@ -36,19 +36,19 @@ public class StockTransaction : IAuditable, ISoftDelete
   ///   Gets or sets the quantity of shares traded. Zero for dividends.
   /// </summary>
   [Required]
-  public decimal Quantity { get ; set ; }
+  public long Quantity { get ; set ; }
 
   /// <summary>
-  ///   Gets or sets the price per share. Zero for dividends.
+  ///   Gets or sets the price per share in whole VND. Zero for dividends.
   /// </summary>
   [Required]
-  public decimal Price { get ; set ; }
+  public long Price { get ; set ; }
 
   /// <summary>
-  ///   Gets or sets the total cash amount including fees.
+  ///   Gets or sets the total cash amount in whole VND, including fees.
   /// </summary>
   [Required]
-  public decimal TotalAmount { get ; set ; }
+  public long TotalAmount { get ; set ; }
 
   /// <summary>
   ///   Gets or sets the UTC date of the trade.

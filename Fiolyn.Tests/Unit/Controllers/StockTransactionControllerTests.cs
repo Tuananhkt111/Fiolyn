@@ -17,7 +17,7 @@ public class StockTransactionControllerTests
   private StockTransactionController CreateSut() => new(_service) ;
 
   private static StockTransactionRequest BuildRequest() =>
-    new("vnm", TransactionType.Buy, 100m, 45000m, 4_501_500m,
+    new("vnm", TransactionType.Buy, 100L, 45000L, 4_501_500L,
       new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ), 3, "notes") ;
 
   private static StockTransaction BuildEntity( long id = 10, BrokerAccount? broker = null ) =>
@@ -26,9 +26,9 @@ public class StockTransactionControllerTests
       Id = id,
       Symbol = "VNM",
       TransactionType = TransactionType.Buy,
-      Quantity = 100m,
-      Price = 45000m,
-      TotalAmount = 4_501_500m,
+      Quantity = 100L,
+      Price = 45000L,
+      TotalAmount = 4_501_500L,
       TransactionDate = new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ),
       BrokerAccountId = 3,
       BrokerAccount = broker ?? new BrokerAccount
@@ -151,13 +151,13 @@ public class StockTransactionControllerTests
   public async Task UpdateAsync_Existing_AppliesChangesAndReturns200()
   {
     var existing = BuildEntity() ;
-    existing.Quantity = 50m ;
+    existing.Quantity = 50L ;
     _service.GetByIdAsync( 10 ).Returns( existing ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 10, BuildRequest() ) ;
 
-    existing.Quantity.Should().Be( 100m, "request values must be applied to the tracked entity" ) ;
+    existing.Quantity.Should().Be( 100L, "request values must be applied to the tracked entity" ) ;
     result.Should().BeOfType<OkObjectResult>() ;
     await _service.Received( 1 ).UpdateAsync( existing ) ;
   }

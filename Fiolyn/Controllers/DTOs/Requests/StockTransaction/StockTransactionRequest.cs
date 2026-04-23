@@ -9,9 +9,9 @@ namespace Fiolyn.Controllers.DTOs.Requests.StockTransaction ;
 public record StockTransactionRequest(
   [Required] [MaxLength( 20 )] string Symbol,
   [Required] TransactionType TransactionType,
-  [Required] decimal Quantity,
-  [Required] decimal Price,
-  [Required] decimal TotalAmount,
+  [Required] long Quantity,
+  [Required] long Price,
+  [Required] long TotalAmount,
   [Required] DateTime TransactionDate,
   [Required] long BrokerAccountId,
   [MaxLength( 500 )] string Notes = "" ) ;
