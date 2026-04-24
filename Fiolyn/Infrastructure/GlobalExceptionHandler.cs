@@ -21,6 +21,7 @@ public class GlobalExceptionHandler( ILogger<GlobalExceptionHandler> logger ) : 
       UnauthorizedAccessException => ( StatusCodes.Status401Unauthorized, "Unauthorized" ),
       ForbiddenAccessException => ( StatusCodes.Status403Forbidden, "Forbidden" ),
       BadRequestException => ( StatusCodes.Status400BadRequest, "Bad Request" ),
+      ConflictException => ( StatusCodes.Status409Conflict, "Conflict" ),
       _ => ( StatusCodes.Status500InternalServerError, "Internal Server Error" )
     } ;
 

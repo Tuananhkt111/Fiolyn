@@ -100,12 +100,18 @@ namespace Fiolyn.Data.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
 
+                    b.Property<long?>("TelegramId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
 
                     b.HasIndex("GoogleSub")
+                        .IsUnique();
+
+                    b.HasIndex("TelegramId")
                         .IsUnique();
 
                     b.ToTable("AppUser");
@@ -298,28 +304,6 @@ namespace Fiolyn.Data.Migrations
                     b.HasIndex("BrokerAccountId");
 
                     b.ToTable("StockTransaction");
-                });
-
-            modelBuilder.Entity("Fiolyn.Entities.TelegramUserInfo", b =>
-                {
-                    b.Property<long>("TelegramId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("TelegramId"));
-
-                    b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("LastModified")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("TelegramId");
-
-                    b.ToTable("TelegramUserInfo");
                 });
 
             modelBuilder.Entity("Fiolyn.Entities.BrokerAccountMember", b =>

@@ -9,6 +9,7 @@ namespace Fiolyn.Entities ;
 /// </summary>
 [Index( nameof( Email ), IsUnique = true )]
 [Index( nameof( GoogleSub ), IsUnique = true )]
+[Index( nameof( TelegramId ), IsUnique = true )]
 public class AppUser : IAuditable, ISoftDelete
 {
   /// <summary>
@@ -52,6 +53,12 @@ public class AppUser : IAuditable, ISoftDelete
   /// </summary>
   [Required]
   public bool IsAdmin { get ; set ; }
+
+  /// <summary>
+  ///   Gets or sets the Telegram user ID linked to this account. Null means the user has not
+  ///   linked Telegram; inbound webhook traffic from an unknown ID is ignored.
+  /// </summary>
+  public long? TelegramId { get ; set ; }
 
   /// <summary>
   ///   Gets or sets the UTC timestamp of the last successful login.

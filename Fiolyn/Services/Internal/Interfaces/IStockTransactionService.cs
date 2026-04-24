@@ -27,14 +27,6 @@ public interface IStockTransactionService
   Task<StockTransaction> CreateAsync( StockTransaction transaction, long userId ) ;
 
   /// <summary>
-  ///   Creates a new stock transaction on behalf of the Telegram ingest pipeline — bypasses the
-  ///   member-of-broker check. For trusted internal callers only.
-  /// </summary>
-  /// <param name="transaction">The transaction to persist.</param>
-  /// <returns>The persisted transaction.</returns>
-  Task<StockTransaction> CreateFromTelegramAsync( StockTransaction transaction ) ;
-
-  /// <summary>
   ///   Gets active transactions on brokers the caller is a member of, optionally filtered by symbol.
   /// </summary>
   /// <param name="userId">The caller's primary key.</param>

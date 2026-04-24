@@ -135,4 +135,88 @@ public class UserControllerTests
     result.Should().BeOfType<NoContentResult>() ;
     await _userService.Received( 1 ).SoftDeleteAsync( 42 ) ;
   }
+
+  [Fact]
+  public async Task SetMyTelegramIdAsync_DelegatesCallerIdAndReturns200()
+  {
+    var user = new AppUser
+    {
+      Id = 7,
+      Email = "me@example.com",
+      GoogleSub = "sub",
+      TelegramId = 12345L
+    } ;
+    _userService.UpdateTelegramIdAsync( 7, 12345L ).Returns( user ) ;
+    var sut = CreateSut( 7 ) ;
+
+    var result = await sut.SetMyTelegramIdAsync( new SetTelegramIdRequest( 12345L ) ) ;
+
+    result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<UserResponse>()
+      .Which.TelegramId.Should().Be( 12345L ) ;
+    await _userService.Received( 1 ).UpdateTelegramIdAsync( 7, 12345L ) ;
+  }
+
+  [Fact]
+  public async Task ClearMyTelegramIdAsync_DelegatesCallerIdWithNullAndReturns200()
+  {
+    var user = new AppUser
+    {
+      Id = 7,
+      Email = "me@example.com",
+      GoogleSub = "sub",
+      TelegramId = null
+    } ;
+    _userService.UpdateTelegramIdAsync( 7, null ).Returns( user ) ;
+    var sut = CreateSut( 7 ) ;
+
+    var result = await sut.ClearMyTelegramIdAsync() ;
+
+    result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<UserResponse>()
+      .Which.TelegramId.Should().BeNull() ;
+    await _userService.Received( 1 ).UpdateTelegramIdAsync( 7, null ) ;
+  }
+
+  [Fact]
+  public async Task SetTelegramIdAsync_DelegatesToRouteIdAndReturns200()
+  {
+    var user = new AppUser
+    {
+      Id = 9,
+      Email = "other@x.com",
+      GoogleSub = "s",
+      TelegramId = 99999L
+    } ;
+    _userService.UpdateTelegramIdAsync( 9, 99999L ).Returns( user ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.SetTelegramIdAsync( 9, new SetTelegramIdRequest( 99999L ) ) ;
+
+    result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<UserResponse>()
+      .Which.TelegramId.Should().Be( 99999L ) ;
+    await _userService.Received( 1 ).UpdateTelegramIdAsync( 9, 99999L ) ;
+  }
+
+  [Fact]
+  public async Task ClearTelegramIdAsync_DelegatesToRouteIdWithNullAndReturns200()
+  {
+    var user = new AppUser
+    {
+      Id = 9,
+      Email = "other@x.com",
+      GoogleSub = "s",
+      TelegramId = null
+    } ;
+    _userService.UpdateTelegramIdAsync( 9, null ).Returns( user ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ClearTelegramIdAsync( 9 ) ;
+
+    result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<UserResponse>()
+      .Which.TelegramId.Should().BeNull() ;
+    await _userService.Received( 1 ).UpdateTelegramIdAsync( 9, null ) ;
+  }
 }

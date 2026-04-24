@@ -4,8 +4,8 @@
 
 Fiolyn is a single .NET 8 web API service (MVC Controllers) that:
 - Receives messages from a Telegram bot via webhook
-- Checks if the sender is in an allowed user whitelist (Neon PostgreSQL)
-- Saves the message as a new entry in a Notion database
+- Resolves the sender's Telegram user ID to an `AppUser` via `AppUser.TelegramId` (no match → skip)
+- Saves the message as a new entry in a Notion database (or parses `stock buy/sell/div` into a scoped `StockTransaction`)
 
 **Stack:**
 - Language: C# (.NET 8 LTS)
@@ -70,10 +70,10 @@ dotnet run
 ### Test the webhook locally
 `dotnet run` starts on port 5027 by default — check console output for the exact URL.
 
-Your Telegram ID must be in the `allowed_users` table before testing. Insert it via the Neon SQL Editor:
+Your Telegram ID must be linked to an `AppUser` before testing. Log into the web app once (Google SSO with a whitelisted `AllowedEmail`) to create your `AppUser` row, then either call the API (`PUT /api/users/me/telegram-id` with body `{"telegramId": YOUR_TELEGRAM_ID}`) or run SQL directly:
 
 ```sql
-INSERT INTO allowed_users (telegram_id, label) VALUES (YOUR_TELEGRAM_ID, 'owner');
+UPDATE "AppUser" SET "TelegramId" = YOUR_TELEGRAM_ID WHERE "Email" = 'your.email@example.com';
 ```
 
 Then send a test request:
@@ -84,7 +84,7 @@ curl -X POST http://localhost:5027/api/telegram \
   -d '{"message":{"text":"test","from":{"id":YOUR_TELEGRAM_ID},"chat":{"id":1}}}'
 ```
 
-Expected: `{"ok":true}` and a new row in Notion. If you see `{"ok":true,"skipped":true}`, the ID is not in `allowed_users`.
+Expected: `{"ok":true}` and a new row in Notion. If you see `{"ok":true,"skipped":true}`, no `AppUser` has that `TelegramId`.
 
 ---
 

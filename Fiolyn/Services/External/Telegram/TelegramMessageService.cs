@@ -12,7 +12,7 @@ namespace Fiolyn.Services.External.Telegram ;
 ///   Processes incoming Telegram webhook messages and orchestrates saving to Notion.
 /// </summary>
 public class TelegramMessageService(
-  IRepository<TelegramUserInfo> userRepository,
+  IRepository<AppUser> userRepository,
   INotionService notionService,
   IStockTransactionService stockTransactionService,
   ILogger<TelegramMessageService> logger ) : ITelegramMessageService
@@ -34,24 +34,26 @@ public class TelegramMessageService(
 
       var fromId = from.GetProperty( "id" ).GetInt64() ;
 
-      var isAllowed = await userRepository.QueryActive()
-        .AnyAsync( u => u.TelegramId == fromId ) ;
-      if ( ! isAllowed )
+      var callerId = await userRepository.QueryActive()
+        .Where( u => u.TelegramId == fromId )
+        .Select( u => ( long? ) u.Id )
+        .FirstOrDefaultAsync() ;
+      if ( callerId is null )
       {
-        logger.LogInformation( "User {UserId} not in allowed list", fromId ) ;
+        logger.LogInformation( "Telegram user {TelegramId} not linked to any AppUser", fromId ) ;
         return ProcessResult.Skipped( "User not allowed" ) ;
       }
 
       if ( ! message.TryGetProperty( "text", out var textElement ) )
       {
-        logger.LogInformation( "Message from {UserId} has no text", fromId ) ;
+        logger.LogInformation( "Message from {TelegramId} has no text", fromId ) ;
         return ProcessResult.Skipped( "No text in message" ) ;
       }
 
       var text = textElement.GetString() ;
       if ( string.IsNullOrEmpty( text ) )
       {
-        logger.LogInformation( "Empty text from user {UserId}", fromId ) ;
+        logger.LogInformation( "Empty text from Telegram user {TelegramId}", fromId ) ;
         return ProcessResult.Skipped( "Empty text" ) ;
       }
 
@@ -60,18 +62,29 @@ public class TelegramMessageService(
         var transaction = await stockTransactionService.ParseMessageAsync( text ) ;
         if ( transaction is null )
         {
-          logger.LogWarning( "Invalid stock message format from {UserId}: {Text}", fromId, text ) ;
+          logger.LogWarning( "Invalid stock message format from {TelegramId}: {Text}", fromId, text ) ;
           return ProcessResult.Error( "Invalid stock message format" ) ;
         }
 
-        await stockTransactionService.CreateFromTelegramAsync( transaction ) ;
-        logger.LogInformation( "Stock transaction from {UserId} saved: {Symbol} {Type}",
+        try
+        {
+          await stockTransactionService.CreateAsync( transaction, callerId.Value ) ;
+        }
+        catch ( KeyNotFoundException ex )
+        {
+          logger.LogWarning( ex,
+            "Telegram user {TelegramId} (AppUserId={UserId}) not a member of broker for {Symbol}",
+            fromId, callerId.Value, transaction.Symbol ) ;
+          return ProcessResult.Error( "Not authorized for broker" ) ;
+        }
+
+        logger.LogInformation( "Stock transaction from {TelegramId} saved: {Symbol} {Type}",
           fromId, transaction.Symbol, transaction.TransactionType ) ;
         return ProcessResult.Success() ;
       }
 
       await notionService.AppendAsync( text ) ;
-      logger.LogInformation( "Message from {UserId} saved to Notion", fromId ) ;
+      logger.LogInformation( "Message from Telegram user {TelegramId} saved to Notion", fromId ) ;
 
       return ProcessResult.Success() ;
     }

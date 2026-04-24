@@ -11,11 +11,12 @@ public record UserResponse(
   string? DisplayName,
   string? PictureUrl,
   bool IsAdmin,
+  long? TelegramId,
   DateTime? LastLoginAt,
   DateTime Created )
 {
   public UserResponse( AppUser u )
-    : this( u.Id, u.Email, u.DisplayName, u.PictureUrl, u.IsAdmin, u.LastLoginAt, u.Created )
+    : this( u.Id, u.Email, u.DisplayName, u.PictureUrl, u.IsAdmin, u.TelegramId, u.LastLoginAt, u.Created )
   {
   }
 }

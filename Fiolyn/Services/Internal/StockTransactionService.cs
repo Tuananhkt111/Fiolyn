@@ -55,14 +55,6 @@ public partial class StockTransactionService(
   }
 
   /// <inheritdoc />
-  public async Task<StockTransaction> CreateFromTelegramAsync( StockTransaction transaction )
-  {
-    await stockTransactionRepository.AddAsync( transaction ) ;
-    await stockTransactionRepository.SaveAsync() ;
-    return transaction ;
-  }
-
-  /// <inheritdoc />
   public async Task<List<StockTransaction>> GetAllForUserAsync( long userId, string? symbol = null )
   {
     var query = stockTransactionRepository.QueryActive()

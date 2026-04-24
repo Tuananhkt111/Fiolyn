@@ -200,24 +200,6 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
-  public async Task CreateFromTelegramAsync_SavesEntity_WithoutMembershipCheck()
-  {
-    var sut = CreateSut() ;
-    var transaction = new StockTransaction
-    {
-      Symbol = "VNM",
-      BrokerAccountId = 1
-    } ;
-
-    var result = await sut.CreateFromTelegramAsync( transaction ) ;
-
-    result.Should().BeSameAs( transaction ) ;
-    await _repository.Received( 1 ).AddAsync( transaction ) ;
-    await _repository.Received( 1 ).SaveAsync() ;
-    _brokerRepository.DidNotReceive().QueryActive() ;
-  }
-
-  [Fact]
   public async Task GetAllForUserAsync_FiltersByBrokerMembership()
   {
     var userBroker = BuildBroker( 1, "VPS", [42] ) ;

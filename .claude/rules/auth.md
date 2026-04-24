@@ -8,6 +8,8 @@ Web client gets a Google ID token via Google Identity Services (GIS) → `POST /
 
 Authorization uses class-level `[Authorize]` plus a named `Admin` policy (requires `isAdmin=true` claim).
 
+Telegram ingest is a separate authentication path: `POST /api/telegram` → `TelegramMessageService` looks up the sender's Telegram user ID against `AppUser.TelegramId` (only active, non-soft-deleted users). No match → skip; match → proceed as that `AppUser`. Stock writes inherit the broker-membership check via `CreateAsync(tx, userId)`.
+
 ## Rules
 
 - **`Jwt:SigningKey` is mandatory, ≥32 chars.** Both `AuthServiceRegister` (startup) and `JwtService`'s constructor throw `InvalidOperationException` if missing or too short. No silent dev fallback.
@@ -18,6 +20,7 @@ Authorization uses class-level `[Authorize]` plus a named `Admin` policy (requir
 - **`AppUser` (entity) ≠ `User` (controller `ClaimsPrincipal`).** Inside a controller, `User` is the caller's identity — reference the entity as `AppUser` (or fully-qualified `Entities.AppUser`) to avoid the collision.
 - **Raw refresh tokens leave `JwtService.CreateRefreshToken()` exactly once** — returned to the client, persisted as SHA-256. Reuse detection relies on the `ReplacedByTokenHash` rotation chain.
 - **`IssueTokensAsync` stages but does not save.** `AuthService.IssueTokensAsync` calls `AddAsync` on the new `RefreshToken` without `SaveAsync`; each caller (`LoginWithGoogleAsync`, `RefreshAsync`) flushes once at the end so user upsert + token insert (+ token revocation for refresh) land in one transaction.
+- **`AppUser.TelegramId` is the Telegram whitelist.** Linked via `PUT /api/users/me/telegram-id` (self) or `PUT /api/users/{id}/telegram-id` (admin policy), cleared via the matching `DELETE`. The column has a unique index; a duplicate attempt surfaces as 409 `Conflict` via `ConflictException` from `UserService.UpdateTelegramIdAsync`. There is no separate `TelegramUserInfo` table.
 
 ## Tests
 

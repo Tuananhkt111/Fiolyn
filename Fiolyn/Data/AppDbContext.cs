@@ -6,7 +6,6 @@ namespace Fiolyn.Data ;
 
 public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext( options )
 {
-  public DbSet<TelegramUserInfo> TelegramUserInfo => Set<TelegramUserInfo>() ;
   public DbSet<BrokerAccount> BrokerAccount => Set<BrokerAccount>() ;
   public DbSet<BrokerAccountMember> BrokerAccountMember => Set<BrokerAccountMember>() ;
   public DbSet<StockTransaction> StockTransaction => Set<StockTransaction>() ;

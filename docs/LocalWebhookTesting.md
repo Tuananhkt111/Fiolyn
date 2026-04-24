@@ -29,37 +29,36 @@ The webhook endpoint is at: **`http://localhost:5027/api/telegram`**
 
 ---
 
-## Step 2: Add a Test User to Whitelist
+## Step 2: Link a Telegram ID to an AppUser
 
-The webhook only processes messages from users in the `allowed_users` table. Add a test user:
+The webhook only processes messages whose `from.id` matches an active `AppUser.TelegramId`. You need to link a Telegram ID to an existing `AppUser` first.
 
-### Option A: Using PowerShell (Windows)
+### Prerequisite
 
-```powershell
-.\setup-test-user.ps1
-```
+You need an `AppUser` row. If you haven't logged into the web app yet, do that first — Google SSO with an email that's in `AllowedEmail` will create the `AppUser` on first login.
 
-This script:
-- Reads the database connection from `appsettings.Development.json`
-- Inserts a test user with ID `12345`
-- Reports success or shows the SQL to run manually
+### Option A: Via the API (recommended)
 
-### Option B: Using Bash (Linux/Mac)
+Call the self-service endpoint with the access token you got from `/api/auth/google`:
 
 ```bash
-bash setup-test-user.sh
+curl -X PUT http://localhost:5027/api/users/me/telegram-id \
+  -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"telegramId": 12345}'
 ```
 
-### Option C: Manual SQL
+Response is a `UserResponse` with `telegramId: 12345`. An admin can also link for any user via `PUT /api/users/{id}/telegram-id`.
 
-If the scripts don't work, connect to your database and run:
+### Option B: Manual SQL
+
+If you'd rather update the DB directly:
 
 ```sql
-INSERT INTO allowed_users (telegram_id, label) 
-VALUES (12345, 'webhook-test');
+UPDATE "AppUser" SET "TelegramId" = 12345 WHERE "Email" = 'your.email@example.com';
 ```
 
-Use any Telegram user ID you'd like (can be a real account or arbitrary number).
+Use any Telegram user ID you like (can be a real account or arbitrary number). The column has a unique index — reusing an ID that's already linked to another user will fail (and the API surfaces it as 409).
 
 ---
 
@@ -127,7 +126,7 @@ The test scripts validate four scenarios:
 
 ---
 
-### ⏭️ Test 2: Invalid User (Not in Whitelist)
+### ⏭️ Test 2: Invalid User (No linked AppUser)
 
 ```json
 {
@@ -141,7 +140,7 @@ The test scripts validate four scenarios:
 **Expected:**
 - ✅ `"success": false`
 - ✅ Message skipped (not saved to Notion)
-- ✅ App logs: `User {UserId} not in allowed list`
+- ✅ App logs: `Telegram user {TelegramId} not linked to any AppUser`
 - ✅ HTTP 200 returned (Telegram requirement)
 
 ---
@@ -175,7 +174,7 @@ The test scripts validate four scenarios:
 **Expected:**
 - ✅ `"success": false`
 - ✅ Photo/non-text ignored
-- ✅ App logs: `Message from {UserId} has no text`
+- ✅ App logs: `Message from {TelegramId} has no text`
 
 ---
 
@@ -187,8 +186,8 @@ Watch the console while running tests:
 
 ```bash
 # Terminal where app is running shows:
-info: Fiolyn.Services.External.TelegramMessageService[0]
-      Message from 12345 saved to Notion
+info: Fiolyn.Services.External.Telegram.TelegramMessageService[0]
+      Message from Telegram user 12345 saved to Notion
 ```
 
 ### Check Swagger UI

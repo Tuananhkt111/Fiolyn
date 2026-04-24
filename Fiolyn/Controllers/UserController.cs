@@ -37,6 +37,26 @@ public class UserController( IUserService userService ) : ControllerBase
   }
 
   /// <summary>
+  ///   Links or updates the authenticated user's Telegram ID. 409 if the ID is taken by another user.
+  /// </summary>
+  [HttpPut( "me/telegram-id" )]
+  public async Task<IActionResult> SetMyTelegramIdAsync( [FromBody] SetTelegramIdRequest request )
+  {
+    var user = await userService.UpdateTelegramIdAsync( User.GetUserId(), request.TelegramId ) ;
+    return Ok( new UserResponse( user ) ) ;
+  }
+
+  /// <summary>
+  ///   Unlinks the authenticated user's Telegram ID.
+  /// </summary>
+  [HttpDelete( "me/telegram-id" )]
+  public async Task<IActionResult> ClearMyTelegramIdAsync()
+  {
+    var user = await userService.UpdateTelegramIdAsync( User.GetUserId(), null ) ;
+    return Ok( new UserResponse( user ) ) ;
+  }
+
+  /// <summary>
   ///   Lists all active users. Admin only.
   /// </summary>
   [HttpGet]
@@ -55,6 +75,28 @@ public class UserController( IUserService userService ) : ControllerBase
   public async Task<IActionResult> SetAdminAsync( long id, [FromBody] UpdateRoleRequest request )
   {
     var user = await userService.SetAdminAsync( id, request.IsAdmin ) ;
+    return Ok( new UserResponse( user ) ) ;
+  }
+
+  /// <summary>
+  ///   Sets or updates a target user's Telegram ID. Admin only. 409 if the ID is taken by another user.
+  /// </summary>
+  [HttpPut( "{id:long}/telegram-id" )]
+  [Authorize( Policy = AuthConstants.AdminPolicyName )]
+  public async Task<IActionResult> SetTelegramIdAsync( long id, [FromBody] SetTelegramIdRequest request )
+  {
+    var user = await userService.UpdateTelegramIdAsync( id, request.TelegramId ) ;
+    return Ok( new UserResponse( user ) ) ;
+  }
+
+  /// <summary>
+  ///   Clears a target user's Telegram ID. Admin only.
+  /// </summary>
+  [HttpDelete( "{id:long}/telegram-id" )]
+  [Authorize( Policy = AuthConstants.AdminPolicyName )]
+  public async Task<IActionResult> ClearTelegramIdAsync( long id )
+  {
+    var user = await userService.UpdateTelegramIdAsync( id, null ) ;
     return Ok( new UserResponse( user ) ) ;
   }
 

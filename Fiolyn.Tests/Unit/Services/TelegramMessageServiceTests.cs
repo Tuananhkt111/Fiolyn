@@ -13,20 +13,25 @@ namespace Fiolyn.Tests.Unit.Services ;
 
 public class TelegramMessageServiceTests
 {
+  private const long AppUserId = 42L ;
+
   private readonly ILogger<TelegramMessageService> _logger = Substitute.For<ILogger<TelegramMessageService>>() ;
   private readonly INotionService _notionService = Substitute.For<INotionService>() ;
   private readonly IStockTransactionService _stockTransactionService = Substitute.For<IStockTransactionService>() ;
-  private readonly IRepository<TelegramUserInfo> _userRepository = Substitute.For<IRepository<TelegramUserInfo>>() ;
+  private readonly IRepository<AppUser> _userRepository = Substitute.For<IRepository<AppUser>>() ;
 
   private TelegramMessageService CreateSut() =>
     new(_userRepository, _notionService, _stockTransactionService, _logger) ;
 
-  private void SetupAllowedUser( long telegramId )
+  private void SetupAllowedUser( long telegramId, long appUserId = AppUserId )
   {
-    List<TelegramUserInfo> users =
+    List<AppUser> users =
     [
       new()
       {
+        Id = appUserId,
+        Email = "user@example.com",
+        GoogleSub = "sub-" + telegramId,
         TelegramId = telegramId,
         IsDeleted = false
       }
@@ -36,7 +41,7 @@ public class TelegramMessageServiceTests
 
   private void SetupNoAllowedUsers()
   {
-    List<TelegramUserInfo> users = [] ;
+    List<AppUser> users = [] ;
     _userRepository.QueryActive().Returns( users.BuildMock() ) ;
   }
 
@@ -63,7 +68,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
-  public async Task ProcessWebhookAsync_UserNotAllowed_ReturnsSkippedAndDoesNotCallNotion()
+  public async Task ProcessWebhookAsync_TelegramIdNotLinked_ReturnsSkippedAndDoesNotCallNotion()
   {
     SetupNoAllowedUsers() ;
     var sut = CreateSut() ;
@@ -138,7 +143,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
-  public async Task ProcessWebhookAsync_StockMessage_SavesTransactionSkipsNotion()
+  public async Task ProcessWebhookAsync_StockMessage_CallsCreateAsyncWithCallerIdAndSkipsNotion()
   {
     SetupAllowedUser( 123L ) ;
     var parsedTransaction = new StockTransaction
@@ -151,7 +156,7 @@ public class TelegramMessageServiceTests
     } ;
     _stockTransactionService.ParseMessageAsync( Arg.Any<string>() )
       .Returns( Task.FromResult<StockTransaction?>( parsedTransaction ) ) ;
-    _stockTransactionService.CreateFromTelegramAsync( parsedTransaction ).Returns( parsedTransaction ) ;
+    _stockTransactionService.CreateAsync( parsedTransaction, AppUserId ).Returns( parsedTransaction ) ;
     var sut = CreateSut() ;
 
     var result = await sut.ProcessWebhookAsync(
@@ -159,7 +164,34 @@ public class TelegramMessageServiceTests
 
     result.IsSuccess.Should().BeTrue() ;
     await _stockTransactionService.Received( 1 ).ParseMessageAsync( "stock buy VNM 100 45000 4501500" ) ;
-    await _stockTransactionService.Received( 1 ).CreateFromTelegramAsync( parsedTransaction ) ;
+    await _stockTransactionService.Received( 1 ).CreateAsync( parsedTransaction, AppUserId ) ;
+    await _notionService.DidNotReceive().AppendAsync( Arg.Any<string>() ) ;
+  }
+
+  [Fact]
+  public async Task ProcessWebhookAsync_StockMessage_CallerNotBrokerMember_ReturnsError()
+  {
+    SetupAllowedUser( 123L ) ;
+    var parsedTransaction = new StockTransaction
+    {
+      Symbol = "VNM",
+      TransactionType = TransactionType.Buy,
+      Quantity = 100,
+      Price = 45000,
+      TotalAmount = 4501500
+    } ;
+    _stockTransactionService.ParseMessageAsync( Arg.Any<string>() )
+      .Returns( Task.FromResult<StockTransaction?>( parsedTransaction ) ) ;
+    _stockTransactionService.CreateAsync( parsedTransaction, AppUserId )
+      .Returns<Task<StockTransaction>>( _ =>
+        Task.FromException<StockTransaction>( new KeyNotFoundException( "not a member" ) ) ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ProcessWebhookAsync(
+      """{"message":{"from":{"id":123},"text":"stock buy VNM 100 45000 4501500"}}""" ) ;
+
+    result.IsSuccess.Should().BeFalse() ;
+    result.Message.Should().Contain( "broker" ) ;
     await _notionService.DidNotReceive().AppendAsync( Arg.Any<string>() ) ;
   }
 
@@ -177,6 +209,7 @@ public class TelegramMessageServiceTests
     result.IsSuccess.Should().BeFalse() ;
     result.Message.Should().Contain( "Error" ) ;
     await _notionService.DidNotReceive().AppendAsync( Arg.Any<string>() ) ;
-    await _stockTransactionService.DidNotReceive().CreateFromTelegramAsync( Arg.Any<StockTransaction>() ) ;
+    await _stockTransactionService.DidNotReceive()
+      .CreateAsync( Arg.Any<StockTransaction>(), Arg.Any<long>() ) ;
   }
 }

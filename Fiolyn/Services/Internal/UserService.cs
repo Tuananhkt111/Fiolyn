@@ -1,5 +1,6 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
+using Fiolyn.Infrastructure.Exceptions ;
 using Fiolyn.Services.Internal.Interfaces ;
 using Microsoft.EntityFrameworkCore ;
 
@@ -35,6 +36,29 @@ public class UserService( IRepository<AppUser> repository, ILogger<UserService> 
     repository.Update( user ) ;
     await repository.SaveAsync() ;
     logger.LogInformation( "Admin flag for user {UserId} set to {IsAdmin}", id, isAdmin ) ;
+    return user ;
+  }
+
+  /// <inheritdoc />
+  public async Task<AppUser> UpdateTelegramIdAsync( long id, long? telegramId )
+  {
+    var user = await GetByIdAsync( id ) ;
+
+    if ( telegramId is not null )
+    {
+      var takenByOther = await repository.QueryActive()
+        .AnyAsync( u => u.TelegramId == telegramId && u.Id != id ) ;
+      if ( takenByOther )
+      {
+        throw new ConflictException( $"TelegramId {telegramId} is already linked to another user." ) ;
+      }
+    }
+
+    user.TelegramId = telegramId ;
+    repository.Update( user ) ;
+    await repository.SaveAsync() ;
+    logger.LogInformation(
+      "TelegramId for user {UserId} set to {TelegramId}", id, telegramId?.ToString() ?? "null" ) ;
     return user ;
   }
 

@@ -1,8 +1,10 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
+using Fiolyn.Infrastructure.Exceptions ;
 using Fiolyn.Services.Internal ;
 using FluentAssertions ;
 using Microsoft.Extensions.Logging ;
+using MockQueryable ;
 using NSubstitute ;
 using NSubstitute.ExceptionExtensions ;
 
@@ -62,6 +64,114 @@ public class UserServiceTests
 
     result.IsAdmin.Should().BeTrue() ;
     _repository.Received( 1 ).Update( user ) ;
+    await _repository.Received( 1 ).SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task UpdateTelegramIdAsync_SetsAndSaves()
+  {
+    var user = new AppUser
+    {
+      Id = 1,
+      Email = "a@b.com",
+      GoogleSub = "s",
+      TelegramId = null
+    } ;
+    _repository.GetActiveByIdOrThrowAsync( 1L ).Returns( user ) ;
+    _repository.QueryActive().Returns( new List<AppUser>
+    {
+      user
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.UpdateTelegramIdAsync( 1, 12345L ) ;
+
+    result.TelegramId.Should().Be( 12345L ) ;
+    _repository.Received( 1 ).Update( user ) ;
+    await _repository.Received( 1 ).SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task UpdateTelegramIdAsync_NullClearsAndSkipsUniquenessCheck()
+  {
+    var user = new AppUser
+    {
+      Id = 1,
+      Email = "a@b.com",
+      GoogleSub = "s",
+      TelegramId = 999L
+    } ;
+    _repository.GetActiveByIdOrThrowAsync( 1L ).Returns( user ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.UpdateTelegramIdAsync( 1, null ) ;
+
+    result.TelegramId.Should().BeNull() ;
+    _repository.DidNotReceive().QueryActive() ;
+    _repository.Received( 1 ).Update( user ) ;
+    await _repository.Received( 1 ).SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task UpdateTelegramIdAsync_MissingUser_ThrowsKeyNotFound()
+  {
+    _repository.GetActiveByIdOrThrowAsync( 1L ).ThrowsAsync( new KeyNotFoundException() ) ;
+    var sut = CreateSut() ;
+
+    await sut.Invoking( s => s.UpdateTelegramIdAsync( 1, 12345L ) )
+      .Should().ThrowAsync<KeyNotFoundException>() ;
+  }
+
+  [Fact]
+  public async Task UpdateTelegramIdAsync_TakenByOtherUser_ThrowsConflictAndDoesNotSave()
+  {
+    var caller = new AppUser
+    {
+      Id = 1,
+      Email = "a@b.com",
+      GoogleSub = "s",
+      TelegramId = null
+    } ;
+    var other = new AppUser
+    {
+      Id = 2,
+      Email = "b@b.com",
+      GoogleSub = "s2",
+      TelegramId = 12345L
+    } ;
+    _repository.GetActiveByIdOrThrowAsync( 1L ).Returns( caller ) ;
+    _repository.QueryActive().Returns( new List<AppUser>
+    {
+      caller,
+      other
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    await sut.Invoking( s => s.UpdateTelegramIdAsync( 1, 12345L ) )
+      .Should().ThrowAsync<ConflictException>() ;
+    await _repository.DidNotReceive().SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task UpdateTelegramIdAsync_SelfReassign_IsNotAConflict()
+  {
+    var caller = new AppUser
+    {
+      Id = 1,
+      Email = "a@b.com",
+      GoogleSub = "s",
+      TelegramId = 12345L
+    } ;
+    _repository.GetActiveByIdOrThrowAsync( 1L ).Returns( caller ) ;
+    _repository.QueryActive().Returns( new List<AppUser>
+    {
+      caller
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.UpdateTelegramIdAsync( 1, 12345L ) ;
+
+    result.TelegramId.Should().Be( 12345L ) ;
     await _repository.Received( 1 ).SaveAsync() ;
   }
 
