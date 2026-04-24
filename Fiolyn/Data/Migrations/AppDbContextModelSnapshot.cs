@@ -187,9 +187,6 @@ namespace Fiolyn.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<long>("AppUserId")
-                        .HasColumnType("bigint");
-
                     b.Property<long>("Balance")
                         .HasColumnType("bigint");
 
@@ -212,9 +209,25 @@ namespace Fiolyn.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AppUserId");
-
                     b.ToTable("SpendAccount");
+                });
+
+            modelBuilder.Entity("Fiolyn.Entities.SpendAccountMember", b =>
+                {
+                    b.Property<long>("SpendAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("AppUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SpendAccountId", "AppUserId");
+
+                    b.HasIndex("AppUserId", "SpendAccountId");
+
+                    b.ToTable("SpendAccountMember");
                 });
 
             modelBuilder.Entity("Fiolyn.Entities.StockTransaction", b =>
@@ -302,15 +315,23 @@ namespace Fiolyn.Data.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Fiolyn.Entities.SpendAccount", b =>
+            modelBuilder.Entity("Fiolyn.Entities.SpendAccountMember", b =>
                 {
                     b.HasOne("Fiolyn.Entities.AppUser", "AppUser")
-                        .WithMany()
+                        .WithMany("SpendAccountMemberships")
                         .HasForeignKey("AppUserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Fiolyn.Entities.SpendAccount", "SpendAccount")
+                        .WithMany("Members")
+                        .HasForeignKey("SpendAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("AppUser");
+
+                    b.Navigation("SpendAccount");
                 });
 
             modelBuilder.Entity("Fiolyn.Entities.StockTransaction", b =>
@@ -327,6 +348,13 @@ namespace Fiolyn.Data.Migrations
             modelBuilder.Entity("Fiolyn.Entities.AppUser", b =>
                 {
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("SpendAccountMemberships");
+                });
+
+            modelBuilder.Entity("Fiolyn.Entities.SpendAccount", b =>
+                {
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

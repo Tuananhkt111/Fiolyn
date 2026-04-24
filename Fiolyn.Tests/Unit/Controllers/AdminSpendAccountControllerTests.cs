@@ -16,30 +16,50 @@ public class AdminSpendAccountControllerTests
 
   private AdminSpendAccountController CreateSut() => new(_service) ;
 
-  private static SpendAccount BuildEntity( long id = 10, long userId = 7,
-    string email = "owner@example.com", string? displayName = "Owner",
-    string name = "Wallet", SpendAccountType type = SpendAccountType.Cash,
-    long balance = 1_500_000L ) =>
+  private static AppUser BuildUser( long id, string email = "", string? displayName = null ) =>
     new()
     {
       Id = id,
-      AppUserId = userId,
-      AppUser = new AppUser
-      {
-        Id = userId,
-        Email = email,
-        GoogleSub = "g-" + userId,
-        DisplayName = displayName
-      },
+      Email = string.IsNullOrEmpty( email ) ? $"user{id}@example.com" : email,
+      GoogleSub = $"g-{id}",
+      DisplayName = displayName
+    } ;
+
+  private static SpendAccountMember BuildMember( long accountId, AppUser user ) =>
+    new()
+    {
+      SpendAccountId = accountId,
+      AppUserId = user.Id,
+      AppUser = user,
+      JoinedAt = new DateTime( 2024, 1, 1, 0, 0, 0, DateTimeKind.Utc )
+    } ;
+
+  private static SpendAccount BuildEntity( long id = 10, long[] memberIds = null!,
+    string name = "Wallet", SpendAccountType type = SpendAccountType.Cash, long balance = 1_500_000L )
+  {
+    memberIds ??= [7] ;
+    var account = new SpendAccount
+    {
+      Id = id,
       Name = name,
       Type = type,
       Balance = balance
     } ;
+    foreach ( var memberId in memberIds )
+    {
+      account.Members.Add( BuildMember( id, BuildUser( memberId ) ) ) ;
+    }
+
+    return account ;
+  }
 
   [Fact]
-  public async Task GetAllAsync_NoFilter_ReturnsAdminResponseList()
+  public async Task GetAllAsync_NoFilter_ReturnsAdminResponseListWithMembers()
   {
-    _service.GetAllAsync().Returns( [BuildEntity( 1 ), BuildEntity( 2, 8 )] ) ;
+    _service.GetAllAsync().Returns( [
+      BuildEntity( 1, [7, 8] ),
+      BuildEntity( 2, [9] )
+    ] ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllAsync() ;
@@ -48,13 +68,14 @@ public class AdminSpendAccountControllerTests
     var list = result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<List<AdminSpendAccountResponse>>().Which ;
     list.Should().HaveCount( 2 ) ;
-    list[ 0 ].AppUserEmail.Should().Be( "owner@example.com" ) ;
+    list[ 0 ].Members.Should().HaveCount( 2 ) ;
+    list[ 0 ].Members.Select( m => m.AppUserId ).Should().BeEquivalentTo( [7L, 8L] ) ;
   }
 
   [Fact]
-  public async Task GetAllAsync_WithUserIdFilter_PassesFilterAndReturnsAdminResponse()
+  public async Task GetAllAsync_WithUserIdFilter_PassesFilter()
   {
-    _service.GetAllAsync( 42L ).Returns( [BuildEntity( 1, 42 )] ) ;
+    _service.GetAllAsync( 42L ).Returns( [BuildEntity( 1, [42] )] ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllAsync( 42 ) ;
@@ -62,8 +83,9 @@ public class AdminSpendAccountControllerTests
     await _service.Received( 1 ).GetAllAsync( 42L ) ;
     var list = result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<List<AdminSpendAccountResponse>>().Which ;
-    list.Should().HaveCount( 1 ) ;
-    list[ 0 ].AppUserId.Should().Be( 42 ) ;
+    list.Should().ContainSingle()
+      .Which.Members.Should().ContainSingle()
+      .Which.AppUserId.Should().Be( 42 ) ;
   }
 
   [Fact]
@@ -80,7 +102,10 @@ public class AdminSpendAccountControllerTests
   [Fact]
   public async Task GetByIdAsync_Existing_Returns200WithAdminResponse()
   {
-    _service.GetByIdAsync( 10 ).Returns( BuildEntity() ) ;
+    var account = BuildEntity( 10, [7, 8] ) ;
+    account.Members.First( m => m.AppUserId == 7 ).AppUser.Email = "owner@example.com" ;
+    account.Members.First( m => m.AppUserId == 7 ).AppUser.DisplayName = "Owner" ;
+    _service.GetByIdAsync( 10 ).Returns( account ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdAsync( 10 ) ;
@@ -88,35 +113,38 @@ public class AdminSpendAccountControllerTests
     var body = result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<AdminSpendAccountResponse>().Which ;
     body.Id.Should().Be( 10 ) ;
-    body.AppUserEmail.Should().Be( "owner@example.com" ) ;
-    body.AppUserDisplayName.Should().Be( "Owner" ) ;
+    body.Members.Should().HaveCount( 2 ) ;
+    body.Members.Select( m => m.Email ).Should().Contain( "owner@example.com" ) ;
   }
 
   [Fact]
   public async Task CreateAsync_UsesAppUserIdFromRequest_AndReturns201()
   {
     SpendAccount? captured = null ;
-    _service.CreateAsync( Arg.Do<SpendAccount>( a => captured = a ) )
+    long capturedUserId = 0 ;
+    _service.CreateAsync( Arg.Do<SpendAccount>( a => captured = a ), Arg.Do<long>( id => capturedUserId = id ) )
       .Returns( ci =>
       {
         var a = ci.Arg<SpendAccount>() ;
         a.Id = 55 ;
         return a ;
       } ) ;
-    _service.GetByIdAsync( 55 ).Returns( BuildEntity( 55, 42, "bob@x.com", "Bob",
-      "Visa", SpendAccountType.Credit, -500_000L ) ) ;
+    var enriched = BuildEntity( 55, [42], "Visa", SpendAccountType.Credit, -500_000L ) ;
+    enriched.Members.First().AppUser.Email = "bob@x.com" ;
+    enriched.Members.First().AppUser.DisplayName = "Bob" ;
+    _service.GetByIdAsync( 55 ).Returns( enriched ) ;
     var sut = CreateSut() ;
 
     var result = await sut.CreateAsync( new AdminSpendAccountCreateRequest(
       42, "Visa", SpendAccountType.Credit, -500_000L ) ) ;
 
     captured.Should().NotBeNull() ;
-    captured!.AppUserId.Should().Be( 42 ) ;
-    captured.Name.Should().Be( "Visa" ) ;
+    capturedUserId.Should().Be( 42 ) ;
+    captured!.Name.Should().Be( "Visa" ) ;
     var body = result.Should().BeOfType<CreatedAtRouteResult>()
       .Which.Value.Should().BeOfType<AdminSpendAccountResponse>().Which ;
-    body.AppUserId.Should().Be( 42 ) ;
-    body.AppUserEmail.Should().Be( "bob@x.com" ) ;
+    body.Members.Should().ContainSingle()
+      .Which.Email.Should().Be( "bob@x.com" ) ;
     await _service.Received( 1 ).GetByIdAsync( 55 ) ;
   }
 
@@ -135,7 +163,7 @@ public class AdminSpendAccountControllerTests
   [Fact]
   public async Task UpdateAsync_Existing_AppliesChangesAndReturns200()
   {
-    var existing = BuildEntity( balance: 1_000_000L ) ;
+    var existing = BuildEntity( 10, [7] ) ;
     _service.GetByIdAsync( 10 ).Returns( existing ) ;
     var sut = CreateSut() ;
 

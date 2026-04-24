@@ -18,7 +18,7 @@ public class AdminSpendAccountController(
   ISpendAccountService spendAccountService ) : ControllerBase
 {
   /// <summary>
-  ///   Lists all spend accounts across every user. Optionally filter by owning user.
+  ///   Lists all spend accounts across every user. Optionally filter to accounts a given user is a member of.
   /// </summary>
   [HttpGet]
   public async Task<IActionResult> GetAllAsync( [FromQuery] long? userId = null )
@@ -43,20 +43,19 @@ public class AdminSpendAccountController(
   }
 
   /// <summary>
-  ///   Creates a new spend account on behalf of a specified user.
+  ///   Creates a new spend account with the specified user as its initial member.
   /// </summary>
   [HttpPost]
   public async Task<IActionResult> CreateAsync( [FromBody] AdminSpendAccountCreateRequest request )
   {
     var account = new SpendAccount
     {
-      AppUserId = request.AppUserId,
       Name = request.Name,
       Type = request.Type,
       Balance = request.Balance
     } ;
 
-    var created = await spendAccountService.CreateAsync( account ) ;
+    var created = await spendAccountService.CreateAsync( account, request.AppUserId ) ;
     var withNav = await spendAccountService.GetByIdAsync( created.Id ) ;
     return CreatedAtRoute( "GetAdminSpendAccountById", new
     {

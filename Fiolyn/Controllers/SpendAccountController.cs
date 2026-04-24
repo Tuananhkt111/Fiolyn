@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc ;
 namespace Fiolyn.Controllers ;
 
 /// <summary>
-///   REST API for managing the caller's spend accounts.
+///   REST API for managing spend accounts the caller is a member of.
 /// </summary>
 [ApiController]
 [Route( "api/spend-accounts" )]
@@ -18,58 +18,61 @@ public class SpendAccountController(
   ISpendAccountService spendAccountService ) : ControllerBase
 {
   /// <summary>
-  ///   Creates a new spend account owned by the caller.
+  ///   Creates a new spend account with the caller as its first member.
   /// </summary>
   [HttpPost]
   public async Task<IActionResult> CreateAsync( [FromBody] SpendAccountRequest request )
   {
+    var userId = User.GetUserId() ;
     var account = new SpendAccount
     {
-      AppUserId = User.GetUserId(),
       Name = request.Name,
       Type = request.Type,
       Balance = request.Balance
     } ;
 
-    var created = await spendAccountService.CreateAsync( account ) ;
+    var created = await spendAccountService.CreateAsync( account, userId ) ;
     return CreatedAtRoute( "GetSpendAccountById", new
     {
       id = created.Id
-    }, new SpendAccountResponse( created ) ) ;
+    }, new SpendAccountResponse( created, userId ) ) ;
   }
 
   /// <summary>
-  ///   Lists the caller's spend accounts.
+  ///   Lists spend accounts the caller is a member of.
   /// </summary>
   [HttpGet]
   public async Task<IActionResult> GetAllAsync()
   {
-    var list = await spendAccountService.GetAllForUserAsync( User.GetUserId() ) ;
-    return Ok( list.Select( a => new SpendAccountResponse( a ) ).ToList() ) ;
+    var userId = User.GetUserId() ;
+    var list = await spendAccountService.GetAllForUserAsync( userId ) ;
+    return Ok( list.Select( a => new SpendAccountResponse( a, userId ) ).ToList() ) ;
   }
 
   /// <summary>
-  ///   Gets one of the caller's spend accounts by ID.
+  ///   Gets a single spend account by ID. 404 if the caller is not a member.
   /// </summary>
   [HttpGet( "{id:long}", Name = "GetSpendAccountById" )]
   public async Task<IActionResult> GetByIdAsync( long id )
   {
-    var account = await spendAccountService.GetByIdForUserAsync( id, User.GetUserId() ) ;
+    var userId = User.GetUserId() ;
+    var account = await spendAccountService.GetByIdForUserAsync( id, userId ) ;
     if ( account is null )
     {
       return NotFound() ;
     }
 
-    return Ok( new SpendAccountResponse( account ) ) ;
+    return Ok( new SpendAccountResponse( account, userId ) ) ;
   }
 
   /// <summary>
-  ///   Updates one of the caller's spend accounts.
+  ///   Updates a spend account. 404 if the caller is not a member.
   /// </summary>
   [HttpPut( "{id:long}" )]
   public async Task<IActionResult> UpdateAsync( long id, [FromBody] SpendAccountRequest request )
   {
-    var existing = await spendAccountService.GetByIdForUserAsync( id, User.GetUserId() ) ;
+    var userId = User.GetUserId() ;
+    var existing = await spendAccountService.GetByIdForUserAsync( id, userId ) ;
     if ( existing is null )
     {
       return NotFound() ;
@@ -80,16 +83,48 @@ public class SpendAccountController(
     existing.Balance = request.Balance ;
 
     await spendAccountService.UpdateAsync( existing ) ;
-    return Ok( new SpendAccountResponse( existing ) ) ;
+    return Ok( new SpendAccountResponse( existing, userId ) ) ;
   }
 
   /// <summary>
-  ///   Soft-deletes one of the caller's spend accounts.
+  ///   Soft-deletes a spend account. 404 if the caller is not a member.
   /// </summary>
   [HttpDelete( "{id:long}" )]
   public async Task<IActionResult> DeleteAsync( long id )
   {
     await spendAccountService.SoftDeleteAsync( id, User.GetUserId() ) ;
+    return NoContent() ;
+  }
+
+  /// <summary>
+  ///   Lists members of the account. 404 if the caller is not a member.
+  /// </summary>
+  [HttpGet( "{id:long}/members" )]
+  public async Task<IActionResult> GetMembersAsync( long id )
+  {
+    var members = await spendAccountService.GetMembersAsync( id, User.GetUserId() ) ;
+    return Ok( members.Select( m => new SpendAccountMemberResponse( m ) ).ToList() ) ;
+  }
+
+  /// <summary>
+  ///   Adds a user to the account by email. Idempotent — returns 200 + member list if already a member.
+  ///   404 if caller is not a member or the target email has no registered user.
+  /// </summary>
+  [HttpPost( "{id:long}/members" )]
+  public async Task<IActionResult> AddMemberAsync( long id, [FromBody] AddMemberRequest request )
+  {
+    var members = await spendAccountService.AddMemberAsync( id, User.GetUserId(), request.Email ) ;
+    return Ok( members.Select( m => new SpendAccountMemberResponse( m ) ).ToList() ) ;
+  }
+
+  /// <summary>
+  ///   Removes a user from the account. 404 if caller or target is not a member.
+  ///   400 if removing this user would leave the account with zero members.
+  /// </summary>
+  [HttpDelete( "{id:long}/members/{userId:long}" )]
+  public async Task<IActionResult> RemoveMemberAsync( long id, long userId )
+  {
+    await spendAccountService.RemoveMemberAsync( id, User.GetUserId(), userId ) ;
     return NoContent() ;
   }
 }

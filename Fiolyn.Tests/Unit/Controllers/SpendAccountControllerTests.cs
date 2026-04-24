@@ -37,29 +37,49 @@ public class SpendAccountControllerTests
     SpendAccountType type = SpendAccountType.Cash, long balance = 1_500_000L ) =>
     new(name, type, balance) ;
 
-  private static SpendAccount BuildEntity( long id = 10, long userId = 7, string name = "Wallet",
+  private static SpendAccount BuildEntity( long id = 10, string name = "Wallet",
     SpendAccountType type = SpendAccountType.Cash, long balance = 1_500_000L ) =>
     new()
     {
       Id = id,
-      AppUserId = userId,
       Name = name,
       Type = type,
       Balance = balance
     } ;
 
+  private static AppUser BuildUser( long id, string email = "", string? displayName = null ) =>
+    new()
+    {
+      Id = id,
+      Email = string.IsNullOrEmpty( email ) ? $"user{id}@example.com" : email,
+      GoogleSub = $"g-{id}",
+      DisplayName = displayName
+    } ;
+
+  private static SpendAccountMember BuildMember( long accountId, long userId, string email = "",
+    string? displayName = null ) =>
+    new()
+    {
+      SpendAccountId = accountId,
+      AppUserId = userId,
+      AppUser = BuildUser( userId, email, displayName ),
+      JoinedAt = new DateTime( 2024, 1, 1, 0, 0, 0, DateTimeKind.Utc )
+    } ;
+
   [Fact]
-  public async Task CreateAsync_SetsAppUserIdFromClaim_AndReturns201()
+  public async Task CreateAsync_PassesCallerIdToService_AndReturns201()
   {
     SpendAccount? captured = null ;
-    _service.CreateAsync( Arg.Do<SpendAccount>( a => captured = a ) ).Returns( ci => ci.Arg<SpendAccount>() ) ;
+    long capturedCallerId = 0 ;
+    _service.CreateAsync( Arg.Do<SpendAccount>( a => captured = a ), Arg.Do<long>( id => capturedCallerId = id ) )
+      .Returns( ci => ci.Arg<SpendAccount>() ) ;
     var sut = CreateSut( 42 ) ;
 
     var result = await sut.CreateAsync( BuildRequest( "Wallet", SpendAccountType.Cash, 2_000_000L ) ) ;
 
     captured.Should().NotBeNull() ;
-    captured!.AppUserId.Should().Be( 42 ) ;
-    captured.Name.Should().Be( "Wallet" ) ;
+    capturedCallerId.Should().Be( 42 ) ;
+    captured!.Name.Should().Be( "Wallet" ) ;
     captured.Balance.Should().Be( 2_000_000L ) ;
     var body = result.Should().BeOfType<CreatedAtRouteResult>()
       .Which.Value.Should().BeOfType<SpendAccountResponse>().Which ;
@@ -69,7 +89,7 @@ public class SpendAccountControllerTests
   [Fact]
   public async Task GetAllAsync_PassesUserIdToService()
   {
-    _service.GetAllForUserAsync( 42 ).Returns( [BuildEntity( 1, 42 ), BuildEntity( 2, 42 )] ) ;
+    _service.GetAllForUserAsync( 42 ).Returns( [BuildEntity( 1 ), BuildEntity( 2 )] ) ;
     var sut = CreateSut( 42 ) ;
 
     var result = await sut.GetAllAsync() ;
@@ -78,6 +98,7 @@ public class SpendAccountControllerTests
     var list = result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<List<SpendAccountResponse>>().Which ;
     list.Should().HaveCount( 2 ) ;
+    list.Should().OnlyContain( r => r.AppUserId == 42 ) ;
   }
 
   [Fact]
@@ -92,16 +113,17 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
-  public async Task GetByIdAsync_Existing_Returns200()
+  public async Task GetByIdAsync_Existing_Returns200WithCallerAsAppUserId()
   {
     _service.GetByIdForUserAsync( 10, 7 ).Returns( BuildEntity() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdAsync( 10 ) ;
 
-    result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<SpendAccountResponse>()
-      .Which.Id.Should().Be( 10 ) ;
+    var body = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<SpendAccountResponse>().Which ;
+    body.Id.Should().Be( 10 ) ;
+    body.AppUserId.Should().Be( 7 ) ;
   }
 
   [Fact]
@@ -141,5 +163,49 @@ public class SpendAccountControllerTests
 
     result.Should().BeOfType<NoContentResult>() ;
     await _service.Received( 1 ).SoftDeleteAsync( 10, 42 ) ;
+  }
+
+  [Fact]
+  public async Task GetMembersAsync_Returns200WithMemberList()
+  {
+    _service.GetMembersAsync( 10, 7 ).Returns( [
+      BuildMember( 10, 7, "me@example.com", "Me" ),
+      BuildMember( 10, 8, "other@example.com", "Other" )
+    ] ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetMembersAsync( 10 ) ;
+
+    var list = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<List<SpendAccountMemberResponse>>().Which ;
+    list.Select( m => m.Email ).Should().ContainInOrder( "me@example.com", "other@example.com" ) ;
+  }
+
+  [Fact]
+  public async Task AddMemberAsync_PassesEmailToService_AndReturnsMemberList()
+  {
+    _service.AddMemberAsync( 10, 7, "target@example.com" ).Returns( [
+      BuildMember( 10, 7 ),
+      BuildMember( 10, 8, "target@example.com" )
+    ] ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.AddMemberAsync( 10, new AddMemberRequest( "target@example.com" ) ) ;
+
+    await _service.Received( 1 ).AddMemberAsync( 10, 7, "target@example.com" ) ;
+    var list = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<List<SpendAccountMemberResponse>>().Which ;
+    list.Should().HaveCount( 2 ) ;
+  }
+
+  [Fact]
+  public async Task RemoveMemberAsync_CallsServiceAndReturns204()
+  {
+    var sut = CreateSut( 42 ) ;
+
+    var result = await sut.RemoveMemberAsync( 10, 8 ) ;
+
+    result.Should().BeOfType<NoContentResult>() ;
+    await _service.Received( 1 ).RemoveMemberAsync( 10, 42, 8 ) ;
   }
 }

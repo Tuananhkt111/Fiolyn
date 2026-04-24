@@ -20,6 +20,7 @@ public class GlobalExceptionHandler( ILogger<GlobalExceptionHandler> logger ) : 
       KeyNotFoundException => ( StatusCodes.Status404NotFound, "Not Found" ),
       UnauthorizedAccessException => ( StatusCodes.Status401Unauthorized, "Unauthorized" ),
       ForbiddenAccessException => ( StatusCodes.Status403Forbidden, "Forbidden" ),
+      BadRequestException => ( StatusCodes.Status400BadRequest, "Bad Request" ),
       _ => ( StatusCodes.Status500InternalServerError, "Internal Server Error" )
     } ;
 

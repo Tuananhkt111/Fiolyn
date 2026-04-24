@@ -64,6 +64,11 @@ public class AppUser : IAuditable, ISoftDelete
   public ICollection<RefreshToken> RefreshTokens { get ; set ; } = [] ;
 
   /// <summary>
+  ///   Gets or sets the spend-account memberships this user holds.
+  /// </summary>
+  public ICollection<SpendAccountMember> SpendAccountMemberships { get ; set ; } = [] ;
+
+  /// <summary>
   ///   Gets or sets the UTC timestamp when this record was created.
   /// </summary>
   [Required]
