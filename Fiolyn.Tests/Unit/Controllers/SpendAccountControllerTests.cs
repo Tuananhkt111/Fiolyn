@@ -81,9 +81,8 @@ public class SpendAccountControllerTests
     capturedCallerId.Should().Be( 42 ) ;
     captured!.Name.Should().Be( "Wallet" ) ;
     captured.Balance.Should().Be( 2_000_000L ) ;
-    var body = result.Should().BeOfType<CreatedAtRouteResult>()
-      .Which.Value.Should().BeOfType<SpendAccountResponse>().Which ;
-    body.AppUserId.Should().Be( 42 ) ;
+    result.Should().BeOfType<CreatedAtRouteResult>()
+      .Which.Value.Should().BeOfType<SpendAccountResponse>() ;
   }
 
   [Fact]
@@ -98,7 +97,6 @@ public class SpendAccountControllerTests
     var list = result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<List<SpendAccountResponse>>().Which ;
     list.Should().HaveCount( 2 ) ;
-    list.Should().OnlyContain( r => r.AppUserId == 42 ) ;
   }
 
   [Fact]
@@ -113,7 +111,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
-  public async Task GetByIdAsync_Existing_Returns200WithCallerAsAppUserId()
+  public async Task GetByIdAsync_Existing_Returns200()
   {
     _service.GetByIdForUserAsync( 10, 7 ).Returns( BuildEntity() ) ;
     var sut = CreateSut() ;
@@ -123,7 +121,6 @@ public class SpendAccountControllerTests
     var body = result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<SpendAccountResponse>().Which ;
     body.Id.Should().Be( 10 ) ;
-    body.AppUserId.Should().Be( 7 ) ;
   }
 
   [Fact]

@@ -35,7 +35,7 @@ public class SpendAccountController(
     return CreatedAtRoute( "GetSpendAccountById", new
     {
       id = created.Id
-    }, new SpendAccountResponse( created, userId ) ) ;
+    }, new SpendAccountResponse( created ) ) ;
   }
 
   /// <summary>
@@ -46,7 +46,7 @@ public class SpendAccountController(
   {
     var userId = User.GetUserId() ;
     var list = await spendAccountService.GetAllForUserAsync( userId ) ;
-    return Ok( list.Select( a => new SpendAccountResponse( a, userId ) ).ToList() ) ;
+    return Ok( list.Select( a => new SpendAccountResponse( a ) ).ToList() ) ;
   }
 
   /// <summary>
@@ -62,7 +62,7 @@ public class SpendAccountController(
       return NotFound() ;
     }
 
-    return Ok( new SpendAccountResponse( account, userId ) ) ;
+    return Ok( new SpendAccountResponse( account ) ) ;
   }
 
   /// <summary>
@@ -83,7 +83,7 @@ public class SpendAccountController(
     existing.Balance = request.Balance ;
 
     await spendAccountService.UpdateAsync( existing ) ;
-    return Ok( new SpendAccountResponse( existing, userId ) ) ;
+    return Ok( new SpendAccountResponse( existing ) ) ;
   }
 
   /// <summary>

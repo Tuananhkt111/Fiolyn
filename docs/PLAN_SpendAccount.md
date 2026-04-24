@@ -188,15 +188,15 @@ public record AddMemberRequest(
   [Required] [EmailAddress] [MaxLength( 256 )] string Email ) ;
 ```
 
-`SpendAccountResponse` — **keeps the `AppUserId` field** (frontend back-compat) but populates it with the **caller's** user ID. The caller is always a member when this record is returned from a user-scoped endpoint, so this gives the frontend a stable "current user is in this list" hook without exposing other members' IDs:
+`SpendAccountResponse` — **drops the legacy `AppUserId` field**. The caller's identity is carried on the JWT and does not need to be echoed in the payload; callers are always a member when this record is returned from a user-scoped endpoint:
 
 ```csharp
 public record SpendAccountResponse(
-  long Id, long AppUserId, string Name, SpendAccountType Type, long Balance,
+  long Id, string Name, SpendAccountType Type, long Balance,
   DateTime Created, DateTime LastModified )
 {
-  public SpendAccountResponse( Entities.SpendAccount a, long callerUserId )
-    : this( a.Id, callerUserId, a.Name, a.Type, a.Balance, a.Created, a.LastModified ) { }
+  public SpendAccountResponse( Entities.SpendAccount a )
+    : this( a.Id, a.Name, a.Type, a.Balance, a.Created, a.LastModified ) { }
 }
 ```
 
@@ -271,7 +271,7 @@ Full suite: **154 tests pass**.
 2. `dotnet test Fiolyn.Tests/Fiolyn.Tests.csproj` — 154 pass.
 3. Before deploy: run `dotnet ef database update` from `Fiolyn/` to apply `SpendAccountMultiMember`. Take a brief maintenance window or dual-deploy as described in section 2.
 4. Manual smoke as a regular user (valid JWT required):
-   - User A `POST /api/spend-accounts` with `{ "name": "Wallet", "type": 0, "balance": 1500000 }` → 201 + body. `AppUserId` in response = A's ID.
+   - User A `POST /api/spend-accounts` with `{ "name": "Wallet", "type": 0, "balance": 1500000 }` → 201 + body.
    - User A `POST /api/spend-accounts/{id}/members` with `{ "email": "<userB@...>" }` → 200 + member list containing A and B.
    - User B `GET /api/spend-accounts` → sees the shared account.
    - User B `PUT /api/spend-accounts/{id}` updates balance → 200.

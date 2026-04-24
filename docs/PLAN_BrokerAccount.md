@@ -262,8 +262,8 @@ public record AddMemberRequest(
   [Required] [EmailAddress] [MaxLength( 256 )] string Email ) ;
 ```
 
-`BrokerAccountResponse` — unchanged shape. Unlike `SpendAccountResponse`, it has no legacy `AppUserId` field to
-preserve.
+`BrokerAccountResponse` — unchanged shape: no `AppUserId` field. Caller identity is carried on the JWT, consistent
+with `SpendAccountResponse`.
 
 `AdminBrokerAccountResponse`:
 
