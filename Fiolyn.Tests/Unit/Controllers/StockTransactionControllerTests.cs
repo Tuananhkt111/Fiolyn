@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt ;
+using System.Security.Claims ;
 using Fiolyn.Controllers ;
 using Fiolyn.Controllers.DTOs.Requests.StockTransaction ;
 using Fiolyn.Controllers.DTOs.Responses.StockTransaction ;
@@ -5,6 +7,7 @@ using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 using Fiolyn.Services.Internal.Interfaces ;
 using FluentAssertions ;
+using Microsoft.AspNetCore.Http ;
 using Microsoft.AspNetCore.Mvc ;
 using NSubstitute ;
 
@@ -14,7 +17,21 @@ public class StockTransactionControllerTests
 {
   private readonly IStockTransactionService _service = Substitute.For<IStockTransactionService>() ;
 
-  private StockTransactionController CreateSut() => new(_service) ;
+  private StockTransactionController CreateSut( long callerId = 7 )
+  {
+    var controller = new StockTransactionController( _service ) ;
+    var identity = new ClaimsIdentity( [
+      new Claim( JwtRegisteredClaimNames.Sub, callerId.ToString() )
+    ], "TestAuth" ) ;
+    controller.ControllerContext = new ControllerContext
+    {
+      HttpContext = new DefaultHttpContext
+      {
+        User = new ClaimsPrincipal( identity )
+      }
+    } ;
+    return controller ;
+  }
 
   private static StockTransactionRequest BuildRequest() =>
     new("vnm", TransactionType.Buy, 100L, 45000L, 4_501_500L,
@@ -40,7 +57,7 @@ public class StockTransactionControllerTests
     } ;
 
   [Fact]
-  public async Task CreateAsync_RefetchesThroughServiceToPopulateBrokerNav()
+  public async Task CreateAsync_PassesCallerIdToService_AndRefetchesForBrokerNav()
   {
     var created = BuildEntity( 10, new BrokerAccount
     {
@@ -53,26 +70,33 @@ public class StockTransactionControllerTests
       Name = "VPS"
     } ) ;
 
-    _service.CreateAsync( Arg.Any<StockTransaction>() ).Returns( created ) ;
-    _service.GetByIdAsync( 10 ).Returns( withNav ) ;
+    StockTransaction? captured = null ;
+    long capturedUserId = 0 ;
+    _service.CreateAsync( Arg.Do<StockTransaction>( t => captured = t ),
+        Arg.Do<long>( id => capturedUserId = id ) )
+      .Returns( created ) ;
+    _service.GetByIdForUserAsync( 10, 42 ).Returns( withNav ) ;
 
-    var sut = CreateSut() ;
+    var sut = CreateSut( 42 ) ;
     var result = await sut.CreateAsync( BuildRequest() ) ;
 
+    captured.Should().NotBeNull() ;
+    capturedUserId.Should().Be( 42 ) ;
     var body = result.Should().BeOfType<CreatedAtRouteResult>()
       .Which.Value.Should().BeOfType<StockTransactionResponse>().Which ;
-    body.BrokerAccountName.Should().Be( "VPS", "response must use refetched nav, not the FK-only post-add entity" ) ;
-    await _service.Received( 1 ).GetByIdAsync( 10 ) ;
+    body.BrokerAccountName.Should().Be( "VPS" ) ;
+    await _service.Received( 1 ).GetByIdForUserAsync( 10, 42 ) ;
   }
 
   [Fact]
-  public async Task GetAllAsync_Returns200WithMappedList()
+  public async Task GetAllAsync_PassesUserIdAndSymbolToService()
   {
-    _service.GetAllAsync().Returns( [BuildEntity( 1 ), BuildEntity( 2 )] ) ;
-    var sut = CreateSut() ;
+    _service.GetAllForUserAsync( 42 ).Returns( [BuildEntity( 1 ), BuildEntity( 2 )] ) ;
+    var sut = CreateSut( 42 ) ;
 
     var result = await sut.GetAllAsync() ;
 
+    await _service.Received( 1 ).GetAllForUserAsync( 42 ) ;
     var list = result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<List<StockTransactionResponse>>().Which ;
     list.Should().HaveCount( 2 ) ;
@@ -81,18 +105,18 @@ public class StockTransactionControllerTests
   [Fact]
   public async Task GetAllAsync_PassesSymbolFilter()
   {
-    _service.GetAllAsync( "VNM" ).Returns( [BuildEntity()] ) ;
-    var sut = CreateSut() ;
+    _service.GetAllForUserAsync( 42, "VNM" ).Returns( [BuildEntity()] ) ;
+    var sut = CreateSut( 42 ) ;
 
     await sut.GetAllAsync( "VNM" ) ;
 
-    await _service.Received( 1 ).GetAllAsync( "VNM" ) ;
+    await _service.Received( 1 ).GetAllForUserAsync( 42, "VNM" ) ;
   }
 
   [Fact]
   public async Task GetByIdAsync_Missing_Returns404()
   {
-    _service.GetByIdAsync( 99 ).Returns( ( StockTransaction? )null ) ;
+    _service.GetByIdForUserAsync( 99, 7 ).Returns( ( StockTransaction? )null ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdAsync( 99 ) ;
@@ -103,7 +127,7 @@ public class StockTransactionControllerTests
   [Fact]
   public async Task GetByIdAsync_Existing_Returns200()
   {
-    _service.GetByIdAsync( 10 ).Returns( BuildEntity() ) ;
+    _service.GetByIdForUserAsync( 10, 7 ).Returns( BuildEntity() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdAsync( 10 ) ;
@@ -116,35 +140,31 @@ public class StockTransactionControllerTests
   [Fact]
   public async Task ExistsAsync_True_Returns200()
   {
-    _service.ExistsAsync( 10 ).Returns( true ) ;
+    _service.ExistsForUserAsync( 10, 7 ).Returns( true ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.ExistsAsync( 10 ) ;
-
-    result.Should().BeOfType<OkResult>() ;
+    ( await sut.ExistsAsync( 10 ) ).Should().BeOfType<OkResult>() ;
   }
 
   [Fact]
   public async Task ExistsAsync_False_Returns404()
   {
-    _service.ExistsAsync( 10 ).Returns( false ) ;
+    _service.ExistsForUserAsync( 10, 7 ).Returns( false ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.ExistsAsync( 10 ) ;
-
-    result.Should().BeOfType<NotFoundResult>() ;
+    ( await sut.ExistsAsync( 10 ) ).Should().BeOfType<NotFoundResult>() ;
   }
 
   [Fact]
   public async Task UpdateAsync_Missing_Returns404()
   {
-    _service.GetByIdAsync( 99 ).Returns( ( StockTransaction? )null ) ;
+    _service.GetByIdForUserAsync( 99, 7 ).Returns( ( StockTransaction? )null ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 99, BuildRequest() ) ;
 
     result.Should().BeOfType<NotFoundResult>() ;
-    await _service.DidNotReceive().UpdateAsync( Arg.Any<StockTransaction>() ) ;
+    await _service.DidNotReceive().UpdateAsync( Arg.Any<StockTransaction>(), Arg.Any<long>() ) ;
   }
 
   [Fact]
@@ -152,24 +172,24 @@ public class StockTransactionControllerTests
   {
     var existing = BuildEntity() ;
     existing.Quantity = 50L ;
-    _service.GetByIdAsync( 10 ).Returns( existing ) ;
-    var sut = CreateSut() ;
+    _service.GetByIdForUserAsync( 10, 42 ).Returns( existing ) ;
+    var sut = CreateSut( 42 ) ;
 
     var result = await sut.UpdateAsync( 10, BuildRequest() ) ;
 
-    existing.Quantity.Should().Be( 100L, "request values must be applied to the tracked entity" ) ;
+    existing.Quantity.Should().Be( 100L ) ;
     result.Should().BeOfType<OkObjectResult>() ;
-    await _service.Received( 1 ).UpdateAsync( existing ) ;
+    await _service.Received( 1 ).UpdateAsync( existing, 42 ) ;
   }
 
   [Fact]
   public async Task DeleteAsync_Returns204()
   {
-    var sut = CreateSut() ;
+    var sut = CreateSut( 42 ) ;
 
     var result = await sut.DeleteAsync( 10 ) ;
 
     result.Should().BeOfType<NoContentResult>() ;
-    await _service.Received( 1 ).SoftDeleteAsync( 10 ) ;
+    await _service.Received( 1 ).SoftDeleteAsync( 10, 42 ) ;
   }
 }

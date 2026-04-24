@@ -138,6 +138,24 @@ namespace Fiolyn.Data.Migrations
                     b.ToTable("BrokerAccount");
                 });
 
+            modelBuilder.Entity("Fiolyn.Entities.BrokerAccountMember", b =>
+                {
+                    b.Property<long>("BrokerAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("AppUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("BrokerAccountId", "AppUserId");
+
+                    b.HasIndex("AppUserId", "BrokerAccountId");
+
+                    b.ToTable("BrokerAccountMember");
+                });
+
             modelBuilder.Entity("Fiolyn.Entities.RefreshToken", b =>
                 {
                     b.Property<long>("Id")
@@ -304,6 +322,25 @@ namespace Fiolyn.Data.Migrations
                     b.ToTable("TelegramUserInfo");
                 });
 
+            modelBuilder.Entity("Fiolyn.Entities.BrokerAccountMember", b =>
+                {
+                    b.HasOne("Fiolyn.Entities.AppUser", "AppUser")
+                        .WithMany("BrokerAccountMemberships")
+                        .HasForeignKey("AppUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Fiolyn.Entities.BrokerAccount", "BrokerAccount")
+                        .WithMany("Members")
+                        .HasForeignKey("BrokerAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AppUser");
+
+                    b.Navigation("BrokerAccount");
+                });
+
             modelBuilder.Entity("Fiolyn.Entities.RefreshToken", b =>
                 {
                     b.HasOne("Fiolyn.Entities.AppUser", "User")
@@ -347,9 +384,16 @@ namespace Fiolyn.Data.Migrations
 
             modelBuilder.Entity("Fiolyn.Entities.AppUser", b =>
                 {
+                    b.Navigation("BrokerAccountMemberships");
+
                     b.Navigation("RefreshTokens");
 
                     b.Navigation("SpendAccountMemberships");
+                });
+
+            modelBuilder.Entity("Fiolyn.Entities.BrokerAccount", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("Fiolyn.Entities.SpendAccount", b =>

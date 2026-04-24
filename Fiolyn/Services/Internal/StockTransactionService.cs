@@ -9,7 +9,9 @@ using Microsoft.EntityFrameworkCore ;
 namespace Fiolyn.Services.Internal ;
 
 /// <summary>
-///   Manages stock transactions and parses Telegram message format.
+///   Manages stock transactions and parses Telegram message format. User-scoped methods enforce
+///   that the caller is a member of the transaction's parent <see cref="BrokerAccount" /> — not a
+///   member → 404 (via <see cref="KeyNotFoundException" />).
 /// </summary>
 public partial class StockTransactionService(
   IRepository<StockTransaction> stockTransactionRepository,
@@ -44,7 +46,16 @@ public partial class StockTransactionService(
   }
 
   /// <inheritdoc />
-  public async Task<StockTransaction> CreateAsync( StockTransaction transaction )
+  public async Task<StockTransaction> CreateAsync( StockTransaction transaction, long userId )
+  {
+    await EnsureUserIsBrokerMemberAsync( transaction.BrokerAccountId, userId ) ;
+    await stockTransactionRepository.AddAsync( transaction ) ;
+    await stockTransactionRepository.SaveAsync() ;
+    return transaction ;
+  }
+
+  /// <inheritdoc />
+  public async Task<StockTransaction> CreateFromTelegramAsync( StockTransaction transaction )
   {
     await stockTransactionRepository.AddAsync( transaction ) ;
     await stockTransactionRepository.SaveAsync() ;
@@ -52,9 +63,10 @@ public partial class StockTransactionService(
   }
 
   /// <inheritdoc />
-  public async Task<List<StockTransaction>> GetAllAsync( string? symbol = null )
+  public async Task<List<StockTransaction>> GetAllForUserAsync( long userId, string? symbol = null )
   {
-    var query = stockTransactionRepository.QueryActive() ;
+    var query = stockTransactionRepository.QueryActive()
+      .Where( t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId && !m.AppUser.IsDeleted ) ) ;
 
     if ( ! string.IsNullOrWhiteSpace( symbol ) )
     {
@@ -62,13 +74,64 @@ public partial class StockTransactionService(
       query = query.Where( t => t.Symbol == normalizedSymbol ) ;
     }
 
-    return await query.AsNoTracking().Include( t => t.BrokerAccount ).OrderByDescending( t => t.TransactionDate )
+    return await query.AsNoTracking().Include( t => t.BrokerAccount )
+      .OrderByDescending( t => t.TransactionDate )
       .ToListAsync() ;
   }
 
   /// <inheritdoc />
-  public async Task<bool> ExistsAsync( long id ) =>
-    await stockTransactionRepository.QueryActive().AnyAsync( t => t.Id == id ) ;
+  public async Task<bool> ExistsForUserAsync( long id, long userId ) =>
+    await stockTransactionRepository.QueryActive()
+      .AnyAsync( t => t.Id == id
+                      && t.BrokerAccount.Members.Any( m => m.AppUserId == userId && !m.AppUser.IsDeleted ) ) ;
+
+  /// <inheritdoc />
+  public async Task<StockTransaction?> GetByIdForUserAsync( long id, long userId ) =>
+    await stockTransactionRepository.QueryActive()
+      .Include( t => t.BrokerAccount )
+      .FirstOrDefaultAsync( t => t.Id == id
+                                 && t.BrokerAccount.Members.Any(
+                                   m => m.AppUserId == userId && !m.AppUser.IsDeleted ) ) ;
+
+  /// <inheritdoc />
+  public async Task UpdateAsync( StockTransaction transaction, long userId )
+  {
+    await EnsureUserIsBrokerMemberAsync( transaction.BrokerAccountId, userId ) ;
+    stockTransactionRepository.Update( transaction ) ;
+    await stockTransactionRepository.SaveAsync() ;
+  }
+
+  /// <inheritdoc />
+  public async Task SoftDeleteAsync( long id, long userId )
+  {
+    var transaction = await GetByIdForUserAsync( id, userId )
+                      ?? throw new KeyNotFoundException(
+                        $"StockTransaction {id} not found for user {userId}." ) ;
+    stockTransactionRepository.SoftDelete( transaction ) ;
+    await stockTransactionRepository.SaveAsync() ;
+  }
+
+  /// <inheritdoc />
+  public async Task<List<StockTransaction>> GetAllAsync( long? userId = null, string? symbol = null )
+  {
+    var query = stockTransactionRepository.QueryActive() ;
+
+    if ( userId is not null )
+    {
+      query = query.Where(
+        t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId.Value && !m.AppUser.IsDeleted ) ) ;
+    }
+
+    if ( ! string.IsNullOrWhiteSpace( symbol ) )
+    {
+      var normalizedSymbol = StockTransaction.NormalizeSymbol( symbol ) ;
+      query = query.Where( t => t.Symbol == normalizedSymbol ) ;
+    }
+
+    return await query.AsNoTracking().Include( t => t.BrokerAccount )
+      .OrderByDescending( t => t.TransactionDate )
+      .ToListAsync() ;
+  }
 
   /// <inheritdoc />
   public async Task<StockTransaction?> GetByIdAsync( long id ) =>
@@ -77,18 +140,23 @@ public partial class StockTransactionService(
       .FirstOrDefaultAsync( t => t.Id == id ) ;
 
   /// <inheritdoc />
-  public async Task UpdateAsync( StockTransaction transaction )
-  {
-    stockTransactionRepository.Update( transaction ) ;
-    await stockTransactionRepository.SaveAsync() ;
-  }
-
-  /// <inheritdoc />
   public async Task SoftDeleteAsync( long id )
   {
     var transaction = await stockTransactionRepository.GetActiveByIdOrThrowAsync( id ) ;
     stockTransactionRepository.SoftDelete( transaction ) ;
     await stockTransactionRepository.SaveAsync() ;
+  }
+
+  private async Task EnsureUserIsBrokerMemberAsync( long brokerId, long userId )
+  {
+    var isMember = await brokerRepository.QueryActive()
+      .AnyAsync( b => b.Id == brokerId
+                      && b.Members.Any( m => m.AppUserId == userId && !m.AppUser.IsDeleted ) ) ;
+
+    if ( !isMember )
+    {
+      throw new KeyNotFoundException( $"BrokerAccount {brokerId} not found for user {userId}." ) ;
+    }
   }
 
   [GeneratedRegex( @"(\w+):(.+?)(?=\s+\w+:|\s*$)" )]

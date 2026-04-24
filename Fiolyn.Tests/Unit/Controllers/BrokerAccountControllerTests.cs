@@ -1,9 +1,12 @@
+using System.IdentityModel.Tokens.Jwt ;
+using System.Security.Claims ;
 using Fiolyn.Controllers ;
 using Fiolyn.Controllers.DTOs.Requests.BrokerAccount ;
 using Fiolyn.Controllers.DTOs.Responses.BrokerAccount ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal.Interfaces ;
 using FluentAssertions ;
+using Microsoft.AspNetCore.Http ;
 using Microsoft.AspNetCore.Mvc ;
 using NSubstitute ;
 
@@ -13,45 +16,77 @@ public class BrokerAccountControllerTests
 {
   private readonly IBrokerAccountService _service = Substitute.For<IBrokerAccountService>() ;
 
-  private BrokerAccountController CreateSut() => new(_service) ;
+  private BrokerAccountController CreateSut( long callerId = 7 )
+  {
+    var controller = new BrokerAccountController( _service ) ;
+    var identity = new ClaimsIdentity( [
+      new Claim( JwtRegisteredClaimNames.Sub, callerId.ToString() )
+    ], "TestAuth" ) ;
+    controller.ControllerContext = new ControllerContext
+    {
+      HttpContext = new DefaultHttpContext
+      {
+        User = new ClaimsPrincipal( identity )
+      }
+    } ;
+    return controller ;
+  }
+
+  private static BrokerAccount BuildEntity( long id = 10, string name = "VPS" ) =>
+    new()
+    {
+      Id = id,
+      Name = name
+    } ;
+
+  private static AppUser BuildUser( long id, string email = "", string? displayName = null ) =>
+    new()
+    {
+      Id = id,
+      Email = string.IsNullOrEmpty( email ) ? $"user{id}@example.com" : email,
+      GoogleSub = $"g-{id}",
+      DisplayName = displayName
+    } ;
+
+  private static BrokerAccountMember BuildMember( long accountId, long userId, string email = "",
+    string? displayName = null ) =>
+    new()
+    {
+      BrokerAccountId = accountId,
+      AppUserId = userId,
+      AppUser = BuildUser( userId, email, displayName ),
+      JoinedAt = new DateTime( 2024, 1, 1, 0, 0, 0, DateTimeKind.Utc )
+    } ;
 
   [Fact]
-  public async Task CreateAsync_Returns201WithPersistedEntity()
+  public async Task CreateAsync_PassesCallerIdToService_AndReturns201()
   {
-    var created = new BrokerAccount
-    {
-      Id = 1,
-      Name = "VPS"
-    } ;
-    _service.CreateAsync( Arg.Is<BrokerAccount>( b => b.Name == "VPS" ) ).Returns( created ) ;
-    var sut = CreateSut() ;
+    BrokerAccount? captured = null ;
+    long capturedCallerId = 0 ;
+    _service.CreateAsync( Arg.Do<BrokerAccount>( a => captured = a ),
+        Arg.Do<long>( id => capturedCallerId = id ) )
+      .Returns( ci => ci.Arg<BrokerAccount>() ) ;
+    var sut = CreateSut( 42 ) ;
 
     var result = await sut.CreateAsync( new BrokerAccountRequest( "VPS" ) ) ;
 
-    result.Should().BeOfType<CreatedAtRouteResult>()
-      .Which.Value.Should().BeOfType<BrokerAccountResponse>()
-      .Which.Id.Should().Be( 1 ) ;
+    captured.Should().NotBeNull() ;
+    capturedCallerId.Should().Be( 42 ) ;
+    captured!.Name.Should().Be( "VPS" ) ;
+    var body = result.Should().BeOfType<CreatedAtRouteResult>()
+      .Which.Value.Should().BeOfType<BrokerAccountResponse>().Which ;
+    body.Name.Should().Be( "VPS" ) ;
   }
 
   [Fact]
-  public async Task GetAllAsync_Returns200WithMappedList()
+  public async Task GetAllAsync_PassesUserIdToService()
   {
-    _service.GetAllAsync().Returns( [
-      new BrokerAccount
-      {
-        Id = 1,
-        Name = "VPS"
-      },
-      new BrokerAccount
-      {
-        Id = 2,
-        Name = "TCBS"
-      }
-    ] ) ;
-    var sut = CreateSut() ;
+    _service.GetAllForUserAsync( 42 ).Returns( [BuildEntity( 1 ), BuildEntity( 2 )] ) ;
+    var sut = CreateSut( 42 ) ;
 
     var result = await sut.GetAllAsync() ;
 
+    await _service.Received( 1 ).GetAllForUserAsync( 42 ) ;
     var list = result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<List<BrokerAccountResponse>>().Which ;
     list.Should().HaveCount( 2 ) ;
@@ -60,7 +95,7 @@ public class BrokerAccountControllerTests
   [Fact]
   public async Task GetByIdAsync_Missing_Returns404()
   {
-    _service.GetByIdAsync( 99 ).Returns( ( BrokerAccount? )null ) ;
+    _service.GetByIdForUserAsync( 99, 7 ).Returns( ( BrokerAccount? )null ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdAsync( 99 ) ;
@@ -71,42 +106,38 @@ public class BrokerAccountControllerTests
   [Fact]
   public async Task GetByIdAsync_Existing_Returns200()
   {
-    _service.GetByIdAsync( 1 ).Returns( new BrokerAccount
-    {
-      Id = 1,
-      Name = "VPS"
-    } ) ;
+    _service.GetByIdForUserAsync( 10, 7 ).Returns( BuildEntity() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetByIdAsync( 1 ) ;
+    var result = await sut.GetByIdAsync( 10 ) ;
 
-    result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<BrokerAccountResponse>()
-      .Which.Name.Should().Be( "VPS" ) ;
+    var body = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<BrokerAccountResponse>().Which ;
+    body.Id.Should().Be( 10 ) ;
   }
 
   [Fact]
   public async Task ExistsAsync_True_Returns200()
   {
-    _service.ExistsAsync( 1 ).Returns( true ) ;
+    _service.ExistsForUserAsync( 10, 7 ).Returns( true ) ;
     var sut = CreateSut() ;
 
-    ( await sut.ExistsAsync( 1 ) ).Should().BeOfType<OkResult>() ;
+    ( await sut.ExistsAsync( 10 ) ).Should().BeOfType<OkResult>() ;
   }
 
   [Fact]
   public async Task ExistsAsync_False_Returns404()
   {
-    _service.ExistsAsync( 1 ).Returns( false ) ;
+    _service.ExistsForUserAsync( 10, 7 ).Returns( false ) ;
     var sut = CreateSut() ;
 
-    ( await sut.ExistsAsync( 1 ) ).Should().BeOfType<NotFoundResult>() ;
+    ( await sut.ExistsAsync( 10 ) ).Should().BeOfType<NotFoundResult>() ;
   }
 
   [Fact]
   public async Task UpdateAsync_Missing_Returns404()
   {
-    _service.GetByIdAsync( 99 ).Returns( ( BrokerAccount? )null ) ;
+    _service.GetByIdForUserAsync( 99, 7 ).Returns( ( BrokerAccount? )null ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 99, new BrokerAccountRequest( "X" ) ) ;
@@ -118,29 +149,69 @@ public class BrokerAccountControllerTests
   [Fact]
   public async Task UpdateAsync_Existing_AppliesChangesAndReturns200()
   {
-    var existing = new BrokerAccount
-    {
-      Id = 1,
-      Name = "OLD"
-    } ;
-    _service.GetByIdAsync( 1 ).Returns( existing ) ;
+    var existing = BuildEntity() ;
+    _service.GetByIdForUserAsync( 10, 7 ).Returns( existing ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.UpdateAsync( 1, new BrokerAccountRequest( "NEW" ) ) ;
+    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "Renamed" ) ) ;
 
-    existing.Name.Should().Be( "NEW" ) ;
-    result.Should().BeOfType<OkObjectResult>() ;
+    existing.Name.Should().Be( "Renamed" ) ;
     await _service.Received( 1 ).UpdateAsync( existing ) ;
+    result.Should().BeOfType<OkObjectResult>() ;
   }
 
   [Fact]
   public async Task DeleteAsync_Returns204()
   {
-    var sut = CreateSut() ;
+    var sut = CreateSut( 42 ) ;
 
-    var result = await sut.DeleteAsync( 1 ) ;
+    var result = await sut.DeleteAsync( 10 ) ;
 
     result.Should().BeOfType<NoContentResult>() ;
-    await _service.Received( 1 ).SoftDeleteAsync( 1 ) ;
+    await _service.Received( 1 ).SoftDeleteAsync( 10, 42 ) ;
+  }
+
+  [Fact]
+  public async Task GetMembersAsync_Returns200WithMemberList()
+  {
+    _service.GetMembersAsync( 10, 7 ).Returns( [
+      BuildMember( 10, 7, "me@example.com", "Me" ),
+      BuildMember( 10, 8, "other@example.com", "Other" )
+    ] ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetMembersAsync( 10 ) ;
+
+    var list = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<List<BrokerAccountMemberResponse>>().Which ;
+    list.Select( m => m.Email ).Should().ContainInOrder( "me@example.com", "other@example.com" ) ;
+  }
+
+  [Fact]
+  public async Task AddMemberAsync_PassesEmailToService_AndReturnsMemberList()
+  {
+    _service.AddMemberAsync( 10, 7, "target@example.com" ).Returns( [
+      BuildMember( 10, 7 ),
+      BuildMember( 10, 8, "target@example.com" )
+    ] ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.AddMemberAsync( 10, new AddMemberRequest( "target@example.com" ) ) ;
+
+    await _service.Received( 1 ).AddMemberAsync( 10, 7, "target@example.com" ) ;
+    var list = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<List<BrokerAccountMemberResponse>>().Which ;
+    list.Should().HaveCount( 2 ) ;
+  }
+
+  [Fact]
+  public async Task RemoveMemberAsync_CallsServiceAndReturns204()
+  {
+    var sut = CreateSut( 42 ) ;
+
+    var result = await sut.RemoveMemberAsync( 10, 8 ) ;
+
+    result.Should().BeOfType<NoContentResult>() ;
+    await _service.Received( 1 ).RemoveMemberAsync( 10, 42, 8 ) ;
   }
 }

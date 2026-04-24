@@ -8,6 +8,7 @@ public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext(
 {
   public DbSet<TelegramUserInfo> TelegramUserInfo => Set<TelegramUserInfo>() ;
   public DbSet<BrokerAccount> BrokerAccount => Set<BrokerAccount>() ;
+  public DbSet<BrokerAccountMember> BrokerAccountMember => Set<BrokerAccountMember>() ;
   public DbSet<StockTransaction> StockTransaction => Set<StockTransaction>() ;
   public DbSet<SpendAccount> SpendAccount => Set<SpendAccount>() ;
   public DbSet<SpendAccountMember> SpendAccountMember => Set<SpendAccountMember>() ;

@@ -17,25 +17,39 @@ public class StockTransactionServiceTests
 
   private StockTransactionService CreateSut() => new(_repository, _brokerRepository, _logger) ;
 
-  private void SetupBroker( string name, long id )
-  {
-    List<BrokerAccount> brokers =
-    [
-      new()
-      {
-        Id = id,
-        Name = name,
-        IsDeleted = false
-      }
-    ] ;
-    _brokerRepository.QueryActive().Returns( brokers.BuildMock() ) ;
-  }
+  private static AppUser BuildUser( long id, bool isDeleted = false ) =>
+    new()
+    {
+      Id = id,
+      Email = $"user{id}@example.com",
+      GoogleSub = $"g-{id}",
+      IsDeleted = isDeleted
+    } ;
 
-  private void SetupNoBrokers()
-  {
-    List<BrokerAccount> brokers = [] ;
-    _brokerRepository.QueryActive().Returns( brokers.BuildMock() ) ;
-  }
+  private static BrokerAccountMember BuildMember( long brokerId, long userId, bool userDeleted = false ) =>
+    new()
+    {
+      BrokerAccountId = brokerId,
+      AppUserId = userId,
+      AppUser = BuildUser( userId, userDeleted ),
+      JoinedAt = DateTime.UtcNow
+    } ;
+
+  private static BrokerAccount BuildBroker( long id, string name, long[] memberIds ) =>
+    new()
+    {
+      Id = id,
+      Name = name,
+      Members = memberIds.Select( m => BuildMember( id, m ) ).ToList()
+    } ;
+
+  private void SetupBroker( string name, long id, long[]? memberIds = null ) =>
+    _brokerRepository.QueryActive().Returns( new List<BrokerAccount>
+    {
+      BuildBroker( id, name, memberIds ?? [] )
+    }.BuildMock() ) ;
+
+  private void SetupNoBrokers() => _brokerRepository.QueryActive().Returns( new List<BrokerAccount>().BuildMock() ) ;
 
   [Fact]
   public async Task ParseMessageAsync_BuyMessage_ReturnsBuyTransaction()
@@ -43,9 +57,8 @@ public class StockTransactionServiceTests
     SetupBroker( "VPS", 1L ) ;
     var sut = CreateSut() ;
 
-    var result =
-      await sut.ParseMessageAsync(
-        "stock buy VNM 100 45000 4501500 broker:VPS date:2026-04-14 notes:bought at support" ) ;
+    var result = await sut.ParseMessageAsync(
+      "stock buy VNM 100 45000 4501500 broker:VPS date:2026-04-14 notes:bought at support" ) ;
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;
@@ -147,8 +160,9 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
-  public async Task CreateAsync_SavesEntityViaRepository()
+  public async Task CreateAsync_SavesEntity_WhenCallerIsMember()
   {
+    SetupBroker( "VPS", 1L, [42] ) ;
     var sut = CreateSut() ;
     var transaction = new StockTransaction
     {
@@ -161,7 +175,7 @@ public class StockTransactionServiceTests
       BrokerAccountId = 1
     } ;
 
-    var result = await sut.CreateAsync( transaction ) ;
+    var result = await sut.CreateAsync( transaction, 42 ) ;
 
     result.Should().BeSameAs( transaction ) ;
     await _repository.Received( 1 ).AddAsync( transaction ) ;
@@ -169,29 +183,360 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
-  public async Task GetAllAsync_WithSymbolFilter_FiltersCorrectly()
+  public async Task CreateAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
+    SetupBroker( "VPS", 1L, [99] ) ;
+    var sut = CreateSut() ;
+    var transaction = new StockTransaction
+    {
+      BrokerAccountId = 1,
+      Symbol = "VNM"
+    } ;
+
+    var act = async () => await sut.CreateAsync( transaction, 42 ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    await _repository.DidNotReceive().AddAsync( Arg.Any<StockTransaction>() ) ;
+  }
+
+  [Fact]
+  public async Task CreateFromTelegramAsync_SavesEntity_WithoutMembershipCheck()
+  {
+    var sut = CreateSut() ;
+    var transaction = new StockTransaction
+    {
+      Symbol = "VNM",
+      BrokerAccountId = 1
+    } ;
+
+    var result = await sut.CreateFromTelegramAsync( transaction ) ;
+
+    result.Should().BeSameAs( transaction ) ;
+    await _repository.Received( 1 ).AddAsync( transaction ) ;
+    await _repository.Received( 1 ).SaveAsync() ;
+    _brokerRepository.DidNotReceive().QueryActive() ;
+  }
+
+  [Fact]
+  public async Task GetAllForUserAsync_FiltersByBrokerMembership()
+  {
+    var userBroker = BuildBroker( 1, "VPS", [42] ) ;
+    var otherBroker = BuildBroker( 2, "TCBS", [99] ) ;
     List<StockTransaction> transactions =
     [
       new()
       {
         Id = 1,
         Symbol = "VNM",
+        BrokerAccountId = 1,
+        BrokerAccount = userBroker,
         TransactionDate = DateTime.UtcNow
       },
       new()
       {
         Id = 2,
         Symbol = "AAPL",
+        BrokerAccountId = 2,
+        BrokerAccount = otherBroker,
         TransactionDate = DateTime.UtcNow
       }
     ] ;
     _repository.QueryActive().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync( "vnm" ) ;
+    var result = await sut.GetAllForUserAsync( 42 ) ;
 
-    result.Should().HaveCount( 1 ) ;
-    result[ 0 ].Symbol.Should().Be( "VNM" ) ;
+    result.Should().ContainSingle().Which.Id.Should().Be( 1 ) ;
+  }
+
+  [Fact]
+  public async Task GetAllForUserAsync_WithSymbolFilter_FiltersSymbolAndMembership()
+  {
+    var broker = BuildBroker( 1, "VPS", [42] ) ;
+    List<StockTransaction> transactions =
+    [
+      new()
+      {
+        Id = 1,
+        Symbol = "VNM",
+        BrokerAccountId = 1,
+        BrokerAccount = broker,
+        TransactionDate = DateTime.UtcNow
+      },
+      new()
+      {
+        Id = 2,
+        Symbol = "AAPL",
+        BrokerAccountId = 1,
+        BrokerAccount = broker,
+        TransactionDate = DateTime.UtcNow
+      }
+    ] ;
+    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetAllForUserAsync( 42, "vnm" ) ;
+
+    result.Should().ContainSingle().Which.Symbol.Should().Be( "VNM" ) ;
+  }
+
+  [Fact]
+  public async Task GetByIdForUserAsync_ReturnsTransaction_WhenCallerIsMember()
+  {
+    var broker = BuildBroker( 1, "VPS", [42] ) ;
+    List<StockTransaction> transactions =
+    [
+      new()
+      {
+        Id = 5,
+        Symbol = "VNM",
+        BrokerAccountId = 1,
+        BrokerAccount = broker,
+        TransactionDate = DateTime.UtcNow
+      }
+    ] ;
+    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetByIdForUserAsync( 5, 42 ) ;
+
+    result.Should().NotBeNull() ;
+    result!.Id.Should().Be( 5 ) ;
+  }
+
+  [Fact]
+  public async Task GetByIdForUserAsync_ReturnsNull_WhenCallerIsNotMember()
+  {
+    var broker = BuildBroker( 1, "VPS", [99] ) ;
+    List<StockTransaction> transactions =
+    [
+      new()
+      {
+        Id = 5,
+        BrokerAccountId = 1,
+        BrokerAccount = broker,
+        TransactionDate = DateTime.UtcNow
+      }
+    ] ;
+    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetByIdForUserAsync( 5, 42 ) ;
+
+    result.Should().BeNull() ;
+  }
+
+  [Fact]
+  public async Task ExistsForUserAsync_True_WhenCallerIsMember()
+  {
+    var broker = BuildBroker( 1, "VPS", [42] ) ;
+    List<StockTransaction> transactions =
+    [
+      new()
+      {
+        Id = 5,
+        BrokerAccountId = 1,
+        BrokerAccount = broker
+      }
+    ] ;
+    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    ( await sut.ExistsForUserAsync( 5, 42 ) ).Should().BeTrue() ;
+  }
+
+  [Fact]
+  public async Task ExistsForUserAsync_False_WhenCallerIsNotMember()
+  {
+    var broker = BuildBroker( 1, "VPS", [99] ) ;
+    List<StockTransaction> transactions =
+    [
+      new()
+      {
+        Id = 5,
+        BrokerAccountId = 1,
+        BrokerAccount = broker
+      }
+    ] ;
+    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    ( await sut.ExistsForUserAsync( 5, 42 ) ).Should().BeFalse() ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_Updates_WhenCallerIsMember()
+  {
+    SetupBroker( "VPS", 1L, [42] ) ;
+    var sut = CreateSut() ;
+    var transaction = new StockTransaction
+    {
+      Id = 5,
+      BrokerAccountId = 1
+    } ;
+
+    await sut.UpdateAsync( transaction, 42 ) ;
+
+    _repository.Received( 1 ).Update( transaction ) ;
+    await _repository.Received( 1 ).SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
+  {
+    SetupBroker( "VPS", 1L, [99] ) ;
+    var sut = CreateSut() ;
+    var transaction = new StockTransaction
+    {
+      Id = 5,
+      BrokerAccountId = 1
+    } ;
+
+    var act = async () => await sut.UpdateAsync( transaction, 42 ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    _repository.DidNotReceive().Update( Arg.Any<StockTransaction>() ) ;
+  }
+
+  [Fact]
+  public async Task SoftDeleteAsync_SoftDeletes_WhenCallerIsMember()
+  {
+    var broker = BuildBroker( 1, "VPS", [42] ) ;
+    var transaction = new StockTransaction
+    {
+      Id = 5,
+      BrokerAccountId = 1,
+      BrokerAccount = broker
+    } ;
+    _repository.QueryActive().Returns( new List<StockTransaction>
+    {
+      transaction
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    await sut.SoftDeleteAsync( 5, 42 ) ;
+
+    _repository.Received( 1 ).SoftDelete( transaction ) ;
+    await _repository.Received( 1 ).SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task SoftDeleteAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
+  {
+    var broker = BuildBroker( 1, "VPS", [99] ) ;
+    _repository.QueryActive().Returns( new List<StockTransaction>
+    {
+      new()
+      {
+        Id = 5,
+        BrokerAccountId = 1,
+        BrokerAccount = broker
+      }
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var act = async () => await sut.SoftDeleteAsync( 5, 42 ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    _repository.DidNotReceive().SoftDelete( Arg.Any<StockTransaction>() ) ;
+  }
+
+  [Fact]
+  public async Task AdminGetAllAsync_NoFilter_ReturnsAll()
+  {
+    var broker = BuildBroker( 1, "VPS", [42] ) ;
+    List<StockTransaction> transactions =
+    [
+      new()
+      {
+        Id = 1,
+        Symbol = "VNM",
+        BrokerAccountId = 1,
+        BrokerAccount = broker,
+        TransactionDate = DateTime.UtcNow
+      },
+      new()
+      {
+        Id = 2,
+        Symbol = "AAPL",
+        BrokerAccountId = 1,
+        BrokerAccount = broker,
+        TransactionDate = DateTime.UtcNow
+      }
+    ] ;
+    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetAllAsync() ;
+
+    result.Should().HaveCount( 2 ) ;
+  }
+
+  [Fact]
+  public async Task AdminGetAllAsync_WithUserId_FiltersByMembership()
+  {
+    var userBroker = BuildBroker( 1, "VPS", [42] ) ;
+    var otherBroker = BuildBroker( 2, "TCBS", [99] ) ;
+    List<StockTransaction> transactions =
+    [
+      new()
+      {
+        Id = 1,
+        BrokerAccountId = 1,
+        BrokerAccount = userBroker,
+        TransactionDate = DateTime.UtcNow
+      },
+      new()
+      {
+        Id = 2,
+        BrokerAccountId = 2,
+        BrokerAccount = otherBroker,
+        TransactionDate = DateTime.UtcNow
+      }
+    ] ;
+    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetAllAsync( 42 ) ;
+
+    result.Should().ContainSingle().Which.Id.Should().Be( 1 ) ;
+  }
+
+  [Fact]
+  public async Task AdminGetByIdAsync_ReturnsTransaction_RegardlessOfMembership()
+  {
+    var broker = BuildBroker( 1, "VPS", [99] ) ;
+    _repository.QueryActive().Returns( new List<StockTransaction>
+    {
+      new()
+      {
+        Id = 5,
+        BrokerAccountId = 1,
+        BrokerAccount = broker
+      }
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetByIdAsync( 5 ) ;
+
+    result.Should().NotBeNull() ;
+    result!.Id.Should().Be( 5 ) ;
+  }
+
+  [Fact]
+  public async Task AdminSoftDeleteAsync_SoftDeletes_WhenFound()
+  {
+    var transaction = new StockTransaction
+    {
+      Id = 5,
+      BrokerAccountId = 1
+    } ;
+    _repository.GetActiveByIdOrThrowAsync( 5L ).Returns( transaction ) ;
+    var sut = CreateSut() ;
+
+    await sut.SoftDeleteAsync( 5 ) ;
+
+    _repository.Received( 1 ).SoftDelete( transaction ) ;
+    await _repository.Received( 1 ).SaveAsync() ;
   }
 }

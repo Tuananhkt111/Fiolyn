@@ -69,6 +69,11 @@ public class AppUser : IAuditable, ISoftDelete
   public ICollection<SpendAccountMember> SpendAccountMemberships { get ; set ; } = [] ;
 
   /// <summary>
+  ///   Gets or sets the broker-account memberships this user holds.
+  /// </summary>
+  public ICollection<BrokerAccountMember> BrokerAccountMemberships { get ; set ; } = [] ;
+
+  /// <summary>
   ///   Gets or sets the UTC timestamp when this record was created.
   /// </summary>
   [Required]

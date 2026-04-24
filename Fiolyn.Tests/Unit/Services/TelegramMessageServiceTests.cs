@@ -151,7 +151,7 @@ public class TelegramMessageServiceTests
     } ;
     _stockTransactionService.ParseMessageAsync( Arg.Any<string>() )
       .Returns( Task.FromResult<StockTransaction?>( parsedTransaction ) ) ;
-    _stockTransactionService.CreateAsync( parsedTransaction ).Returns( parsedTransaction ) ;
+    _stockTransactionService.CreateFromTelegramAsync( parsedTransaction ).Returns( parsedTransaction ) ;
     var sut = CreateSut() ;
 
     var result = await sut.ProcessWebhookAsync(
@@ -159,7 +159,7 @@ public class TelegramMessageServiceTests
 
     result.IsSuccess.Should().BeTrue() ;
     await _stockTransactionService.Received( 1 ).ParseMessageAsync( "stock buy VNM 100 45000 4501500" ) ;
-    await _stockTransactionService.Received( 1 ).CreateAsync( parsedTransaction ) ;
+    await _stockTransactionService.Received( 1 ).CreateFromTelegramAsync( parsedTransaction ) ;
     await _notionService.DidNotReceive().AppendAsync( Arg.Any<string>() ) ;
   }
 
@@ -177,6 +177,6 @@ public class TelegramMessageServiceTests
     result.IsSuccess.Should().BeFalse() ;
     result.Message.Should().Contain( "Error" ) ;
     await _notionService.DidNotReceive().AppendAsync( Arg.Any<string>() ) ;
-    await _stockTransactionService.DidNotReceive().CreateAsync( Arg.Any<StockTransaction>() ) ;
+    await _stockTransactionService.DidNotReceive().CreateFromTelegramAsync( Arg.Any<StockTransaction>() ) ;
   }
 }
