@@ -8,6 +8,10 @@ namespace Fiolyn.Entities ;
 ///   Shared across one or more <see cref="AppUser" />s via <see cref="BrokerAccountMember" /> — every
 ///   member has equal read/write/manage rights, including over the account's
 ///   <see cref="StockTransaction" /> children.
+///   Each broker is linked to exactly one <see cref="SpendAccount" />: stock transactions on the broker
+///   automatically debit (Buy) or credit (Sell, Dividend) <c>SpendAccount.Balance</c> by their
+///   <c>TotalAmount</c>. The link is set at create time and may be changed later by a member who is
+///   also a member of the target spend account.
 /// </summary>
 public class BrokerAccount : IAuditable, ISoftDelete
 {
@@ -23,6 +27,19 @@ public class BrokerAccount : IAuditable, ISoftDelete
   [Required]
   [MaxLength( 100 )]
   public string Name { get ; set ; } = string.Empty ;
+
+  /// <summary>
+  ///   Gets or sets the foreign key to the <see cref="SpendAccount" /> whose balance is auto-adjusted
+  ///   by every stock transaction on this broker.
+  /// </summary>
+  [Required]
+  public long SpendAccountId { get ; set ; }
+
+  /// <summary>
+  ///   Gets or sets the linked spend account. <c>OnDelete: Restrict</c> is configured in
+  ///   <see cref="Fiolyn.Data.AppDbContext.OnModelCreating" />.
+  /// </summary>
+  public SpendAccount SpendAccount { get ; set ; } = null! ;
 
   /// <summary>
   ///   Gets or sets the users who share this account. Treated as an access-control set: a user is a

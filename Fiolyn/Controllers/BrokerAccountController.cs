@@ -26,14 +26,16 @@ public class BrokerAccountController(
     var userId = User.GetUserId() ;
     var brokerAccount = new BrokerAccount
     {
-      Name = request.Name
+      Name = request.Name,
+      SpendAccountId = request.SpendAccountId
     } ;
 
     var created = await brokerAccountService.CreateAsync( brokerAccount, userId ) ;
+    var withNav = await brokerAccountService.GetByIdForUserAsync( created.Id, userId ) ;
     return CreatedAtRoute( "GetBrokerAccountById", new
     {
       id = created.Id
-    }, new BrokerAccountResponse( created ) ) ;
+    }, new BrokerAccountResponse( withNav! ) ) ;
   }
 
   /// <summary>
@@ -85,9 +87,11 @@ public class BrokerAccountController(
     }
 
     existing.Name = request.Name ;
+    existing.SpendAccountId = request.SpendAccountId ;
 
-    await brokerAccountService.UpdateAsync( existing ) ;
-    return Ok( new BrokerAccountResponse( existing ) ) ;
+    await brokerAccountService.UpdateAsync( existing, userId ) ;
+    var refreshed = await brokerAccountService.GetByIdForUserAsync( id, userId ) ;
+    return Ok( new BrokerAccountResponse( refreshed! ) ) ;
   }
 
   /// <summary>

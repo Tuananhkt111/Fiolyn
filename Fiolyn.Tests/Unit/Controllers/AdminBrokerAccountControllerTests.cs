@@ -34,13 +34,19 @@ public class AdminBrokerAccountControllerTests
     } ;
 
   private static BrokerAccount BuildEntity( long id = 10, long[] memberIds = null!,
-    string name = "VPS" )
+    string name = "VPS", long spendAccountId = 1 )
   {
     memberIds ??= [7] ;
     var account = new BrokerAccount
     {
       Id = id,
-      Name = name
+      Name = name,
+      SpendAccountId = spendAccountId,
+      SpendAccount = new SpendAccount
+      {
+        Id = spendAccountId,
+        Name = $"Spend{spendAccountId}"
+      }
     } ;
     foreach ( var memberId in memberIds )
     {
@@ -133,11 +139,12 @@ public class AdminBrokerAccountControllerTests
     _service.GetByIdAsync( 55 ).Returns( enriched ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.CreateAsync( new AdminBrokerAccountCreateRequest( 42, "TCBS" ) ) ;
+    var result = await sut.CreateAsync( new AdminBrokerAccountCreateRequest( 42, "TCBS", 9 ) ) ;
 
     captured.Should().NotBeNull() ;
     capturedUserId.Should().Be( 42 ) ;
     captured!.Name.Should().Be( "TCBS" ) ;
+    captured.SpendAccountId.Should().Be( 9 ) ;
     var body = result.Should().BeOfType<CreatedAtRouteResult>()
       .Which.Value.Should().BeOfType<AdminBrokerAccountResponse>().Which ;
     body.Members.Should().ContainSingle()
@@ -151,7 +158,7 @@ public class AdminBrokerAccountControllerTests
     _service.GetByIdAsync( 99 ).Returns( ( BrokerAccount? )null ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.UpdateAsync( 99, new BrokerAccountRequest( "x" ) ) ;
+    var result = await sut.UpdateAsync( 99, new BrokerAccountRequest( "x", 1 ) ) ;
 
     result.Should().BeOfType<NotFoundResult>() ;
     await _service.DidNotReceive().UpdateAsync( Arg.Any<BrokerAccount>() ) ;
@@ -164,9 +171,10 @@ public class AdminBrokerAccountControllerTests
     _service.GetByIdAsync( 10 ).Returns( existing ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "Renamed" ) ) ;
+    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "Renamed", 9 ) ) ;
 
     existing.Name.Should().Be( "Renamed" ) ;
+    existing.SpendAccountId.Should().Be( 9 ) ;
     await _service.Received( 1 ).UpdateAsync( existing ) ;
     result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<AdminBrokerAccountResponse>() ;

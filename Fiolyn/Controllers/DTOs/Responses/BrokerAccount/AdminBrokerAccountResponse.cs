@@ -6,6 +6,8 @@ namespace Fiolyn.Controllers.DTOs.Responses.BrokerAccount ;
 public record AdminBrokerAccountResponse(
   long Id,
   string Name,
+  long SpendAccountId,
+  string SpendAccountName,
   IReadOnlyList<BrokerAccountMemberResponse> Members,
   DateTime Created,
   DateTime LastModified )
@@ -14,6 +16,8 @@ public record AdminBrokerAccountResponse(
     : this(
       b.Id,
       b.Name,
+      b.SpendAccountId,
+      b.SpendAccount.Name,
       b.Members
         .Where( m => ! m.AppUser.IsDeleted )
         .OrderBy( m => m.JoinedAt )

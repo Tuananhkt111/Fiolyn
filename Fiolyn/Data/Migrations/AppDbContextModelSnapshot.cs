@@ -139,7 +139,12 @@ namespace Fiolyn.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<long>("SpendAccountId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("SpendAccountId");
 
                     b.ToTable("BrokerAccount");
                 });
@@ -304,6 +309,17 @@ namespace Fiolyn.Data.Migrations
                     b.HasIndex("BrokerAccountId");
 
                     b.ToTable("StockTransaction");
+                });
+
+            modelBuilder.Entity("Fiolyn.Entities.BrokerAccount", b =>
+                {
+                    b.HasOne("Fiolyn.Entities.SpendAccount", "SpendAccount")
+                        .WithMany()
+                        .HasForeignKey("SpendAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SpendAccount");
                 });
 
             modelBuilder.Entity("Fiolyn.Entities.BrokerAccountMember", b =>

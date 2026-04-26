@@ -21,7 +21,7 @@ public record AdminSpendAccountResponse(
       a.Type,
       a.Balance,
       a.Members
-        .Where( m => !m.AppUser.IsDeleted )
+        .Where( m => ! m.AppUser.IsDeleted )
         .OrderBy( m => m.JoinedAt )
         .Select( m => new SpendAccountMemberResponse( m ) )
         .ToList(),

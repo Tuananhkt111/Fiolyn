@@ -50,7 +50,8 @@ public class AdminBrokerAccountController(
   {
     var account = new BrokerAccount
     {
-      Name = request.Name
+      Name = request.Name,
+      SpendAccountId = request.SpendAccountId
     } ;
 
     var created = await brokerAccountService.CreateAsync( account, request.AppUserId ) ;
@@ -74,9 +75,11 @@ public class AdminBrokerAccountController(
     }
 
     existing.Name = request.Name ;
+    existing.SpendAccountId = request.SpendAccountId ;
 
     await brokerAccountService.UpdateAsync( existing ) ;
-    return Ok( new AdminBrokerAccountResponse( existing ) ) ;
+    var refreshed = await brokerAccountService.GetByIdAsync( id ) ;
+    return Ok( new AdminBrokerAccountResponse( refreshed! ) ) ;
   }
 
   /// <summary>

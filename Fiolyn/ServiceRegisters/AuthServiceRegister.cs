@@ -27,7 +27,7 @@ public class AuthServiceRegister : IServiceRegister
 
     var jwtSettings = jwtSection.Get<JwtSettings>() ?? new JwtSettings() ;
     if ( string.IsNullOrWhiteSpace( jwtSettings.SigningKey )
-      || jwtSettings.SigningKey.Length < AuthConstants.MinJwtSigningKeyLength )
+         || jwtSettings.SigningKey.Length < AuthConstants.MinJwtSigningKeyLength )
     {
       throw new InvalidOperationException(
         $"Jwt:SigningKey must be configured and at least {AuthConstants.MinJwtSigningKeyLength} characters long." ) ;

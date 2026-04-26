@@ -7,4 +7,5 @@ namespace Fiolyn.Controllers.DTOs.Requests.BrokerAccount ;
 /// </summary>
 public record AdminBrokerAccountCreateRequest(
   [Required] long AppUserId,
-  [Required] [MaxLength( 100 )] string Name ) ;
+  [Required] [MaxLength( 100 )] string Name,
+  [Required] long SpendAccountId ) ;

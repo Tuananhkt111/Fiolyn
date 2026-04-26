@@ -10,15 +10,19 @@ namespace Fiolyn.Services.Internal ;
 ///   Manages shared broker accounts. Access is controlled by membership rows in
 ///   <see cref="BrokerAccountMember" /> — user-scoped reads/writes require the caller to be a member,
 ///   and "not a member" is surfaced as 404 (via <see cref="KeyNotFoundException" />).
+///   Each broker references exactly one <see cref="SpendAccount" /> (auto-balance link); setting or
+///   changing that link requires the caller to be a member of the target spend account too.
 /// </summary>
 public class BrokerAccountService(
   IRepository<BrokerAccount> repository,
   IRepository<BrokerAccountMember> memberRepository,
-  IRepository<AppUser> userRepository ) : IBrokerAccountService
+  IRepository<AppUser> userRepository,
+  IRepository<SpendAccount> spendRepository ) : IBrokerAccountService
 {
   /// <inheritdoc />
   public async Task<BrokerAccount> CreateAsync( BrokerAccount account, long creatorUserId )
   {
+    await EnsureUserIsSpendAccountMemberAsync( account.SpendAccountId, creatorUserId ) ;
     account.Members.Add( new BrokerAccountMember
     {
       AppUserId = creatorUserId,
@@ -33,6 +37,7 @@ public class BrokerAccountService(
   public async Task<List<BrokerAccount>> GetAllForUserAsync( long userId ) =>
     await repository.QueryActive()
       .AsNoTracking()
+      .Include( b => b.SpendAccount )
       .Where( b => b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) )
       .OrderBy( b => b.Name )
       .ToListAsync() ;
@@ -40,6 +45,7 @@ public class BrokerAccountService(
   /// <inheritdoc />
   public async Task<BrokerAccount?> GetByIdForUserAsync( long id, long userId ) =>
     await repository.QueryActive()
+      .Include( b => b.SpendAccount )
       .FirstOrDefaultAsync( b => b.Id == id
                                  && b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
 
@@ -50,8 +56,19 @@ public class BrokerAccountService(
                       && b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
 
   /// <inheritdoc />
-  public async Task UpdateAsync( BrokerAccount account )
+  public async Task UpdateAsync( BrokerAccount account, long callerUserId )
   {
+    var oldSpendId = await repository.Query()
+      .AsNoTracking()
+      .Where( b => b.Id == account.Id )
+      .Select( b => ( long? )b.SpendAccountId )
+      .FirstOrDefaultAsync() ;
+
+    if ( oldSpendId != account.SpendAccountId )
+    {
+      await EnsureUserIsSpendAccountMemberAsync( account.SpendAccountId, callerUserId ) ;
+    }
+
     repository.Update( account ) ;
     await repository.SaveAsync() ;
   }
@@ -127,6 +144,7 @@ public class BrokerAccountService(
   {
     IQueryable<BrokerAccount> query = repository.QueryActive()
       .AsNoTracking()
+      .Include( b => b.SpendAccount )
       .Include( b => b.Members )
       .ThenInclude( m => m.AppUser ) ;
 
@@ -143,6 +161,7 @@ public class BrokerAccountService(
   /// <inheritdoc />
   public async Task<BrokerAccount?> GetByIdAsync( long id ) =>
     await repository.QueryActive()
+      .Include( b => b.SpendAccount )
       .Include( b => b.Members )
       .ThenInclude( m => m.AppUser )
       .FirstOrDefaultAsync( b => b.Id == id ) ;
@@ -155,6 +174,14 @@ public class BrokerAccountService(
     await repository.SaveAsync() ;
   }
 
+  /// <inheritdoc />
+  public async Task UpdateAsync( BrokerAccount account )
+  {
+    await spendRepository.GetActiveByIdOrThrowAsync( account.SpendAccountId ) ;
+    repository.Update( account ) ;
+    await repository.SaveAsync() ;
+  }
+
   private async Task EnsureCallerIsMemberAsync( long accountId, long callerUserId )
   {
     var exists = await repository.QueryActive()
@@ -164,6 +191,18 @@ public class BrokerAccountService(
     if ( ! exists )
     {
       throw new KeyNotFoundException( $"BrokerAccount {accountId} not found for user {callerUserId}." ) ;
+    }
+  }
+
+  private async Task EnsureUserIsSpendAccountMemberAsync( long spendAccountId, long userId )
+  {
+    var ok = await spendRepository.QueryActive()
+      .AnyAsync( s => s.Id == spendAccountId
+                      && s.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
+
+    if ( ! ok )
+    {
+      throw new KeyNotFoundException( $"SpendAccount {spendAccountId} not found for user {userId}." ) ;
     }
   }
 

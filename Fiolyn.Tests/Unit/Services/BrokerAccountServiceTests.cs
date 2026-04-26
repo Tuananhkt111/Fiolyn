@@ -15,9 +15,37 @@ public class BrokerAccountServiceTests
   private readonly IRepository<BrokerAccountMember> _memberRepo =
     Substitute.For<IRepository<BrokerAccountMember>>() ;
 
+  private readonly IRepository<SpendAccount> _spendRepo = Substitute.For<IRepository<SpendAccount>>() ;
+
   private readonly IRepository<AppUser> _userRepo = Substitute.For<IRepository<AppUser>>() ;
 
-  private BrokerAccountService CreateSut() => new(_accountRepo, _memberRepo, _userRepo) ;
+  private BrokerAccountService CreateSut() => new(_accountRepo, _memberRepo, _userRepo, _spendRepo) ;
+
+  private void SetupSpendAccount( long spendId, long[] memberIds )
+  {
+    var account = new SpendAccount
+    {
+      Id = spendId,
+      Name = $"Spend{spendId}"
+    } ;
+    foreach ( var memberId in memberIds )
+    {
+      account.Members.Add( new SpendAccountMember
+      {
+        SpendAccountId = spendId,
+        AppUserId = memberId,
+        AppUser = BuildUser( memberId ),
+        JoinedAt = DateTime.UtcNow
+      } ) ;
+    }
+
+    _spendRepo.QueryActive().Returns( new List<SpendAccount>
+    {
+      account
+    }.BuildMock() ) ;
+  }
+
+  private void SetupNoSpendAccounts() => _spendRepo.QueryActive().Returns( new List<SpendAccount>().BuildMock() ) ;
 
   private static AppUser BuildUser( long id, string email = "", bool isDeleted = false ) =>
     new()
@@ -41,12 +69,14 @@ public class BrokerAccountServiceTests
     long id,
     long[] memberIds,
     string name = "VPS",
-    bool isDeleted = false )
+    bool isDeleted = false,
+    long spendAccountId = 1 )
   {
     var account = new BrokerAccount
     {
       Id = id,
       Name = name,
+      SpendAccountId = spendAccountId,
       IsDeleted = isDeleted
     } ;
     foreach ( var memberId in memberIds )
@@ -60,10 +90,12 @@ public class BrokerAccountServiceTests
   [Fact]
   public async Task CreateAsync_AddsCreatorAsFirstMember_AndSaves()
   {
+    SetupSpendAccount( 7, [42] ) ;
     var sut = CreateSut() ;
     var account = new BrokerAccount
     {
-      Name = "VPS"
+      Name = "VPS",
+      SpendAccountId = 7
     } ;
 
     var result = await sut.CreateAsync( account, 42 ) ;
@@ -73,6 +105,40 @@ public class BrokerAccountServiceTests
     account.Members.First().AppUserId.Should().Be( 42 ) ;
     await _accountRepo.Received( 1 ).AddAsync( account ) ;
     await _accountRepo.Received( 1 ).SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task CreateAsync_ThrowsKeyNotFound_WhenCallerIsNotMemberOfSpendAccount()
+  {
+    SetupSpendAccount( 7, [99] ) ;
+    var sut = CreateSut() ;
+    var account = new BrokerAccount
+    {
+      Name = "VPS",
+      SpendAccountId = 7
+    } ;
+
+    var act = async () => await sut.CreateAsync( account, 42 ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    await _accountRepo.DidNotReceive().AddAsync( Arg.Any<BrokerAccount>() ) ;
+  }
+
+  [Fact]
+  public async Task CreateAsync_ThrowsKeyNotFound_WhenSpendAccountIsMissingOrSoftDeleted()
+  {
+    SetupNoSpendAccounts() ;
+    var sut = CreateSut() ;
+    var account = new BrokerAccount
+    {
+      Name = "VPS",
+      SpendAccountId = 7
+    } ;
+
+    var act = async () => await sut.CreateAsync( account, 42 ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    await _accountRepo.DidNotReceive().AddAsync( Arg.Any<BrokerAccount>() ) ;
   }
 
   [Fact]
@@ -177,15 +243,82 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
-  public async Task UpdateAsync_CallsRepoUpdateAndSave()
+  public async Task UpdateAsync_DoesNotRevalidateSpendMembership_WhenSpendAccountIdUnchanged()
   {
+    var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    SetupNoSpendAccounts() ;
     var sut = CreateSut() ;
-    var account = BuildAccount( 5, [10] ) ;
 
-    await sut.UpdateAsync( account ) ;
+    await sut.UpdateAsync( account, 10 ) ;
 
     _accountRepo.Received( 1 ).Update( account ) ;
     await _accountRepo.Received( 1 ).SaveAsync() ;
+    _spendRepo.DidNotReceive().QueryActive() ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_RevalidatesSpendMembership_WhenSpendAccountIdChanges()
+  {
+    var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      BuildAccount( 5, [10], spendAccountId: 7 )
+    }.BuildMock() ) ;
+    SetupSpendAccount( 9, [10] ) ;
+    var sut = CreateSut() ;
+
+    await sut.UpdateAsync( account, 10 ) ;
+
+    _accountRepo.Received( 1 ).Update( account ) ;
+    await _accountRepo.Received( 1 ).SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_ThrowsKeyNotFound_WhenChangedSpendAccountIsNotMember()
+  {
+    var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      BuildAccount( 5, [10], spendAccountId: 7 )
+    }.BuildMock() ) ;
+    SetupSpendAccount( 9, [99] ) ;
+    var sut = CreateSut() ;
+
+    var act = async () => await sut.UpdateAsync( account, 10 ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    _accountRepo.DidNotReceive().Update( Arg.Any<BrokerAccount>() ) ;
+  }
+
+  [Fact]
+  public async Task AdminUpdateAsync_VerifiesSpendAccountExists_AndSaves()
+  {
+    var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
+    var sut = CreateSut() ;
+
+    await sut.UpdateAsync( account ) ;
+
+    await _spendRepo.Received( 1 ).GetActiveByIdOrThrowAsync( 9L ) ;
+    _accountRepo.Received( 1 ).Update( account ) ;
+    await _accountRepo.Received( 1 ).SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task AdminUpdateAsync_PropagatesKeyNotFound_WhenSpendAccountMissing()
+  {
+    var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
+    _spendRepo.GetActiveByIdOrThrowAsync( 9L )
+      .Returns<Task<SpendAccount>>( _ => throw new KeyNotFoundException() ) ;
+    var sut = CreateSut() ;
+
+    var act = async () => await sut.UpdateAsync( account ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    _accountRepo.DidNotReceive().Update( Arg.Any<BrokerAccount>() ) ;
   }
 
   [Fact]

@@ -12,8 +12,10 @@ public interface IBrokerAccountService
 {
   /// <summary>
   ///   Creates a new broker account and registers the creator as its first member.
+  ///   Verifies the creator is a member of the linked <c>SpendAccountId</c>; throws
+  ///   <see cref="KeyNotFoundException" /> if not.
   /// </summary>
-  /// <param name="account">The broker account to persist.</param>
+  /// <param name="account">The broker account to persist (must have <c>SpendAccountId</c> set).</param>
   /// <param name="creatorUserId">The primary key of the creating user; added as initial member.</param>
   /// <returns>The persisted broker account.</returns>
   Task<BrokerAccount> CreateAsync( BrokerAccount account, long creatorUserId ) ;
@@ -42,11 +44,14 @@ public interface IBrokerAccountService
   Task<bool> ExistsForUserAsync( long id, long userId ) ;
 
   /// <summary>
-  ///   Updates an existing broker account. Membership is assumed to have been verified by the caller
-  ///   (typically by fetching via <see cref="GetByIdForUserAsync" /> first).
+  ///   Updates an existing broker account. Broker membership is assumed to have been verified by the
+  ///   caller (typically by fetching via <see cref="GetByIdForUserAsync" /> first). When the
+  ///   <c>SpendAccountId</c> changes, the caller's membership of the new spend account is verified
+  ///   here — throws <see cref="KeyNotFoundException" /> if the caller is not a member.
   /// </summary>
   /// <param name="account">The broker account with updated values.</param>
-  Task UpdateAsync( BrokerAccount account ) ;
+  /// <param name="callerUserId">The caller's primary key, for the spend-account membership re-check.</param>
+  Task UpdateAsync( BrokerAccount account, long callerUserId ) ;
 
   /// <summary>
   ///   Soft-deletes a broker account by ID, requiring the caller to be a member.
@@ -106,4 +111,13 @@ public interface IBrokerAccountService
   /// </summary>
   /// <param name="id">The broker account primary key.</param>
   Task SoftDeleteAsync( long id ) ;
+
+  /// <summary>
+  ///   (Admin) Updates an existing broker account. Skips the caller-membership checks — caller
+  ///   authorization is the controller's responsibility (admin policy). Still verifies the target
+  ///   <c>SpendAccountId</c> references an active spend account; throws
+  ///   <see cref="KeyNotFoundException" /> if not.
+  /// </summary>
+  /// <param name="account">The broker account with updated values.</param>
+  Task UpdateAsync( BrokerAccount account ) ;
 }

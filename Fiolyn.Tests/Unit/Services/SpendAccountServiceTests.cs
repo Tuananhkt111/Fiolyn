@@ -12,10 +12,26 @@ namespace Fiolyn.Tests.Unit.Services ;
 public class SpendAccountServiceTests
 {
   private readonly IRepository<SpendAccount> _accountRepo = Substitute.For<IRepository<SpendAccount>>() ;
+  private readonly IRepository<BrokerAccount> _brokerRepo = Substitute.For<IRepository<BrokerAccount>>() ;
   private readonly IRepository<SpendAccountMember> _memberRepo = Substitute.For<IRepository<SpendAccountMember>>() ;
   private readonly IRepository<AppUser> _userRepo = Substitute.For<IRepository<AppUser>>() ;
 
-  private SpendAccountService CreateSut() => new(_accountRepo, _memberRepo, _userRepo) ;
+  private SpendAccountService CreateSut()
+  {
+    _brokerRepo.QueryActive().Returns( new List<BrokerAccount>().BuildMock() ) ;
+    return new SpendAccountService( _accountRepo, _memberRepo, _userRepo, _brokerRepo ) ;
+  }
+
+  private void SetupBrokerReferencingSpend( long spendAccountId ) =>
+    _brokerRepo.QueryActive().Returns( new List<BrokerAccount>
+    {
+      new()
+      {
+        Id = 100,
+        Name = "VPS",
+        SpendAccountId = spendAccountId
+      }
+    }.BuildMock() ) ;
 
   private static AppUser BuildUser( long id, string email = "", bool isDeleted = false ) =>
     new()
@@ -200,6 +216,37 @@ public class SpendAccountServiceTests
     var act = async () => await sut.SoftDeleteAsync( 5, 10 ) ;
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    _accountRepo.DidNotReceive().SoftDelete( Arg.Any<SpendAccount>() ) ;
+  }
+
+  [Fact]
+  public async Task SoftDeleteAsync_ThrowsBadRequest_WhenLinkedFromActiveBroker()
+  {
+    var account = BuildAccount( 5, [10] ) ;
+    _accountRepo.QueryActive().Returns( new List<SpendAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+    SetupBrokerReferencingSpend( 5 ) ;
+
+    var act = async () => await sut.SoftDeleteAsync( 5, 10 ) ;
+
+    await act.Should().ThrowAsync<BadRequestException>() ;
+    _accountRepo.DidNotReceive().SoftDelete( Arg.Any<SpendAccount>() ) ;
+  }
+
+  [Fact]
+  public async Task AdminSoftDeleteAsync_ThrowsBadRequest_WhenLinkedFromActiveBroker()
+  {
+    var account = BuildAccount( 5, [99] ) ;
+    _accountRepo.GetActiveByIdOrThrowAsync( 5L ).Returns( account ) ;
+    var sut = CreateSut() ;
+    SetupBrokerReferencingSpend( 5 ) ;
+
+    var act = async () => await sut.SoftDeleteAsync( 5 ) ;
+
+    await act.Should().ThrowAsync<BadRequestException>() ;
     _accountRepo.DidNotReceive().SoftDelete( Arg.Any<SpendAccount>() ) ;
   }
 

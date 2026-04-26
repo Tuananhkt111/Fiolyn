@@ -32,11 +32,17 @@ public class BrokerAccountControllerTests
     return controller ;
   }
 
-  private static BrokerAccount BuildEntity( long id = 10, string name = "VPS" ) =>
+  private static BrokerAccount BuildEntity( long id = 10, string name = "VPS", long spendAccountId = 1 ) =>
     new()
     {
       Id = id,
-      Name = name
+      Name = name,
+      SpendAccountId = spendAccountId,
+      SpendAccount = new SpendAccount
+      {
+        Id = spendAccountId,
+        Name = $"Spend{spendAccountId}"
+      }
     } ;
 
   private static AppUser BuildUser( long id, string email = "", string? displayName = null ) =>
@@ -65,17 +71,25 @@ public class BrokerAccountControllerTests
     long capturedCallerId = 0 ;
     _service.CreateAsync( Arg.Do<BrokerAccount>( a => captured = a ),
         Arg.Do<long>( id => capturedCallerId = id ) )
-      .Returns( ci => ci.Arg<BrokerAccount>() ) ;
+      .Returns( ci =>
+      {
+        var a = ci.Arg<BrokerAccount>() ;
+        a.Id = 55 ;
+        return a ;
+      } ) ;
+    _service.GetByIdForUserAsync( 55, 42 ).Returns( BuildEntity( 55, "VPS", 7 ) ) ;
     var sut = CreateSut( 42 ) ;
 
-    var result = await sut.CreateAsync( new BrokerAccountRequest( "VPS" ) ) ;
+    var result = await sut.CreateAsync( new BrokerAccountRequest( "VPS", 7 ) ) ;
 
     captured.Should().NotBeNull() ;
     capturedCallerId.Should().Be( 42 ) ;
     captured!.Name.Should().Be( "VPS" ) ;
+    captured.SpendAccountId.Should().Be( 7 ) ;
     var body = result.Should().BeOfType<CreatedAtRouteResult>()
       .Which.Value.Should().BeOfType<BrokerAccountResponse>().Which ;
     body.Name.Should().Be( "VPS" ) ;
+    body.SpendAccountId.Should().Be( 7 ) ;
   }
 
   [Fact]
@@ -140,10 +154,10 @@ public class BrokerAccountControllerTests
     _service.GetByIdForUserAsync( 99, 7 ).Returns( ( BrokerAccount? )null ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.UpdateAsync( 99, new BrokerAccountRequest( "X" ) ) ;
+    var result = await sut.UpdateAsync( 99, new BrokerAccountRequest( "X", 1 ) ) ;
 
     result.Should().BeOfType<NotFoundResult>() ;
-    await _service.DidNotReceive().UpdateAsync( Arg.Any<BrokerAccount>() ) ;
+    await _service.DidNotReceive().UpdateAsync( Arg.Any<BrokerAccount>(), Arg.Any<long>() ) ;
   }
 
   [Fact]
@@ -153,10 +167,11 @@ public class BrokerAccountControllerTests
     _service.GetByIdForUserAsync( 10, 7 ).Returns( existing ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "Renamed" ) ) ;
+    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "Renamed", 9 ) ) ;
 
     existing.Name.Should().Be( "Renamed" ) ;
-    await _service.Received( 1 ).UpdateAsync( existing ) ;
+    existing.SpendAccountId.Should().Be( 9 ) ;
+    await _service.Received( 1 ).UpdateAsync( existing, 7 ) ;
     result.Should().BeOfType<OkObjectResult>() ;
   }
 

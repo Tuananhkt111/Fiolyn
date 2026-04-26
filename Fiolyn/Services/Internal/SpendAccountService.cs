@@ -14,7 +14,8 @@ namespace Fiolyn.Services.Internal ;
 public class SpendAccountService(
   IRepository<SpendAccount> repository,
   IRepository<SpendAccountMember> memberRepository,
-  IRepository<AppUser> userRepository ) : ISpendAccountService
+  IRepository<AppUser> userRepository,
+  IRepository<BrokerAccount> brokerRepository ) : ISpendAccountService
 {
   /// <inheritdoc />
   public async Task<SpendAccount> CreateAsync( SpendAccount account, long creatorUserId )
@@ -33,7 +34,7 @@ public class SpendAccountService(
   public async Task<List<SpendAccount>> GetAllForUserAsync( long userId ) =>
     await repository.QueryActive()
       .AsNoTracking()
-      .Where( a => a.Members.Any( m => m.AppUserId == userId && !m.AppUser.IsDeleted ) )
+      .Where( a => a.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) )
       .OrderBy( a => a.Name )
       .ToListAsync() ;
 
@@ -41,7 +42,7 @@ public class SpendAccountService(
   public async Task<SpendAccount?> GetByIdForUserAsync( long id, long userId ) =>
     await repository.QueryActive()
       .FirstOrDefaultAsync( a => a.Id == id
-                                 && a.Members.Any( m => m.AppUserId == userId && !m.AppUser.IsDeleted ) ) ;
+                                 && a.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
 
   /// <inheritdoc />
   public async Task UpdateAsync( SpendAccount account )
@@ -55,6 +56,7 @@ public class SpendAccountService(
   {
     var account = await GetByIdForUserAsync( id, userId )
                   ?? throw new KeyNotFoundException( $"SpendAccount {id} not found for user {userId}." ) ;
+    await EnsureNotReferencedByActiveBrokerAsync( id ) ;
     repository.SoftDelete( account ) ;
     await repository.SaveAsync() ;
   }
@@ -73,13 +75,13 @@ public class SpendAccountService(
 
     var normalized = AppUser.NormalizeEmail( email ) ;
     var target = await userRepository.QueryActive()
-      .FirstOrDefaultAsync( u => u.Email == normalized )
+                   .FirstOrDefaultAsync( u => u.Email == normalized )
                  ?? throw new KeyNotFoundException( $"User with email {normalized} not found." ) ;
 
     var alreadyMember = await memberRepository.Query()
       .AnyAsync( m => m.SpendAccountId == accountId && m.AppUserId == target.Id ) ;
 
-    if ( !alreadyMember )
+    if ( ! alreadyMember )
     {
       await memberRepository.AddAsync( new SpendAccountMember
       {
@@ -145,17 +147,29 @@ public class SpendAccountService(
   public async Task SoftDeleteAsync( long id )
   {
     var account = await repository.GetActiveByIdOrThrowAsync( id ) ;
+    await EnsureNotReferencedByActiveBrokerAsync( id ) ;
     repository.SoftDelete( account ) ;
     await repository.SaveAsync() ;
+  }
+
+  private async Task EnsureNotReferencedByActiveBrokerAsync( long spendAccountId )
+  {
+    var stillReferenced = await brokerRepository.QueryActive()
+      .AnyAsync( b => b.SpendAccountId == spendAccountId ) ;
+    if ( stillReferenced )
+    {
+      throw new BadRequestException(
+        $"SpendAccount {spendAccountId} is linked from one or more active broker accounts — unlink them first." ) ;
+    }
   }
 
   private async Task EnsureCallerIsMemberAsync( long accountId, long callerUserId )
   {
     var exists = await repository.QueryActive()
       .AnyAsync( a => a.Id == accountId
-                      && a.Members.Any( m => m.AppUserId == callerUserId && !m.AppUser.IsDeleted ) ) ;
+                      && a.Members.Any( m => m.AppUserId == callerUserId && ! m.AppUser.IsDeleted ) ) ;
 
-    if ( !exists )
+    if ( ! exists )
     {
       throw new KeyNotFoundException( $"SpendAccount {accountId} not found for user {callerUserId}." ) ;
     }
@@ -165,7 +179,7 @@ public class SpendAccountService(
     await memberRepository.Query()
       .AsNoTracking()
       .Include( m => m.AppUser )
-      .Where( m => m.SpendAccountId == accountId && !m.AppUser.IsDeleted )
+      .Where( m => m.SpendAccountId == accountId && ! m.AppUser.IsDeleted )
       .OrderBy( m => m.JoinedAt )
       .ToListAsync() ;
 }

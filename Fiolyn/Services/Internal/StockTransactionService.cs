@@ -12,10 +12,20 @@ namespace Fiolyn.Services.Internal ;
 ///   Manages stock transactions and parses Telegram message format. User-scoped methods enforce
 ///   that the caller is a member of the transaction's parent <see cref="BrokerAccount" /> — not a
 ///   member → 404 (via <see cref="KeyNotFoundException" />).
+///   Every persisted transaction adjusts the broker's linked <see cref="SpendAccount" />.<c>Balance</c>:
+///   Buy → <c>-TotalAmount</c>; Sell, Dividend → <c>+TotalAmount</c>. Updates reverse the old delta and
+///   apply the new; soft-deletes reverse. Balance writes go through
+///   <see cref="ISpendAccountBalanceWriter" /> (atomic SQL <c>Balance = Balance + @delta</c> via
+///   <c>ExecuteUpdate</c>, so two concurrent writers cannot lose an update). Atomicity across the
+///   balance write and the transaction insert/update is enforced by wrapping both in
+///   <see cref="IUnitOfWork.ExecuteInTransactionAsync" /> — the writer's <c>ExecuteUpdate</c> runs
+///   outside <c>SaveChanges</c>, so the wrapping transaction is required.
 /// </summary>
 public partial class StockTransactionService(
   IRepository<StockTransaction> stockTransactionRepository,
   IRepository<BrokerAccount> brokerRepository,
+  ISpendAccountBalanceWriter spendBalanceWriter,
+  IUnitOfWork unitOfWork,
   ILogger<StockTransactionService> logger ) : IStockTransactionService
 {
   /// <inheritdoc />
@@ -48,9 +58,23 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task<StockTransaction> CreateAsync( StockTransaction transaction, long userId )
   {
-    await EnsureUserIsBrokerMemberAsync( transaction.BrokerAccountId, userId ) ;
-    await stockTransactionRepository.AddAsync( transaction ) ;
-    await stockTransactionRepository.SaveAsync() ;
+    var spendId = await brokerRepository.QueryActive()
+                    .Where( b => b.Id == transaction.BrokerAccountId
+                                 && b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) )
+                    .Select( b => ( long? )b.SpendAccountId )
+                    .FirstOrDefaultAsync()
+                  ?? throw new KeyNotFoundException(
+                    $"BrokerAccount {transaction.BrokerAccountId} not found for user {userId}." ) ;
+
+    var delta = ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
+
+    await unitOfWork.ExecuteInTransactionAsync( async () =>
+    {
+      await spendBalanceWriter.ApplyDeltaAsync( spendId, delta ) ;
+      await stockTransactionRepository.AddAsync( transaction ) ;
+      await stockTransactionRepository.SaveAsync() ;
+    } ) ;
+
     return transaction ;
   }
 
@@ -58,7 +82,7 @@ public partial class StockTransactionService(
   public async Task<List<StockTransaction>> GetAllForUserAsync( long userId, string? symbol = null )
   {
     var query = stockTransactionRepository.QueryActive()
-      .Where( t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId && !m.AppUser.IsDeleted ) ) ;
+      .Where( t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
 
     if ( ! string.IsNullOrWhiteSpace( symbol ) )
     {
@@ -75,22 +99,67 @@ public partial class StockTransactionService(
   public async Task<bool> ExistsForUserAsync( long id, long userId ) =>
     await stockTransactionRepository.QueryActive()
       .AnyAsync( t => t.Id == id
-                      && t.BrokerAccount.Members.Any( m => m.AppUserId == userId && !m.AppUser.IsDeleted ) ) ;
+                      && t.BrokerAccount.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
 
   /// <inheritdoc />
   public async Task<StockTransaction?> GetByIdForUserAsync( long id, long userId ) =>
     await stockTransactionRepository.QueryActive()
       .Include( t => t.BrokerAccount )
       .FirstOrDefaultAsync( t => t.Id == id
-                                 && t.BrokerAccount.Members.Any(
-                                   m => m.AppUserId == userId && !m.AppUser.IsDeleted ) ) ;
+                                 && t.BrokerAccount.Members.Any( m =>
+                                   m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
 
   /// <inheritdoc />
   public async Task UpdateAsync( StockTransaction transaction, long userId )
   {
-    await EnsureUserIsBrokerMemberAsync( transaction.BrokerAccountId, userId ) ;
-    stockTransactionRepository.Update( transaction ) ;
-    await stockTransactionRepository.SaveAsync() ;
+    // Outer null → transaction missing; NewSpendAccountId null → caller not a member of the new
+    // broker. Both surface as 404.
+    var newBrokerId = transaction.BrokerAccountId ;
+    var fetched = await stockTransactionRepository.QueryActive()
+      .AsNoTracking()
+      .Where( t => t.Id == transaction.Id )
+      .Select( t => new
+      {
+        t.TransactionType,
+        t.TotalAmount,
+        t.BrokerAccountId,
+        OldSpendAccountId = t.BrokerAccount.SpendAccountId,
+        NewSpendAccountId = brokerRepository.QueryActive()
+          .Where( b => b.Id == newBrokerId
+                       && b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) )
+          .Select( b => ( long? )b.SpendAccountId )
+          .FirstOrDefault()
+      } )
+      .FirstOrDefaultAsync() ;
+
+    if ( fetched is null )
+    {
+      throw new KeyNotFoundException( $"StockTransaction {transaction.Id} not found." ) ;
+    }
+
+    var newSpendId = fetched.NewSpendAccountId
+                     ?? throw new KeyNotFoundException(
+                       $"BrokerAccount {newBrokerId} not found for user {userId}." ) ;
+
+    var oldDelta = ComputeBalanceDelta( fetched.TransactionType, fetched.TotalAmount ) ;
+    var newDelta = ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
+    var oldSpendId = fetched.OldSpendAccountId ;
+
+    await unitOfWork.ExecuteInTransactionAsync( async () =>
+    {
+      if ( oldSpendId == newSpendId )
+      {
+        await spendBalanceWriter.ApplyDeltaAsync( newSpendId, newDelta - oldDelta ) ;
+      }
+      else
+      {
+        await spendBalanceWriter.ApplyDeltaAsync( oldSpendId, -oldDelta ) ;
+        await spendBalanceWriter.ApplyDeltaAsync( newSpendId, newDelta ) ;
+      }
+
+      stockTransactionRepository.Update( transaction ) ;
+      await stockTransactionRepository.SaveAsync() ;
+    } ) ;
   }
 
   /// <inheritdoc />
@@ -99,8 +168,7 @@ public partial class StockTransactionService(
     var transaction = await GetByIdForUserAsync( id, userId )
                       ?? throw new KeyNotFoundException(
                         $"StockTransaction {id} not found for user {userId}." ) ;
-    stockTransactionRepository.SoftDelete( transaction ) ;
-    await stockTransactionRepository.SaveAsync() ;
+    await SoftDeleteAndReverseAsync( transaction ) ;
   }
 
   /// <inheritdoc />
@@ -110,8 +178,8 @@ public partial class StockTransactionService(
 
     if ( userId is not null )
     {
-      query = query.Where(
-        t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId.Value && !m.AppUser.IsDeleted ) ) ;
+      query =
+        query.Where( t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId.Value && ! m.AppUser.IsDeleted ) ) ;
     }
 
     if ( ! string.IsNullOrWhiteSpace( symbol ) )
@@ -134,22 +202,30 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id )
   {
-    var transaction = await stockTransactionRepository.GetActiveByIdOrThrowAsync( id ) ;
-    stockTransactionRepository.SoftDelete( transaction ) ;
-    await stockTransactionRepository.SaveAsync() ;
+    var transaction = await GetByIdAsync( id )
+                      ?? throw new KeyNotFoundException( $"StockTransaction {id} not found." ) ;
+    await SoftDeleteAndReverseAsync( transaction ) ;
   }
 
-  private async Task EnsureUserIsBrokerMemberAsync( long brokerId, long userId )
+  private async Task SoftDeleteAndReverseAsync( StockTransaction transaction )
   {
-    var isMember = await brokerRepository.QueryActive()
-      .AnyAsync( b => b.Id == brokerId
-                      && b.Members.Any( m => m.AppUserId == userId && !m.AppUser.IsDeleted ) ) ;
-
-    if ( !isMember )
+    var reversal = -ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
+    await unitOfWork.ExecuteInTransactionAsync( async () =>
     {
-      throw new KeyNotFoundException( $"BrokerAccount {brokerId} not found for user {userId}." ) ;
-    }
+      await spendBalanceWriter.ApplyDeltaAsync( transaction.BrokerAccount.SpendAccountId, reversal ) ;
+      stockTransactionRepository.SoftDelete( transaction ) ;
+      await stockTransactionRepository.SaveAsync() ;
+    } ) ;
   }
+
+  private static long ComputeBalanceDelta( TransactionType type, long totalAmount ) =>
+    type switch
+    {
+      TransactionType.Buy => -totalAmount,
+      TransactionType.Sell => totalAmount,
+      TransactionType.Dividend => totalAmount,
+      _ => 0L
+    } ;
 
   [GeneratedRegex( @"(\w+):(.+?)(?=\s+\w+:|\s*$)" )]
   private static partial Regex NamedParamRegex() ;
