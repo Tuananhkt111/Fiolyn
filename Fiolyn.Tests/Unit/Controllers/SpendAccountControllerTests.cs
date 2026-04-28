@@ -37,6 +37,10 @@ public class SpendAccountControllerTests
     SpendAccountType type = SpendAccountType.Cash, long balance = 1_500_000L ) =>
     new(name, type, balance) ;
 
+  private static SpendAccountUpdateRequest BuildUpdateRequest( string name = "Wallet",
+    SpendAccountType type = SpendAccountType.Cash ) =>
+    new(name, type) ;
+
   private static SpendAccount BuildEntity( long id = 10, string name = "Wallet",
     SpendAccountType type = SpendAccountType.Cash, long balance = 1_500_000L ) =>
     new()
@@ -129,26 +133,41 @@ public class SpendAccountControllerTests
     _service.GetByIdForUserAsync( 99, 7 ).Returns( ( SpendAccount? )null ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.UpdateAsync( 99, BuildRequest() ) ;
+    var result = await sut.UpdateAsync( 99, BuildUpdateRequest() ) ;
 
     result.Should().BeOfType<NotFoundResult>() ;
     await _service.DidNotReceive().UpdateAsync( Arg.Any<SpendAccount>() ) ;
   }
 
   [Fact]
-  public async Task UpdateAsync_Existing_AppliesChangesAndReturns200()
+  public async Task UpdateAsync_Existing_AppliesNameAndType_DoesNotMutateBalance_AndReturns200()
   {
     var existing = BuildEntity( balance: 1_000_000L ) ;
     _service.GetByIdForUserAsync( 10, 7 ).Returns( existing ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.UpdateAsync( 10, BuildRequest( "Renamed", SpendAccountType.Credit, 5_000_000L ) ) ;
+    var result = await sut.UpdateAsync( 10, BuildUpdateRequest( "Renamed", SpendAccountType.Credit ) ) ;
 
     existing.Name.Should().Be( "Renamed" ) ;
     existing.Type.Should().Be( SpendAccountType.Credit ) ;
-    existing.Balance.Should().Be( 5_000_000L ) ;
+    existing.Balance.Should().Be( 1_000_000L ) ;
     await _service.Received( 1 ).UpdateAsync( existing ) ;
     result.Should().BeOfType<OkObjectResult>() ;
+  }
+
+  [Fact]
+  public async Task AdjustBalanceAsync_PassesDelta_AndReturnsNewBalance()
+  {
+    _service.AdjustBalanceForUserAsync( 10, 7, 250_000L ).Returns( 1_250_000L ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.AdjustBalanceAsync( 10, new SpendAccountBalanceAdjustmentRequest( 250_000L ) ) ;
+
+    var body = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<SpendAccountBalanceResponse>().Which ;
+    body.Id.Should().Be( 10 ) ;
+    body.Balance.Should().Be( 1_250_000L ) ;
+    await _service.Received( 1 ).AdjustBalanceForUserAsync( 10, 7, 250_000L ) ;
   }
 
   [Fact]

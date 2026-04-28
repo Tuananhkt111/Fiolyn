@@ -167,12 +167,12 @@ public class {ClassName}Tests : IDisposable
 
 ### Key mocking patterns
 
-**Mock `IRepository<T>` with async LINQ support (QueryActive):**
+**Mock `IRepository<T>` with async LINQ support (Query):**
 ```csharp
 using MockQueryable ;
 
 var items = new List<MyEntity> { ... }.BuildMock() ;
-_repo.QueryActive().Returns( items ) ;
+_repo.Query().Returns( items ) ;
 ```
 
 **Mock `HttpClient` (for HTTP services):**

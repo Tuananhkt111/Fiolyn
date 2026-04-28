@@ -132,7 +132,7 @@ Conciseness is the top priority. Keep each item to 2-3 lines.
 
 ### 🟠 Recommended
 - [ ] **CHK-003** Soft-delete filtering (`Repository<T>`)
-  Deleted users must not pass the whitelist check — verify `QueryActive()` excludes them
+  Deleted users must not pass the whitelist check — verify the global query filter excludes them
 
 ### 🟡 If Time Permits
 - [ ] **CHK-004** DI registration (`ScopedServicesRegister`)
@@ -161,7 +161,7 @@ Conciseness is the top priority. Keep each item to 2-3 lines.
 **🔴 IMP-001** `TelegramController.Post()` — Controllers/TelegramController.cs:24
 Direct caller of ProcessAsync(). Must always return 200 — verify error handling is intact. → CHK-001
 
-**🟠 IMP-002** `Repository<T>.QueryActive()` — Data/Repositories/Repository.cs:18
+**🟠 IMP-002** `Repository<T>.Query()` — Data/Repositories/Repository.cs:13
 Soft-delete filter used in whitelist lookup. Logic change may affect which users are allowed. → CHK-003
 
 ### Affected Flow

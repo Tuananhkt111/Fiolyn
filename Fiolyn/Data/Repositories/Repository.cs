@@ -1,4 +1,5 @@
 using Fiolyn.Entities.Base ;
+using Microsoft.EntityFrameworkCore ;
 
 namespace Fiolyn.Data.Repositories ;
 
@@ -12,32 +13,16 @@ public class Repository<T>( AppDbContext dbContext ) : IRepository<T> where T : 
   public IQueryable<T> Query() => dbContext.Set<T>() ;
 
   /// <inheritdoc />
-  public IQueryable<T> QueryActive()
-  {
-    IQueryable<T> query = dbContext.Set<T>() ;
-
-    if ( typeof( ISoftDelete ).IsAssignableFrom( typeof( T ) ) )
-    {
-      query = query.Where( e => ! ( ( ISoftDelete )e ).IsDeleted ) ;
-    }
-
-    return query ;
-  }
-
-  /// <inheritdoc />
   public async Task<T?> GetByIdAsync( object id ) => await dbContext.Set<T>().FindAsync( id ) ;
 
   /// <inheritdoc />
-  public async Task<T?> GetActiveByIdAsync( object id )
+  public async Task<T> GetByIdOrThrowAsync( object id )
   {
     var entity = await GetByIdAsync( id ) ;
-    return entity is ISoftDelete { IsDeleted: true } ? null : entity ;
+    return entity is null or ISoftDelete { IsDeleted: true }
+      ? throw new KeyNotFoundException( $"{typeof( T ).Name} {id} not found" )
+      : entity ;
   }
-
-  /// <inheritdoc />
-  public async Task<T> GetActiveByIdOrThrowAsync( object id ) =>
-    await GetActiveByIdAsync( id )
-    ?? throw new KeyNotFoundException( $"{typeof( T ).Name} {id} not found" ) ;
 
   /// <inheritdoc />
   public async Task AddAsync( T entity ) => await dbContext.Set<T>().AddAsync( entity ) ;
@@ -63,7 +48,7 @@ public class Repository<T>( AppDbContext dbContext ) : IRepository<T> where T : 
     if ( entity is ISoftDelete softDeleteEntity )
     {
       softDeleteEntity.IsDeleted = true ;
-      dbContext.Set<T>().Update( entity ) ;
+      MarkIsDeletedModified( entity ) ;
     }
   }
 
@@ -73,8 +58,19 @@ public class Repository<T>( AppDbContext dbContext ) : IRepository<T> where T : 
     if ( entity is ISoftDelete softDeleteEntity )
     {
       softDeleteEntity.IsDeleted = false ;
-      dbContext.Set<T>().Update( entity ) ;
+      MarkIsDeletedModified( entity ) ;
     }
+  }
+
+  private void MarkIsDeletedModified( T entity )
+  {
+    var entry = dbContext.Entry( entity ) ;
+    if ( entry.State == EntityState.Detached )
+    {
+      dbContext.Set<T>().Attach( entity ) ;
+      entry = dbContext.Entry( entity ) ;
+    }
+    entry.Property( nameof( ISoftDelete.IsDeleted ) ).IsModified = true ;
   }
 
   /// <inheritdoc />

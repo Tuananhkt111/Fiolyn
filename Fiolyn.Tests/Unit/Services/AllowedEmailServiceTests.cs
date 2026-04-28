@@ -1,9 +1,12 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
+using Fiolyn.Infrastructure.Exceptions ;
 using Fiolyn.Services.Internal ;
 using FluentAssertions ;
+using Microsoft.EntityFrameworkCore ;
 using Microsoft.Extensions.Logging ;
 using MockQueryable ;
+using Npgsql ;
 using NSubstitute ;
 using NSubstitute.ExceptionExtensions ;
 
@@ -22,7 +25,7 @@ public class AllowedEmailServiceTests
     {
       Email = e
     } ).ToList().BuildMock() ;
-    _repository.QueryActive().Returns( list ) ;
+    _repository.Query().Returns( list ) ;
   }
 
   [Fact]
@@ -47,13 +50,33 @@ public class AllowedEmailServiceTests
     var sut = CreateSut() ;
 
     await sut.Invoking( s => s.CreateAsync( "dup@example.com", null, null ) )
-      .Should().ThrowAsync<InvalidOperationException>() ;
+      .Should().ThrowAsync<ConflictException>() ;
+  }
+
+  [Fact]
+  public async Task CreateAsync_RaceLost_UniqueViolationMappedToConflict()
+  {
+    // The pre-check passed (no row matched the normalized email yet) but a concurrent admin
+    // whitelisted the same email before SaveAsync flushed. The unique index throws Postgres
+    // SqlState 23505; the service must remap to ConflictException so the caller sees a 409.
+    SetupExisting() ;
+    var pgException = new PostgresException(
+      "duplicate key value violates unique constraint",
+      "ERROR",
+      "ERROR",
+      PostgresErrorCodes.UniqueViolation ) ;
+    _repository.SaveAsync()
+      .ThrowsAsync( new DbUpdateException( "unique violation", pgException ) ) ;
+    var sut = CreateSut() ;
+
+    await sut.Invoking( s => s.CreateAsync( "race@example.com", null, null ) )
+      .Should().ThrowAsync<ConflictException>() ;
   }
 
   [Fact]
   public async Task SoftDeleteAsync_Missing_ThrowsKeyNotFound()
   {
-    _repository.GetActiveByIdOrThrowAsync( 99L ).ThrowsAsync( new KeyNotFoundException() ) ;
+    _repository.GetByIdOrThrowAsync( 99L ).ThrowsAsync( new KeyNotFoundException() ) ;
     var sut = CreateSut() ;
 
     await sut.Invoking( s => s.SoftDeleteAsync( 99 ) )
@@ -68,7 +91,7 @@ public class AllowedEmailServiceTests
       Id = 1,
       Email = "x@y.com"
     } ;
-    _repository.GetActiveByIdOrThrowAsync( 1L ).Returns( entry ) ;
+    _repository.GetByIdOrThrowAsync( 1L ).Returns( entry ) ;
     var sut = CreateSut() ;
 
     await sut.SoftDeleteAsync( 1 ) ;

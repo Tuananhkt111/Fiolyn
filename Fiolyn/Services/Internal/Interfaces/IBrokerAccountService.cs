@@ -45,13 +45,18 @@ public interface IBrokerAccountService
 
   /// <summary>
   ///   Updates an existing broker account. Broker membership is assumed to have been verified by the
-  ///   caller (typically by fetching via <see cref="GetByIdForUserAsync" /> first). When the
-  ///   <c>SpendAccountId</c> changes, the caller's membership of the new spend account is verified
+  ///   caller (typically by fetching via <see cref="GetByIdForUserAsync" /> first). When
+  ///   <paramref name="oldSpendAccountId" /> differs from the new <c>SpendAccountId</c> on
+  ///   <paramref name="account" />, the caller's membership of the new spend account is verified
   ///   here — throws <see cref="KeyNotFoundException" /> if the caller is not a member.
   /// </summary>
   /// <param name="account">The broker account with updated values.</param>
+  /// <param name="oldSpendAccountId">
+  ///   The pre-mutation <c>SpendAccountId</c>, captured by the caller before the in-memory swap.
+  ///   Used to short-circuit the membership re-check when the link did not change.
+  /// </param>
   /// <param name="callerUserId">The caller's primary key, for the spend-account membership re-check.</param>
-  Task UpdateAsync( BrokerAccount account, long callerUserId ) ;
+  Task UpdateAsync( BrokerAccount account, long oldSpendAccountId, long callerUserId ) ;
 
   /// <summary>
   ///   Soft-deletes a broker account by ID, requiring the caller to be a member.

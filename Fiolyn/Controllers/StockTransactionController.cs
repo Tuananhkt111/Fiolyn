@@ -93,6 +93,7 @@ public class StockTransactionController(
       return NotFound() ;
     }
 
+    var oldBrokerId = existing.BrokerAccountId ;
     existing.Symbol = request.Symbol ;
     existing.TransactionType = request.TransactionType ;
     existing.Quantity = request.Quantity ;
@@ -103,7 +104,14 @@ public class StockTransactionController(
     existing.Notes = request.Notes ;
 
     await stockTransactionService.UpdateAsync( existing, userId ) ;
-    return Ok( new StockTransactionResponse( existing ) ) ;
+
+    if ( oldBrokerId == request.BrokerAccountId )
+    {
+      return Ok( new StockTransactionResponse( existing ) ) ;
+    }
+
+    var refreshed = await stockTransactionService.GetByIdForUserAsync( id, userId ) ;
+    return Ok( new StockTransactionResponse( refreshed! ) ) ;
   }
 
   /// <summary>

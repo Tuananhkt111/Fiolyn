@@ -5,9 +5,11 @@ using Fiolyn.Services.External.Google ;
 using Fiolyn.Services.Internal ;
 using Fiolyn.Services.Internal.Interfaces ;
 using FluentAssertions ;
+using Microsoft.EntityFrameworkCore ;
 using Microsoft.Extensions.Logging ;
 using MockQueryable ;
 using NSubstitute ;
+using NSubstitute.ExceptionExtensions ;
 
 namespace Fiolyn.Tests.Unit.Services ;
 
@@ -28,13 +30,13 @@ public class AuthServiceTests
     {
       Email = e
     } ).ToList().BuildMock() ;
-    _allowedEmails.QueryActive().Returns( list ) ;
+    _allowedEmails.Query().Returns( list ) ;
   }
 
   private void SetupUsers( params AppUser[] users )
   {
     var list = users.ToList().BuildMock() ;
-    _users.QueryActive().Returns( list ) ;
+    _users.Query().Returns( list ) ;
   }
 
   private void SetupRefreshTokens( params RefreshToken[] tokens )
@@ -147,6 +149,40 @@ public class AuthServiceTests
   }
 
   [Fact]
+  public async Task RefreshAsync_ConcurrentRotation_LoserGets401_AndDoesNotKeepNewToken()
+  {
+    // Two concurrent rotations of the same token: the second SaveAsync hits the [ConcurrencyCheck]
+    // on RevokedAt and throws DbUpdateConcurrencyException. The service must surface 401, never
+    // silently issue a parallel refresh token.
+    var user = new AppUser
+    {
+      Id = 1,
+      Email = "a@b.com",
+      GoogleSub = "s"
+    } ;
+    var existing = new RefreshToken
+    {
+      Id = 10,
+      UserId = 1,
+      User = user,
+      TokenHash = "old-hash",
+      ExpiresAt = DateTime.UtcNow.AddDays( 1 ),
+      RevokedAt = null
+    } ;
+    SetupRefreshTokens( existing ) ;
+    _jwt.HashRefreshToken( "old-raw" ).Returns( "old-hash" ) ;
+    _jwt.HashRefreshToken( "refresh-raw" ).Returns( "refresh-hash" ) ;
+    _jwt.CreateAccessToken( user ).Returns( ( "access", DateTime.UtcNow.AddMinutes( 15 ) ) ) ;
+    _jwt.CreateRefreshToken().Returns( ( "refresh-raw", "refresh-hash", DateTime.UtcNow.AddDays( 30 ) ) ) ;
+    _refreshTokens.SaveAsync().ThrowsAsync( new DbUpdateConcurrencyException() ) ;
+
+    var sut = CreateSut() ;
+
+    await sut.Invoking( s => s.RefreshAsync( "old-raw" ) )
+      .Should().ThrowAsync<UnauthorizedAccessException>() ;
+  }
+
+  [Fact]
   public async Task RefreshAsync_RevokedTokenReplay_RevokesChainAndThrows()
   {
     var user = new AppUser
@@ -182,6 +218,35 @@ public class AuthServiceTests
       .Should().ThrowAsync<UnauthorizedAccessException>() ;
 
     stillActive.RevokedAt.Should().NotBeNull( "reuse detection must revoke all active tokens for that user" ) ;
+  }
+
+  [Fact]
+  public async Task RefreshAsync_SoftDeletedUser_Throws()
+  {
+    var deletedUser = new AppUser
+    {
+      Id = 3,
+      Email = "ghost@x.com",
+      GoogleSub = "s",
+      IsDeleted = true
+    } ;
+    var stored = new RefreshToken
+    {
+      Id = 50,
+      UserId = 3,
+      User = deletedUser,
+      TokenHash = "hash",
+      ExpiresAt = DateTime.UtcNow.AddDays( 1 ),
+      RevokedAt = null
+    } ;
+    SetupRefreshTokens( stored ) ;
+    _jwt.HashRefreshToken( "raw" ).Returns( "hash" ) ;
+
+    var sut = CreateSut() ;
+
+    await sut.Invoking( s => s.RefreshAsync( "raw" ) )
+      .Should().ThrowAsync<UnauthorizedAccessException>() ;
+    _jwt.DidNotReceive().CreateAccessToken( Arg.Any<AppUser>() ) ;
   }
 
   [Fact]
@@ -238,6 +303,28 @@ public class AuthServiceTests
 
     token.RevokedAt.Should().NotBeNull() ;
     _refreshTokens.Received( 1 ).Update( token ) ;
+  }
+
+  [Fact]
+  public async Task LogoutAsync_AlreadyRevoked_IsNoOp()
+  {
+    var revoked = new RefreshToken
+    {
+      UserId = 1,
+      TokenHash = "h",
+      ExpiresAt = DateTime.UtcNow.AddDays( 1 ),
+      RevokedAt = DateTime.UtcNow.AddMinutes( -5 )
+    } ;
+    var originalRevokedAt = revoked.RevokedAt ;
+    SetupRefreshTokens( revoked ) ;
+    _jwt.HashRefreshToken( "raw" ).Returns( "h" ) ;
+
+    var sut = CreateSut() ;
+    await sut.LogoutAsync( "raw" ) ;
+
+    revoked.RevokedAt.Should().Be( originalRevokedAt ) ;
+    _refreshTokens.DidNotReceive().Update( Arg.Any<RefreshToken>() ) ;
+    await _refreshTokens.DidNotReceive().SaveAsync() ;
   }
 
   [Fact]

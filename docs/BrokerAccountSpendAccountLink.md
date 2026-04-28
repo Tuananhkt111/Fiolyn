@@ -23,9 +23,9 @@ This change introduces a `1 SpendAccount → N BrokerAccount` link so that **eve
 
 ## How it works (runtime)
 
-`StockTransactionService` is the single owner of the delta math. All three mutating paths (`CreateAsync`, `UpdateAsync`, `SoftDeleteAsync`) compute a signed delta and feed it to `ISpendAccountBalanceWriter.ApplyDeltaAsync(spendId, delta)`, which issues an atomic SQL `Balance = Balance + @delta` (and bumps `LastModified`) via EF Core's `ExecuteUpdate`. The atomic relative update is the design's core safety property — two concurrent stock-transaction operations on the same spend account cannot lose updates the way a read-modify-write `spend.Balance += delta` would.
+`StockTransactionService` is the single owner of the delta math. All three mutating paths (`CreateAsync`, `UpdateAsync`, `SoftDeleteAsync`) compute a signed delta, load the `SpendAccount` entity via `IRepository<SpendAccount>.GetByIdOrThrowAsync`, mutate `Balance += delta`, then call a single `SaveAsync` that flushes both the balance change and the transaction insert/update together.
 
-Because `ExecuteUpdate` runs SQL outside `SaveChanges`, the balance write and the transaction insert/update are wrapped in `IUnitOfWork.ExecuteInTransactionAsync` so both land in one DB transaction (or neither).
+`SpendAccount.Balance` carries `[ConcurrencyCheck]`, so EF adds `WHERE Balance = @original` to every SpendAccount UPDATE. If two concurrent operations race on the same account, the loser's `SaveAsync` throws `DbUpdateConcurrencyException`, which `StockTransactionService.SaveWithConcurrencyGuardAsync` rethrows as `ConflictException` (409). Because both changes land in the same `SaveAsync`, EF's implicit transaction provides atomicity — no separate `ExecuteUpdate` or explicit transaction wrapper is needed.
 
 ```csharp
 private static long ComputeBalanceDelta( TransactionType type, long totalAmount ) =>
@@ -96,45 +96,6 @@ Run in dev and prod (Neon) before applying B.
 
 ## Service layer
 
-### `ISpendAccountBalanceWriter` (`Fiolyn/Services/Internal/Interfaces/ISpendAccountBalanceWriter.cs` + `SpendAccountBalanceWriter.cs`)
-
-A focused single-method abstraction over the atomic SQL update:
-
-```csharp
-public async Task ApplyDeltaAsync( long spendAccountId, long delta )
-{
-  if ( delta == 0L ) return ;
-
-  var rows = await spendRepository.QueryActive()
-    .Where( s => s.Id == spendAccountId )
-    .ExecuteUpdateAsync( setters => setters
-      .SetProperty( s => s.Balance, s => s.Balance + delta )
-      .SetProperty( s => s.LastModified, _ => DateTime.UtcNow ) ) ;
-
-  if ( rows == 0 )
-  {
-    throw new KeyNotFoundException( $"SpendAccount {spendAccountId} not found." ) ;
-  }
-}
-```
-
-Bypasses the change tracker (and therefore `IAuditable.LastModified` plumbing in `AppDbContext.SetDefaultValues`), so `LastModified` is set in the same statement. Registered in `ScopedBusinessServicesRegister`.
-
-### `IUnitOfWork` (`Fiolyn/Data/Repositories/IUnitOfWork.cs` + `UnitOfWork.cs`)
-
-A separate primitive for explicit transactions, kept off `IRepository<T>` because transactions are `DbContext`-scoped, not entity-scoped:
-
-```csharp
-public async Task ExecuteInTransactionAsync( Func<Task> action )
-{
-  await using var transaction = await dbContext.Database.BeginTransactionAsync() ;
-  await action() ;
-  await transaction.CommitAsync() ;
-}
-```
-
-Rollback is handled by `await using` disposal: if `action` throws, the transaction is disposed without commit and Npgsql rolls back. Registered in `RepositoriesServiceRegister`.
-
 ### `BrokerAccountService` (`Fiolyn/Services/Internal/BrokerAccountService.cs`)
 
 - Injects `IRepository<SpendAccount> spendRepository`.
@@ -145,18 +106,20 @@ Rollback is handled by `await using` disposal: if `action` throws, the transacti
 
 ### `StockTransactionService` (`Fiolyn/Services/Internal/StockTransactionService.cs`)
 
-Injects `IRepository<StockTransaction>`, `IRepository<BrokerAccount>`, `ISpendAccountBalanceWriter`, `IUnitOfWork`.
+Injects `IRepository<StockTransaction>`, `IRepository<BrokerAccount>`, `IRepository<SpendAccount>`.
 
-- **`CreateAsync`** — one fused query (`QueryActive().Where(member-filter).Select(SpendAccountId).FirstOrDefaultAsync()`) returns the linked spend ID or null → 404. Wrap `ApplyDeltaAsync(+delta)` + `AddAsync` + `SaveAsync` in `unitOfWork.ExecuteInTransactionAsync`.
-- **`UpdateAsync`** — one combined projection: filters by `t.Id == transactionId`, fetches `(TransactionType, TotalAmount, BrokerAccountId, OldSpendAccountId)`, and joins a correlated subquery on the *new* broker that returns `NewSpendAccountId` only if the caller is a member. Outer null → 404 "transaction not found"; `NewSpendAccountId` null → 404 "broker not member". Both surface the same to the API. Inside the transaction: same-spend (broker unchanged) → one `ApplyDeltaAsync(newDelta − oldDelta)`; broker-change → `ApplyDeltaAsync(-oldDelta)` on old spend + `ApplyDeltaAsync(+newDelta)` on new spend; then `Update` + `SaveAsync`.
-- **`SoftDeleteAsync(id, userId)`** — `GetByIdForUserAsync` already eager-loads `BrokerAccount`; read `SpendAccountId` directly off `transaction.BrokerAccount`. Inside the transaction: `ApplyDeltaAsync(-delta)` + `SoftDelete` + `SaveAsync`.
-- **Admin `SoftDeleteAsync(id)`** — single `QueryActive().Include(BrokerAccount).FirstOrDefaultAsync()` to fetch the transaction + linked spend ID together; same body inside the transaction.
+- **`CreateAsync`** — one fused query (`Query().Where(member-filter).Select(SpendAccountId).FirstOrDefaultAsync()`) returns the linked spend ID or null → 404. Load the spend account, apply `+delta` to `Balance`, add the transaction, single `SaveAsync`.
+- **`UpdateAsync`** — one combined projection fetches `(TransactionType, TotalAmount, BrokerAccountId, OldSpendAccountId)` with a correlated subquery for the new broker's `SpendAccountId` (null → 404 "broker not member"). Same-broker: load the single spend account, apply `newDelta − oldDelta`; broker-change: load both spend accounts, reverse old delta on the old, apply new delta on the new. Then `Update` + single `SaveAsync`.
+- **`SoftDeleteAsync(id, userId)`** — `GetByIdForUserAsync` eager-loads `BrokerAccount`; load the spend account via `spendRepository`, apply `−delta`, soft-delete transaction, single `SaveAsync`.
+- **Admin `SoftDeleteAsync(id)`** — same, loading the transaction via `Query().Include(BrokerAccount).FirstOrDefaultAsync()`.
+
+`SaveWithConcurrencyGuardAsync(spendAccountId)` wraps `SaveAsync`, catching `DbUpdateConcurrencyException` → `ConflictException` (409) for all three paths.
 
 ### `SpendAccountService` (`Fiolyn/Services/Internal/SpendAccountService.cs`)
 
-Inject `IRepository<BrokerAccount> brokerRepository`. Both soft-delete overloads guard:
+Injects `IRepository<BrokerAccount> brokerRepository`. `AdjustBalanceForUserAsync` / `AdjustBalanceAsync` delegate to a private `ApplyAndReadBalanceAsync(id, delta)`: load via `GetByIdOrThrowAsync`, mutate `Balance += delta`, call `SaveAsync` (catching `DbUpdateConcurrencyException` → `ConflictException`), return the new `Balance`. Both soft-delete overloads guard:
 ```csharp
-var stillReferenced = await brokerRepository.QueryActive()
+var stillReferenced = await brokerRepository.Query()
   .AnyAsync( b => b.SpendAccountId == id ) ;
 if ( stillReferenced )
 {
@@ -165,7 +128,7 @@ if ( stillReferenced )
 }
 ```
 
-This prevents a `BrokerAccount` from being orphaned to a soft-deleted spend account, which would otherwise blow up `GetActiveByIdOrThrowAsync(spendId)` on the next stock transaction.
+This prevents a `BrokerAccount` from being orphaned to a soft-deleted spend account, which would otherwise blow up `GetByIdOrThrowAsync(spendId)` on the next stock transaction.
 
 ---
 
@@ -189,13 +152,13 @@ This prevents a `BrokerAccount` from being orphaned to a soft-deleted spend acco
 - `UpdateAsync` re-validates spend-account membership only when `SpendAccountId` changes.
 
 **`StockTransactionServiceTests.cs`**
-- Test fixture mocks `IUnitOfWork.ExecuteInTransactionAsync` as a pass-through and accumulates `ISpendAccountBalanceWriter.ApplyDeltaAsync` calls into a per-spend-account `Dictionary<long, long>` so assertions read net deltas, not balances.
+- Test fixture stubs `IRepository<SpendAccount>` via `SetupSpendAccount(id, initialBalance)`, returning a real `SpendAccount` instance so `Balance` mutations are observable.
 - Buy applies `−TotalAmount`; Sell and Dividend apply `+TotalAmount`.
-- Update with same broker: writer is called once with `(newDelta − oldDelta)`.
-- Update with broker change: two writer calls — old spend reverses, new spend applies.
-- Update with no change: writer is called once with `0` (the writer short-circuits internally).
+- Update with same broker: `spendAccount.Balance` reflects `newDelta − oldDelta`.
+- Update with broker change: old spend account is reversed, new spend account receives the new delta.
+- Update with no change: `spendRepository.GetByIdOrThrowAsync` is not called (skipped when `netDelta == 0`).
 - Soft-delete reverses the original delta.
-- Membership/projection failures don't reach the writer or the unit-of-work.
+- Membership/projection failures don't reach `spendRepository`.
 
 **`SpendAccountServiceTests.cs`**
 - Soft-delete throws `BadRequestException` while a `BrokerAccount` references it; succeeds once the broker is deleted/repointed.
@@ -225,12 +188,6 @@ Per the repo's standing rule (`feedback_update_claude_md`), update `.claude/CLAU
 - `Fiolyn/Data/Migrations/20260426024118_LinkBrokerAccountToSpendAccountNullable.cs`
 - `Fiolyn/Data/Migrations/20260426032716_RequireBrokerAccountSpendAccountId.cs`
 
-**New infrastructure**
-- `Fiolyn/Data/Repositories/IUnitOfWork.cs` + `UnitOfWork.cs`
-- `Fiolyn/Services/Internal/Interfaces/ISpendAccountBalanceWriter.cs` + `Fiolyn/Services/Internal/SpendAccountBalanceWriter.cs`
-- `Fiolyn/ServiceRegisters/RepositoriesServiceRegister.cs` (registers `IUnitOfWork`)
-- `Fiolyn/ServiceRegisters/ScopedBusinessServicesRegister.cs` (registers `ISpendAccountBalanceWriter`)
-
 **Service layer**
 - `Fiolyn/Services/Internal/BrokerAccountService.cs` + `Interfaces/IBrokerAccountService.cs`
 - `Fiolyn/Services/Internal/StockTransactionService.cs`
@@ -250,7 +207,7 @@ Per the repo's standing rule (`feedback_update_claude_md`), update `.claude/CLAU
 - `docs/BrokerAccountSpendAccountLink.md` (this file)
 
 Reused existing primitives:
-- `IRepository<T>.QueryActive()` for membership and original-value reads.
+- `IRepository<T>.Query()` for membership and original-value reads.
 - The "filter via parent's `Members.Any(...)`" pattern (membership check inlined into the combined projection in `CreateAsync` / `UpdateAsync` — no separate helper).
 - `BadRequestException` (`Infrastructure/Exceptions/`) for the SpendAccount-still-referenced case, mirroring `BrokerAccountService.RemoveMemberAsync`.
 

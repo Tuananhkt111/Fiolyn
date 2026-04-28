@@ -39,13 +39,13 @@ public class BrokerAccountServiceTests
       } ) ;
     }
 
-    _spendRepo.QueryActive().Returns( new List<SpendAccount>
+    _spendRepo.Query().Returns( new List<SpendAccount>
     {
       account
     }.BuildMock() ) ;
   }
 
-  private void SetupNoSpendAccounts() => _spendRepo.QueryActive().Returns( new List<SpendAccount>().BuildMock() ) ;
+  private void SetupNoSpendAccounts() => _spendRepo.Query().Returns( new List<SpendAccount>().BuildMock() ) ;
 
   private static AppUser BuildUser( long id, string email = "", bool isDeleted = false ) =>
     new()
@@ -150,34 +150,13 @@ public class BrokerAccountServiceTests
       BuildAccount( 2, [10, 20], "TCBS" ),
       BuildAccount( 3, [20], "OtherUserBroker" )
     ] ;
-    _accountRepo.QueryActive().Returns( accounts.BuildMock() ) ;
+    _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllForUserAsync( 10 ) ;
 
     result.Should().HaveCount( 2 ) ;
     result.Select( a => a.Id ).Should().BeEquivalentTo( [1L, 2L] ) ;
-  }
-
-  [Fact]
-  public async Task GetAllForUserAsync_ExcludesSoftDeletedMembers()
-  {
-    var deletedUser = BuildUser( 10, isDeleted: true ) ;
-    var account = new BrokerAccount
-    {
-      Id = 1,
-      Name = "Ghost"
-    } ;
-    account.Members.Add( BuildMember( 1, deletedUser ) ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
-    {
-      account
-    }.BuildMock() ) ;
-    var sut = CreateSut() ;
-
-    var result = await sut.GetAllForUserAsync( 10 ) ;
-
-    result.Should().BeEmpty() ;
   }
 
   [Fact]
@@ -189,7 +168,7 @@ public class BrokerAccountServiceTests
       BuildAccount( 2, [10], "Alpha" ),
       BuildAccount( 3, [10], "Midway" )
     ] ;
-    _accountRepo.QueryActive().Returns( accounts.BuildMock() ) ;
+    _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllForUserAsync( 10 ) ;
@@ -201,7 +180,7 @@ public class BrokerAccountServiceTests
   public async Task GetByIdForUserAsync_ReturnsAccount_WhenCallerIsMember()
   {
     List<BrokerAccount> accounts = [BuildAccount( 5, [10, 20] )] ;
-    _accountRepo.QueryActive().Returns( accounts.BuildMock() ) ;
+    _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdForUserAsync( 5, 20 ) ;
@@ -214,7 +193,7 @@ public class BrokerAccountServiceTests
   public async Task GetByIdForUserAsync_ReturnsNull_WhenCallerIsNotMember()
   {
     List<BrokerAccount> accounts = [BuildAccount( 5, [99] )] ;
-    _accountRepo.QueryActive().Returns( accounts.BuildMock() ) ;
+    _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdForUserAsync( 5, 10 ) ;
@@ -226,7 +205,7 @@ public class BrokerAccountServiceTests
   public async Task ExistsForUserAsync_True_WhenMember()
   {
     List<BrokerAccount> accounts = [BuildAccount( 5, [10] )] ;
-    _accountRepo.QueryActive().Returns( accounts.BuildMock() ) ;
+    _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
     ( await sut.ExistsForUserAsync( 5, 10 ) ).Should().BeTrue() ;
@@ -236,7 +215,7 @@ public class BrokerAccountServiceTests
   public async Task ExistsForUserAsync_False_WhenNotMember()
   {
     List<BrokerAccount> accounts = [BuildAccount( 5, [99] )] ;
-    _accountRepo.QueryActive().Returns( accounts.BuildMock() ) ;
+    _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
     ( await sut.ExistsForUserAsync( 5, 10 ) ).Should().BeFalse() ;
@@ -246,34 +225,23 @@ public class BrokerAccountServiceTests
   public async Task UpdateAsync_DoesNotRevalidateSpendMembership_WhenSpendAccountIdUnchanged()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
-    _accountRepo.Query().Returns( new List<BrokerAccount>
-    {
-      account
-    }.BuildMock() ) ;
-    SetupNoSpendAccounts() ;
     var sut = CreateSut() ;
 
-    await sut.UpdateAsync( account, 10 ) ;
+    await sut.UpdateAsync( account, oldSpendAccountId: 7, callerUserId: 10 ) ;
 
-    _accountRepo.Received( 1 ).Update( account ) ;
     await _accountRepo.Received( 1 ).SaveAsync() ;
-    _spendRepo.DidNotReceive().QueryActive() ;
+    _spendRepo.DidNotReceive().Query() ;
   }
 
   [Fact]
   public async Task UpdateAsync_RevalidatesSpendMembership_WhenSpendAccountIdChanges()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
-    _accountRepo.Query().Returns( new List<BrokerAccount>
-    {
-      BuildAccount( 5, [10], spendAccountId: 7 )
-    }.BuildMock() ) ;
     SetupSpendAccount( 9, [10] ) ;
     var sut = CreateSut() ;
 
-    await sut.UpdateAsync( account, 10 ) ;
+    await sut.UpdateAsync( account, oldSpendAccountId: 7, callerUserId: 10 ) ;
 
-    _accountRepo.Received( 1 ).Update( account ) ;
     await _accountRepo.Received( 1 ).SaveAsync() ;
   }
 
@@ -281,17 +249,13 @@ public class BrokerAccountServiceTests
   public async Task UpdateAsync_ThrowsKeyNotFound_WhenChangedSpendAccountIsNotMember()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
-    _accountRepo.Query().Returns( new List<BrokerAccount>
-    {
-      BuildAccount( 5, [10], spendAccountId: 7 )
-    }.BuildMock() ) ;
     SetupSpendAccount( 9, [99] ) ;
     var sut = CreateSut() ;
 
-    var act = async () => await sut.UpdateAsync( account, 10 ) ;
+    var act = async () => await sut.UpdateAsync( account, oldSpendAccountId: 7, callerUserId: 10 ) ;
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
-    _accountRepo.DidNotReceive().Update( Arg.Any<BrokerAccount>() ) ;
+    await _accountRepo.DidNotReceive().SaveAsync() ;
   }
 
   [Fact]
@@ -302,8 +266,7 @@ public class BrokerAccountServiceTests
 
     await sut.UpdateAsync( account ) ;
 
-    await _spendRepo.Received( 1 ).GetActiveByIdOrThrowAsync( 9L ) ;
-    _accountRepo.Received( 1 ).Update( account ) ;
+    await _spendRepo.Received( 1 ).GetByIdOrThrowAsync( 9L ) ;
     await _accountRepo.Received( 1 ).SaveAsync() ;
   }
 
@@ -311,21 +274,21 @@ public class BrokerAccountServiceTests
   public async Task AdminUpdateAsync_PropagatesKeyNotFound_WhenSpendAccountMissing()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
-    _spendRepo.GetActiveByIdOrThrowAsync( 9L )
+    _spendRepo.GetByIdOrThrowAsync( 9L )
       .Returns<Task<SpendAccount>>( _ => throw new KeyNotFoundException() ) ;
     var sut = CreateSut() ;
 
     var act = async () => await sut.UpdateAsync( account ) ;
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
-    _accountRepo.DidNotReceive().Update( Arg.Any<BrokerAccount>() ) ;
+    await _accountRepo.DidNotReceive().SaveAsync() ;
   }
 
   [Fact]
   public async Task SoftDeleteAsync_SoftDeletes_WhenCallerIsMember()
   {
     var account = BuildAccount( 5, [10] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       account
     }.BuildMock() ) ;
@@ -340,7 +303,7 @@ public class BrokerAccountServiceTests
   [Fact]
   public async Task SoftDeleteAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       BuildAccount( 5, [99] )
     }.BuildMock() ) ;
@@ -356,14 +319,13 @@ public class BrokerAccountServiceTests
   public async Task GetMembersAsync_ReturnsMembersOrderedByJoinedAt_WhenCallerIsMember()
   {
     var account = BuildAccount( 5, [10, 20] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
-    {
-      account
-    }.BuildMock() ) ;
     var members = account.Members.ToList() ;
     members[ 0 ].JoinedAt = new DateTime( 2024, 6, 1, 0, 0, 0, DateTimeKind.Utc ) ;
     members[ 1 ].JoinedAt = new DateTime( 2024, 1, 1, 0, 0, 0, DateTimeKind.Utc ) ;
-    _memberRepo.Query().Returns( members.BuildMock() ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      account
+    }.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetMembersAsync( 5, 10 ) ;
@@ -372,37 +334,9 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
-  public async Task GetMembersAsync_FiltersOutSoftDeletedUsers()
-  {
-    var active = BuildMember( 5, BuildUser( 10 ) ) ;
-    var deleted = BuildMember( 5, BuildUser( 20, isDeleted: true ) ) ;
-    var account = new BrokerAccount
-    {
-      Id = 5,
-      Name = "X"
-    } ;
-    account.Members.Add( active ) ;
-    account.Members.Add( deleted ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
-    {
-      account
-    }.BuildMock() ) ;
-    _memberRepo.Query().Returns( new List<BrokerAccountMember>
-    {
-      active,
-      deleted
-    }.BuildMock() ) ;
-    var sut = CreateSut() ;
-
-    var result = await sut.GetMembersAsync( 5, 10 ) ;
-
-    result.Should().ContainSingle().Which.AppUserId.Should().Be( 10 ) ;
-  }
-
-  [Fact]
   public async Task GetMembersAsync_Throws_WhenCallerIsNotMember()
   {
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>().BuildMock() ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
     var sut = CreateSut() ;
 
     var act = async () => await sut.GetMembersAsync( 5, 10 ) ;
@@ -414,11 +348,11 @@ public class BrokerAccountServiceTests
   public async Task AddMemberAsync_AddsNewMember_WhenTargetExists()
   {
     var account = BuildAccount( 5, [10] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       account
     }.BuildMock() ) ;
-    _userRepo.QueryActive().Returns( new List<AppUser>
+    _userRepo.Query().Returns( new List<AppUser>
     {
       BuildUser( 20, "new@example.com" )
     }.BuildMock() ) ;
@@ -436,11 +370,11 @@ public class BrokerAccountServiceTests
   public async Task AddMemberAsync_NormalizesEmailBeforeLookup()
   {
     var account = BuildAccount( 5, [10] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       account
     }.BuildMock() ) ;
-    _userRepo.QueryActive().Returns( new List<AppUser>
+    _userRepo.Query().Returns( new List<AppUser>
     {
       BuildUser( 20, "lower@example.com" )
     }.BuildMock() ) ;
@@ -456,15 +390,14 @@ public class BrokerAccountServiceTests
   public async Task AddMemberAsync_IsIdempotent_WhenTargetIsAlreadyMember()
   {
     var account = BuildAccount( 5, [10, 20] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       account
     }.BuildMock() ) ;
-    _userRepo.QueryActive().Returns( new List<AppUser>
+    _userRepo.Query().Returns( new List<AppUser>
     {
       BuildUser( 20, "existing@example.com" )
     }.BuildMock() ) ;
-    _memberRepo.Query().Returns( account.Members.ToList().BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.AddMemberAsync( 5, 10, "existing@example.com" ) ;
@@ -478,11 +411,11 @@ public class BrokerAccountServiceTests
   public async Task AddMemberAsync_ThrowsKeyNotFound_WhenTargetEmailIsUnknown()
   {
     var account = BuildAccount( 5, [10] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       account
     }.BuildMock() ) ;
-    _userRepo.QueryActive().Returns( new List<AppUser>().BuildMock() ) ;
+    _userRepo.Query().Returns( new List<AppUser>().BuildMock() ) ;
     var sut = CreateSut() ;
 
     var act = async () => await sut.AddMemberAsync( 5, 10, "ghost@example.com" ) ;
@@ -494,25 +427,23 @@ public class BrokerAccountServiceTests
   [Fact]
   public async Task AddMemberAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>().BuildMock() ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
     var sut = CreateSut() ;
 
     var act = async () => await sut.AddMemberAsync( 5, 10, "anyone@example.com" ) ;
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
-    _userRepo.DidNotReceive().QueryActive() ;
+    _userRepo.DidNotReceive().Query() ;
   }
 
   [Fact]
   public async Task RemoveMemberAsync_RemovesMember_WhenMultipleRemain()
   {
     var account = BuildAccount( 5, [10, 20, 30] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       account
     }.BuildMock() ) ;
-    var members = account.Members.ToList() ;
-    _memberRepo.Query().Returns( _ => members.BuildMock() ) ;
     var sut = CreateSut() ;
 
     await sut.RemoveMemberAsync( 5, 10, 20 ) ;
@@ -526,11 +457,10 @@ public class BrokerAccountServiceTests
   public async Task RemoveMemberAsync_ThrowsBadRequest_WhenRemovingLastMember()
   {
     var account = BuildAccount( 5, [10] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       account
     }.BuildMock() ) ;
-    _memberRepo.Query().Returns( _ => account.Members.ToList().BuildMock() ) ;
     var sut = CreateSut() ;
 
     var act = async () => await sut.RemoveMemberAsync( 5, 10, 10 ) ;
@@ -543,11 +473,10 @@ public class BrokerAccountServiceTests
   public async Task RemoveMemberAsync_ThrowsKeyNotFound_WhenTargetIsNotMember()
   {
     var account = BuildAccount( 5, [10, 20] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       account
     }.BuildMock() ) ;
-    _memberRepo.Query().Returns( _ => account.Members.ToList().BuildMock() ) ;
     var sut = CreateSut() ;
 
     var act = async () => await sut.RemoveMemberAsync( 5, 10, 99 ) ;
@@ -559,7 +488,7 @@ public class BrokerAccountServiceTests
   [Fact]
   public async Task RemoveMemberAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>().BuildMock() ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
     var sut = CreateSut() ;
 
     var act = async () => await sut.RemoveMemberAsync( 5, 10, 20 ) ;
@@ -576,7 +505,7 @@ public class BrokerAccountServiceTests
       BuildAccount( 2, [10], "Bravo" ),
       BuildAccount( 3, [10], "Alpha" )
     ] ;
-    _accountRepo.QueryActive().Returns( accounts.BuildMock() ) ;
+    _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllAsync() ;
@@ -594,7 +523,7 @@ public class BrokerAccountServiceTests
       BuildAccount( 2, [10], "Bravo" ),
       BuildAccount( 3, [10, 20], "Alpha" )
     ] ;
-    _accountRepo.QueryActive().Returns( accounts.BuildMock() ) ;
+    _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllAsync( 10 ) ;
@@ -606,7 +535,7 @@ public class BrokerAccountServiceTests
   public async Task GetByIdAsync_ReturnsAccount_RegardlessOfMembership()
   {
     var account = BuildAccount( 5, [99] ) ;
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>
+    _accountRepo.Query().Returns( new List<BrokerAccount>
     {
       account
     }.BuildMock() ) ;
@@ -621,7 +550,7 @@ public class BrokerAccountServiceTests
   [Fact]
   public async Task GetByIdAsync_ReturnsNull_WhenNotFound()
   {
-    _accountRepo.QueryActive().Returns( new List<BrokerAccount>().BuildMock() ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdAsync( 5 ) ;
@@ -633,7 +562,7 @@ public class BrokerAccountServiceTests
   public async Task AdminSoftDeleteAsync_SoftDeletes_WhenFound()
   {
     var account = BuildAccount( 5, [99] ) ;
-    _accountRepo.GetActiveByIdOrThrowAsync( 5L ).Returns( account ) ;
+    _accountRepo.GetByIdOrThrowAsync( 5L ).Returns( account ) ;
     var sut = CreateSut() ;
 
     await sut.SoftDeleteAsync( 5 ) ;
@@ -645,7 +574,7 @@ public class BrokerAccountServiceTests
   [Fact]
   public async Task AdminSoftDeleteAsync_Propagates_KeyNotFoundException_FromRepository()
   {
-    _accountRepo.GetActiveByIdOrThrowAsync( 99L )
+    _accountRepo.GetByIdOrThrowAsync( 99L )
       .Returns<Task<BrokerAccount>>( _ => throw new KeyNotFoundException() ) ;
     var sut = CreateSut() ;
 

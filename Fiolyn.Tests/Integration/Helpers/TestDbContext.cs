@@ -10,4 +10,10 @@ namespace Fiolyn.Tests.Integration.Helpers ;
 public class TestDbContext( DbContextOptions<AppDbContext> options ) : AppDbContext( options )
 {
   public DbSet<TestEntity> TestEntities => Set<TestEntity>() ;
+
+  protected override void OnModelCreating( ModelBuilder modelBuilder )
+  {
+    base.OnModelCreating( modelBuilder ) ;
+    modelBuilder.Entity<TestEntity>().HasQueryFilter( e => ! e.IsDeleted ) ;
+  }
 }

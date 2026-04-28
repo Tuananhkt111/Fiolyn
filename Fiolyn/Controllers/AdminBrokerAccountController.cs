@@ -74,10 +74,17 @@ public class AdminBrokerAccountController(
       return NotFound() ;
     }
 
+    var oldSpendId = existing.SpendAccountId ;
     existing.Name = request.Name ;
     existing.SpendAccountId = request.SpendAccountId ;
 
     await brokerAccountService.UpdateAsync( existing ) ;
+
+    if ( oldSpendId == request.SpendAccountId )
+    {
+      return Ok( new AdminBrokerAccountResponse( existing ) ) ;
+    }
+
     var refreshed = await brokerAccountService.GetByIdAsync( id ) ;
     return Ok( new AdminBrokerAccountResponse( refreshed! ) ) ;
   }

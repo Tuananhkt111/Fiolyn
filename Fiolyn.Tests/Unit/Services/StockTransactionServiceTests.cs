@@ -1,9 +1,10 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
+using Fiolyn.Infrastructure.Exceptions ;
 using Fiolyn.Services.Internal ;
-using Fiolyn.Services.Internal.Interfaces ;
 using FluentAssertions ;
+using Microsoft.EntityFrameworkCore ;
 using Microsoft.Extensions.Logging ;
 using MockQueryable ;
 using NSubstitute ;
@@ -12,28 +13,23 @@ namespace Fiolyn.Tests.Unit.Services ;
 
 public class StockTransactionServiceTests
 {
-  private readonly Dictionary<long, long> _appliedDeltas = new() ;
-  private readonly ISpendAccountBalanceWriter _balanceWriter = Substitute.For<ISpendAccountBalanceWriter>() ;
   private readonly IRepository<BrokerAccount> _brokerRepository = Substitute.For<IRepository<BrokerAccount>>() ;
   private readonly ILogger<StockTransactionService> _logger = Substitute.For<ILogger<StockTransactionService>>() ;
   private readonly IRepository<StockTransaction> _repository = Substitute.For<IRepository<StockTransaction>>() ;
-  private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>() ;
+  private readonly IRepository<SpendAccount> _spendRepository = Substitute.For<IRepository<SpendAccount>>() ;
 
-  private StockTransactionService CreateSut()
+  private StockTransactionService CreateSut() =>
+    new( _repository, _brokerRepository, _spendRepository, _logger ) ;
+
+  private SpendAccount SetupSpendAccount( long id, long initialBalance = 0 )
   {
-    _unitOfWork.ExecuteInTransactionAsync( Arg.Any<Func<Task>>() )
-      .Returns( async ci => await ci.Arg<Func<Task>>()() ) ;
-
-    _balanceWriter.ApplyDeltaAsync( Arg.Any<long>(), Arg.Any<long>() )
-      .Returns( ci =>
-      {
-        var spendId = ci.ArgAt<long>( 0 ) ;
-        var delta = ci.ArgAt<long>( 1 ) ;
-        _appliedDeltas[ spendId ] = _appliedDeltas.GetValueOrDefault( spendId ) + delta ;
-        return Task.CompletedTask ;
-      } ) ;
-
-    return new StockTransactionService( _repository, _brokerRepository, _balanceWriter, _unitOfWork, _logger ) ;
+    var account = new SpendAccount
+    {
+      Id = id,
+      Balance = initialBalance
+    } ;
+    _spendRepository.GetByIdOrThrowAsync( id ).Returns( account ) ;
+    return account ;
   }
 
   private static AppUser BuildUser( long id, bool isDeleted = false ) =>
@@ -66,19 +62,14 @@ public class StockTransactionServiceTests
   private void SetupBroker( string name, long id, long[]? memberIds = null, long spendAccountId = 1 )
   {
     var broker = BuildBroker( id, name, memberIds ?? [], spendAccountId ) ;
-    var single = new List<BrokerAccount>
+    _brokerRepository.Query().Returns( new List<BrokerAccount>
     {
       broker
-    } ;
-    _brokerRepository.QueryActive().Returns( single.BuildMock() ) ;
-    _brokerRepository.Query().Returns( single.BuildMock() ) ;
+    }.BuildMock() ) ;
   }
 
-  private void SetupNoBrokers()
-  {
-    _brokerRepository.QueryActive().Returns( new List<BrokerAccount>().BuildMock() ) ;
+  private void SetupNoBrokers() =>
     _brokerRepository.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
-  }
 
   [Fact]
   public async Task ParseMessageAsync_BuyMessage_ReturnsBuyTransaction()
@@ -192,6 +183,7 @@ public class StockTransactionServiceTests
   public async Task CreateAsync_Buy_AppliesNegativeDelta_AndSaves()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
+    var spendAccount = SetupSpendAccount( 7 ) ;
     var sut = CreateSut() ;
     var transaction = new StockTransaction
     {
@@ -207,16 +199,16 @@ public class StockTransactionServiceTests
     var result = await sut.CreateAsync( transaction, 42 ) ;
 
     result.Should().BeSameAs( transaction ) ;
-    _appliedDeltas[ 7 ].Should().Be( -4_501_500L ) ;
+    spendAccount.Balance.Should().Be( -4_501_500L ) ;
     await _repository.Received( 1 ).AddAsync( transaction ) ;
     await _repository.Received( 1 ).SaveAsync() ;
-    await _unitOfWork.Received( 1 ).ExecuteInTransactionAsync( Arg.Any<Func<Task>>() ) ;
   }
 
   [Fact]
   public async Task CreateAsync_Sell_AppliesPositiveDelta()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
+    var spendAccount = SetupSpendAccount( 7 ) ;
     var sut = CreateSut() ;
     var transaction = new StockTransaction
     {
@@ -228,13 +220,14 @@ public class StockTransactionServiceTests
 
     await sut.CreateAsync( transaction, 42 ) ;
 
-    _appliedDeltas[ 7 ].Should().Be( 2_500_000L ) ;
+    spendAccount.Balance.Should().Be( 2_500_000L ) ;
   }
 
   [Fact]
   public async Task CreateAsync_Dividend_AppliesPositiveDelta()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
+    var spendAccount = SetupSpendAccount( 7 ) ;
     var sut = CreateSut() ;
     var transaction = new StockTransaction
     {
@@ -246,7 +239,7 @@ public class StockTransactionServiceTests
 
     await sut.CreateAsync( transaction, 42 ) ;
 
-    _appliedDeltas[ 7 ].Should().Be( 500_000L ) ;
+    spendAccount.Balance.Should().Be( 500_000L ) ;
   }
 
   [Fact]
@@ -264,8 +257,7 @@ public class StockTransactionServiceTests
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
     await _repository.DidNotReceive().AddAsync( Arg.Any<StockTransaction>() ) ;
-    await _balanceWriter.DidNotReceive().ApplyDeltaAsync( Arg.Any<long>(), Arg.Any<long>() ) ;
-    await _unitOfWork.DidNotReceive().ExecuteInTransactionAsync( Arg.Any<Func<Task>>() ) ;
+    await _spendRepository.DidNotReceive().GetByIdOrThrowAsync( Arg.Any<object>() ) ;
   }
 
   [Fact]
@@ -292,7 +284,7 @@ public class StockTransactionServiceTests
         TransactionDate = DateTime.UtcNow
       }
     ] ;
-    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllForUserAsync( 42 ) ;
@@ -323,7 +315,7 @@ public class StockTransactionServiceTests
         TransactionDate = DateTime.UtcNow
       }
     ] ;
-    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllForUserAsync( 42, "vnm" ) ;
@@ -346,7 +338,7 @@ public class StockTransactionServiceTests
         TransactionDate = DateTime.UtcNow
       }
     ] ;
-    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdForUserAsync( 5, 42 ) ;
@@ -369,7 +361,7 @@ public class StockTransactionServiceTests
         TransactionDate = DateTime.UtcNow
       }
     ] ;
-    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetByIdForUserAsync( 5, 42 ) ;
@@ -390,7 +382,7 @@ public class StockTransactionServiceTests
         BrokerAccount = broker
       }
     ] ;
-    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
     ( await sut.ExistsForUserAsync( 5, 42 ) ).Should().BeTrue() ;
@@ -409,7 +401,7 @@ public class StockTransactionServiceTests
         BrokerAccount = broker
       }
     ] ;
-    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
     ( await sut.ExistsForUserAsync( 5, 42 ) ).Should().BeFalse() ;
@@ -419,6 +411,7 @@ public class StockTransactionServiceTests
   public async Task UpdateAsync_SameBroker_AppliesNetDelta()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
+    var spendAccount = SetupSpendAccount( 7 ) ;
     var original = new StockTransaction
     {
       Id = 5,
@@ -427,7 +420,7 @@ public class StockTransactionServiceTests
       TransactionType = TransactionType.Buy,
       TotalAmount = 1_000_000L
     } ;
-    _repository.QueryActive().Returns( new List<StockTransaction>
+    _repository.Query().Returns( new List<StockTransaction>
     {
       original
     }.BuildMock() ) ;
@@ -442,13 +435,12 @@ public class StockTransactionServiceTests
 
     await sut.UpdateAsync( updated, 42 ) ;
 
-    _appliedDeltas[ 7 ].Should().Be( -500_000L ) ;
-    _repository.Received( 1 ).Update( updated ) ;
+    spendAccount.Balance.Should().Be( -500_000L ) ;
     await _repository.Received( 1 ).SaveAsync() ;
   }
 
   [Fact]
-  public async Task UpdateAsync_SameBroker_NoChange_AppliesZeroDelta()
+  public async Task UpdateAsync_SameBroker_NoChange_SkipsBalanceLoad()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
     var original = new StockTransaction
@@ -459,7 +451,7 @@ public class StockTransactionServiceTests
       TransactionType = TransactionType.Buy,
       TotalAmount = 1_000_000L
     } ;
-    _repository.QueryActive().Returns( new List<StockTransaction>
+    _repository.Query().Returns( new List<StockTransaction>
     {
       original
     }.BuildMock() ) ;
@@ -474,15 +466,14 @@ public class StockTransactionServiceTests
 
     await sut.UpdateAsync( updated, 42 ) ;
 
-    // Net 0; ApplyDeltaAsync still called once with delta=0 (the writer short-circuits internally)
-    await _balanceWriter.Received( 1 ).ApplyDeltaAsync( 7, 0L ) ;
-    _appliedDeltas[ 7 ].Should().Be( 0L ) ;
+    await _spendRepository.DidNotReceive().GetByIdOrThrowAsync( Arg.Any<object>() ) ;
   }
 
   [Fact]
   public async Task UpdateAsync_BuyToSell_FlipsBalanceImpact()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
+    var spendAccount = SetupSpendAccount( 7 ) ;
     var original = new StockTransaction
     {
       Id = 5,
@@ -491,7 +482,7 @@ public class StockTransactionServiceTests
       TransactionType = TransactionType.Buy,
       TotalAmount = 2_500_000L
     } ;
-    _repository.QueryActive().Returns( new List<StockTransaction>
+    _repository.Query().Returns( new List<StockTransaction>
     {
       original
     }.BuildMock() ) ;
@@ -506,7 +497,7 @@ public class StockTransactionServiceTests
 
     await sut.UpdateAsync( updated, 42 ) ;
 
-    _appliedDeltas[ 7 ].Should().Be( 5_000_000L ) ;
+    spendAccount.Balance.Should().Be( 5_000_000L ) ;
   }
 
   [Fact]
@@ -531,8 +522,10 @@ public class StockTransactionServiceTests
       oldBroker,
       newBroker
     } ;
-    _brokerRepository.QueryActive().Returns( brokers.BuildMock() ) ;
     _brokerRepository.Query().Returns( brokers.BuildMock() ) ;
+    _brokerRepository.Query().Returns( brokers.BuildMock() ) ;
+    var oldSpend = SetupSpendAccount( 7 ) ;
+    var newSpend = SetupSpendAccount( 8 ) ;
     var original = new StockTransaction
     {
       Id = 5,
@@ -541,7 +534,7 @@ public class StockTransactionServiceTests
       TransactionType = TransactionType.Buy,
       TotalAmount = 1_000_000L
     } ;
-    _repository.QueryActive().Returns( new List<StockTransaction>
+    _repository.Query().Returns( new List<StockTransaction>
     {
       original
     }.BuildMock() ) ;
@@ -556,15 +549,15 @@ public class StockTransactionServiceTests
 
     await sut.UpdateAsync( updated, 42 ) ;
 
-    _appliedDeltas[ 7 ].Should().Be( 1_000_000L ) ;
-    _appliedDeltas[ 8 ].Should().Be( -1_000_000L ) ;
+    oldSpend.Balance.Should().Be( 1_000_000L ) ;
+    newSpend.Balance.Should().Be( -1_000_000L ) ;
   }
 
   [Fact]
   public async Task UpdateAsync_ThrowsKeyNotFound_WhenOriginalNotFound()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
-    _repository.QueryActive().Returns( new List<StockTransaction>().BuildMock() ) ;
+    _repository.Query().Returns( new List<StockTransaction>().BuildMock() ) ;
     var sut = CreateSut() ;
     var updated = new StockTransaction
     {
@@ -592,7 +585,7 @@ public class StockTransactionServiceTests
       TransactionType = TransactionType.Buy,
       TotalAmount = 1L
     } ;
-    _repository.QueryActive().Returns( new List<StockTransaction>
+    _repository.Query().Returns( new List<StockTransaction>
     {
       original
     }.BuildMock() ) ;
@@ -607,9 +600,8 @@ public class StockTransactionServiceTests
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
     _repository.DidNotReceive().Update( Arg.Any<StockTransaction>() ) ;
-    await _balanceWriter.DidNotReceive().ApplyDeltaAsync( Arg.Any<long>(), Arg.Any<long>() ) ;
+    await _spendRepository.DidNotReceive().GetByIdOrThrowAsync( Arg.Any<object>() ) ;
   }
-
 
   [Fact]
   public async Task SoftDeleteAsync_ReversesDelta_AndSoftDeletes()
@@ -619,6 +611,7 @@ public class StockTransactionServiceTests
     {
       broker
     }.BuildMock() ) ;
+    var spendAccount = SetupSpendAccount( 7 ) ;
     var transaction = new StockTransaction
     {
       Id = 5,
@@ -627,7 +620,7 @@ public class StockTransactionServiceTests
       TransactionType = TransactionType.Buy,
       TotalAmount = 1_000_000L
     } ;
-    _repository.QueryActive().Returns( new List<StockTransaction>
+    _repository.Query().Returns( new List<StockTransaction>
     {
       transaction
     }.BuildMock() ) ;
@@ -635,7 +628,7 @@ public class StockTransactionServiceTests
 
     await sut.SoftDeleteAsync( 5, 42 ) ;
 
-    _appliedDeltas[ 7 ].Should().Be( 1_000_000L ) ;
+    spendAccount.Balance.Should().Be( 1_000_000L ) ;
     _repository.Received( 1 ).SoftDelete( transaction ) ;
     await _repository.Received( 1 ).SaveAsync() ;
   }
@@ -644,7 +637,7 @@ public class StockTransactionServiceTests
   public async Task SoftDeleteAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     var broker = BuildBroker( 1, "VPS", [99] ) ;
-    _repository.QueryActive().Returns( new List<StockTransaction>
+    _repository.Query().Returns( new List<StockTransaction>
     {
       new()
       {
@@ -684,7 +677,7 @@ public class StockTransactionServiceTests
         TransactionDate = DateTime.UtcNow
       }
     ] ;
-    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllAsync() ;
@@ -714,7 +707,7 @@ public class StockTransactionServiceTests
         TransactionDate = DateTime.UtcNow
       }
     ] ;
-    _repository.QueryActive().Returns( transactions.BuildMock() ) ;
+    _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
     var result = await sut.GetAllAsync( 42 ) ;
@@ -726,7 +719,7 @@ public class StockTransactionServiceTests
   public async Task AdminGetByIdAsync_ReturnsTransaction_RegardlessOfMembership()
   {
     var broker = BuildBroker( 1, "VPS", [99] ) ;
-    _repository.QueryActive().Returns( new List<StockTransaction>
+    _repository.Query().Returns( new List<StockTransaction>
     {
       new()
       {
@@ -747,6 +740,7 @@ public class StockTransactionServiceTests
   public async Task AdminSoftDeleteAsync_ReversesDelta_AndSoftDeletes()
   {
     var broker = BuildBroker( 1, "VPS", [], 7 ) ;
+    var spendAccount = SetupSpendAccount( 7 ) ;
     var transaction = new StockTransaction
     {
       Id = 5,
@@ -755,7 +749,7 @@ public class StockTransactionServiceTests
       TransactionType = TransactionType.Sell,
       TotalAmount = 750_000L
     } ;
-    _repository.QueryActive().Returns( new List<StockTransaction>
+    _repository.Query().Returns( new List<StockTransaction>
     {
       transaction
     }.BuildMock() ) ;
@@ -763,7 +757,7 @@ public class StockTransactionServiceTests
 
     await sut.SoftDeleteAsync( 5 ) ;
 
-    _appliedDeltas[ 7 ].Should().Be( -750_000L ) ;
+    spendAccount.Balance.Should().Be( -750_000L ) ;
     _repository.Received( 1 ).SoftDelete( transaction ) ;
     await _repository.Received( 1 ).SaveAsync() ;
   }
@@ -771,12 +765,149 @@ public class StockTransactionServiceTests
   [Fact]
   public async Task AdminSoftDeleteAsync_ThrowsKeyNotFound_WhenMissing()
   {
-    _repository.QueryActive().Returns( new List<StockTransaction>().BuildMock() ) ;
+    _repository.Query().Returns( new List<StockTransaction>().BuildMock() ) ;
     var sut = CreateSut() ;
 
     var act = async () => await sut.SoftDeleteAsync( 99 ) ;
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
     _repository.DidNotReceive().SoftDelete( Arg.Any<StockTransaction>() ) ;
+  }
+
+  [Fact]
+  public async Task CreateAsync_ThrowsConflict_WhenBalanceConcurrentlyModified()
+  {
+    SetupBroker( "VPS", 1L, [42], 7 ) ;
+    SetupSpendAccount( 7 ) ;
+    _repository.SaveAsync().Returns( Task.FromException( new DbUpdateConcurrencyException() ) ) ;
+    var sut = CreateSut() ;
+    var transaction = new StockTransaction
+    {
+      Symbol = "VNM",
+      TransactionType = TransactionType.Buy,
+      TotalAmount = 1_000_000L,
+      BrokerAccountId = 1
+    } ;
+
+    var act = async () => await sut.CreateAsync( transaction, 42 ) ;
+
+    await act.Should().ThrowAsync<ConflictException>() ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_ThrowsConflict_WhenBalanceConcurrentlyModified()
+  {
+    SetupBroker( "VPS", 1L, [42], 7 ) ;
+    SetupSpendAccount( 7 ) ;
+    var original = new StockTransaction
+    {
+      Id = 5,
+      BrokerAccountId = 1,
+      BrokerAccount = BuildBroker( 1, "VPS", [42], 7 ),
+      TransactionType = TransactionType.Buy,
+      TotalAmount = 1_000_000L
+    } ;
+    _repository.Query().Returns( new List<StockTransaction>
+    {
+      original
+    }.BuildMock() ) ;
+    _repository.SaveAsync().Returns( Task.FromException( new DbUpdateConcurrencyException() ) ) ;
+    var sut = CreateSut() ;
+    var updated = new StockTransaction
+    {
+      Id = 5,
+      BrokerAccountId = 1,
+      TransactionType = TransactionType.Buy,
+      TotalAmount = 1_500_000L
+    } ;
+
+    var act = async () => await sut.UpdateAsync( updated, 42 ) ;
+
+    await act.Should().ThrowAsync<ConflictException>() ;
+  }
+
+  [Fact]
+  public async Task SoftDeleteAsync_ThrowsConflict_WhenBalanceConcurrentlyModified()
+  {
+    var broker = BuildBroker( 1, "VPS", [42], 7 ) ;
+    _brokerRepository.Query().Returns( new List<BrokerAccount>
+    {
+      broker
+    }.BuildMock() ) ;
+    SetupSpendAccount( 7 ) ;
+    var transaction = new StockTransaction
+    {
+      Id = 5,
+      BrokerAccountId = 1,
+      BrokerAccount = broker,
+      TransactionType = TransactionType.Buy,
+      TotalAmount = 1_000_000L
+    } ;
+    _repository.Query().Returns( new List<StockTransaction>
+    {
+      transaction
+    }.BuildMock() ) ;
+    _repository.SaveAsync().Returns( Task.FromException( new DbUpdateConcurrencyException() ) ) ;
+    var sut = CreateSut() ;
+
+    var act = async () => await sut.SoftDeleteAsync( 5, 42 ) ;
+
+    await act.Should().ThrowAsync<ConflictException>() ;
+  }
+
+  [Fact]
+  public async Task AdminSoftDeleteAsync_ThrowsConflict_WhenBalanceConcurrentlyModified()
+  {
+    var broker = BuildBroker( 1, "VPS", [], 7 ) ;
+    SetupSpendAccount( 7 ) ;
+    var transaction = new StockTransaction
+    {
+      Id = 5,
+      BrokerAccountId = 1,
+      BrokerAccount = broker,
+      TransactionType = TransactionType.Sell,
+      TotalAmount = 750_000L
+    } ;
+    _repository.Query().Returns( new List<StockTransaction>
+    {
+      transaction
+    }.BuildMock() ) ;
+    _repository.SaveAsync().Returns( Task.FromException( new DbUpdateConcurrencyException() ) ) ;
+    var sut = CreateSut() ;
+
+    var act = async () => await sut.SoftDeleteAsync( 5 ) ;
+
+    await act.Should().ThrowAsync<ConflictException>() ;
+  }
+
+  [Fact]
+  public async Task AdminGetAllAsync_WithSymbolFilter_FiltersSymbol()
+  {
+    var broker = BuildBroker( 1, "VPS", [42] ) ;
+    List<StockTransaction> transactions =
+    [
+      new()
+      {
+        Id = 1,
+        Symbol = "VNM",
+        BrokerAccountId = 1,
+        BrokerAccount = broker,
+        TransactionDate = DateTime.UtcNow
+      },
+      new()
+      {
+        Id = 2,
+        Symbol = "AAPL",
+        BrokerAccountId = 1,
+        BrokerAccount = broker,
+        TransactionDate = DateTime.UtcNow
+      }
+    ] ;
+    _repository.Query().Returns( transactions.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetAllAsync( symbol: "vnm" ) ;
+
+    result.Should().ContainSingle().Which.Symbol.Should().Be( "VNM" ) ;
   }
 }

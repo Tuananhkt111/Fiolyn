@@ -1,7 +1,9 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
+using Fiolyn.Infrastructure.Exceptions ;
 using Fiolyn.Services.Internal.Interfaces ;
 using Microsoft.EntityFrameworkCore ;
+using Npgsql ;
 
 namespace Fiolyn.Services.Internal ;
 
@@ -14,18 +16,18 @@ public class AllowedEmailService(
 {
   /// <inheritdoc />
   public async Task<List<AllowedEmail>> GetAllAsync() =>
-    await repository.QueryActive().AsNoTracking().OrderBy( a => a.Email ).ToListAsync() ;
+    await repository.Query().AsNoTracking().OrderBy( a => a.Email ).ToListAsync() ;
 
   /// <inheritdoc />
   public async Task<AllowedEmail> CreateAsync( string email, string? note, long? invitedByUserId )
   {
     var normalizedEmail = AppUser.NormalizeEmail( email ) ;
 
-    var existing = await repository.QueryActive()
+    var existing = await repository.Query()
       .FirstOrDefaultAsync( a => a.Email == normalizedEmail ) ;
     if ( existing is not null )
     {
-      throw new InvalidOperationException( $"Email {normalizedEmail} is already whitelisted." ) ;
+      throw new ConflictException( $"Email {normalizedEmail} is already whitelisted." ) ;
     }
 
     var entry = new AllowedEmail
@@ -36,7 +38,16 @@ public class AllowedEmailService(
     } ;
 
     await repository.AddAsync( entry ) ;
-    await repository.SaveAsync() ;
+    try
+    {
+      await repository.SaveAsync() ;
+    }
+    catch ( DbUpdateException ex )
+      when ( ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } )
+    {
+      throw new ConflictException( $"Email {normalizedEmail} is already whitelisted." ) ;
+    }
+
     logger.LogInformation( "Email {Email} whitelisted by user {InvitedByUserId}",
       normalizedEmail, invitedByUserId ) ;
     return entry ;
@@ -45,7 +56,7 @@ public class AllowedEmailService(
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id )
   {
-    var entry = await repository.GetActiveByIdOrThrowAsync( id ) ;
+    var entry = await repository.GetByIdOrThrowAsync( id ) ;
     repository.SoftDelete( entry ) ;
     await repository.SaveAsync() ;
     logger.LogInformation( "Whitelist entry {Id} ({Email}) removed", id, entry.Email ) ;

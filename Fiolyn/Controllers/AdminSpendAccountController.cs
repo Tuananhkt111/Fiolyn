@@ -64,10 +64,11 @@ public class AdminSpendAccountController(
   }
 
   /// <summary>
-  ///   Updates any spend account (Name, Type, Balance).
+  ///   Updates any spend account's name and type. Balance is intentionally not updatable here —
+  ///   use POST /balance-adjustments so the change goes through the atomic SQL balance path.
   /// </summary>
   [HttpPut( "{id:long}" )]
-  public async Task<IActionResult> UpdateAsync( long id, [FromBody] SpendAccountRequest request )
+  public async Task<IActionResult> UpdateAsync( long id, [FromBody] SpendAccountUpdateRequest request )
   {
     var existing = await spendAccountService.GetByIdAsync( id ) ;
     if ( existing is null )
@@ -77,10 +78,21 @@ public class AdminSpendAccountController(
 
     existing.Name = request.Name ;
     existing.Type = request.Type ;
-    existing.Balance = request.Balance ;
 
     await spendAccountService.UpdateAsync( existing ) ;
     return Ok( new AdminSpendAccountResponse( existing ) ) ;
+  }
+
+  /// <summary>
+  ///   Atomically adjusts any spend account's balance by a signed delta.
+  /// </summary>
+  [HttpPost( "{id:long}/balance-adjustments" )]
+  public async Task<IActionResult> AdjustBalanceAsync(
+    long id,
+    [FromBody] SpendAccountBalanceAdjustmentRequest request )
+  {
+    var newBalance = await spendAccountService.AdjustBalanceAsync( id, request.Delta ) ;
+    return Ok( new SpendAccountBalanceResponse( id, newBalance ) ) ;
   }
 
   /// <summary>

@@ -2,6 +2,7 @@ using System.Text.RegularExpressions ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
+using Fiolyn.Infrastructure.Exceptions ;
 using Fiolyn.Services.Internal.Interfaces ;
 using Fiolyn.Utils ;
 using Microsoft.EntityFrameworkCore ;
@@ -14,18 +15,15 @@ namespace Fiolyn.Services.Internal ;
 ///   member → 404 (via <see cref="KeyNotFoundException" />).
 ///   Every persisted transaction adjusts the broker's linked <see cref="SpendAccount" />.<c>Balance</c>:
 ///   Buy → <c>-TotalAmount</c>; Sell, Dividend → <c>+TotalAmount</c>. Updates reverse the old delta and
-///   apply the new; soft-deletes reverse. Balance writes go through
-///   <see cref="ISpendAccountBalanceWriter" /> (atomic SQL <c>Balance = Balance + @delta</c> via
-///   <c>ExecuteUpdate</c>, so two concurrent writers cannot lose an update). Atomicity across the
-///   balance write and the transaction insert/update is enforced by wrapping both in
-///   <see cref="IUnitOfWork.ExecuteInTransactionAsync" /> — the writer's <c>ExecuteUpdate</c> runs
-///   outside <c>SaveChanges</c>, so the wrapping transaction is required.
+///   apply the new; soft-deletes reverse. Balance mutations go through EF change tracking with
+///   <c>[ConcurrencyCheck]</c> on <c>Balance</c> — concurrent writers race for the row and the loser
+///   gets a 409 <see cref="ConflictException" />. Both the balance change and the transaction write land
+///   in one <c>SaveChanges</c> call, so they are implicitly atomic.
 /// </summary>
 public partial class StockTransactionService(
   IRepository<StockTransaction> stockTransactionRepository,
   IRepository<BrokerAccount> brokerRepository,
-  ISpendAccountBalanceWriter spendBalanceWriter,
-  IUnitOfWork unitOfWork,
+  IRepository<SpendAccount> spendRepository,
   ILogger<StockTransactionService> logger ) : IStockTransactionService
 {
   /// <inheritdoc />
@@ -58,22 +56,18 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task<StockTransaction> CreateAsync( StockTransaction transaction, long userId )
   {
-    var spendId = await brokerRepository.QueryActive()
+    var spendId = await brokerRepository.Query()
                     .Where( b => b.Id == transaction.BrokerAccountId
-                                 && b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) )
+                                 && b.Members.Any( m => m.AppUserId == userId ) )
                     .Select( b => ( long? )b.SpendAccountId )
                     .FirstOrDefaultAsync()
                   ?? throw new KeyNotFoundException(
                     $"BrokerAccount {transaction.BrokerAccountId} not found for user {userId}." ) ;
 
-    var delta = ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
-
-    await unitOfWork.ExecuteInTransactionAsync( async () =>
-    {
-      await spendBalanceWriter.ApplyDeltaAsync( spendId, delta ) ;
-      await stockTransactionRepository.AddAsync( transaction ) ;
-      await stockTransactionRepository.SaveAsync() ;
-    } ) ;
+    var spendAccount = await spendRepository.GetByIdOrThrowAsync( spendId ) ;
+    spendAccount.Balance += ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
+    await stockTransactionRepository.AddAsync( transaction ) ;
+    await SaveWithConcurrencyGuardAsync( spendId ) ;
 
     return transaction ;
   }
@@ -81,8 +75,8 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task<List<StockTransaction>> GetAllForUserAsync( long userId, string? symbol = null )
   {
-    var query = stockTransactionRepository.QueryActive()
-      .Where( t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
+    var query = stockTransactionRepository.Query()
+      .Where( t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId ) ) ;
 
     if ( ! string.IsNullOrWhiteSpace( symbol ) )
     {
@@ -97,17 +91,17 @@ public partial class StockTransactionService(
 
   /// <inheritdoc />
   public async Task<bool> ExistsForUserAsync( long id, long userId ) =>
-    await stockTransactionRepository.QueryActive()
+    await stockTransactionRepository.Query()
       .AnyAsync( t => t.Id == id
-                      && t.BrokerAccount.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
+                      && t.BrokerAccount.Members.Any( m => m.AppUserId == userId ) ) ;
 
   /// <inheritdoc />
   public async Task<StockTransaction?> GetByIdForUserAsync( long id, long userId ) =>
-    await stockTransactionRepository.QueryActive()
+    await stockTransactionRepository.Query()
       .Include( t => t.BrokerAccount )
       .FirstOrDefaultAsync( t => t.Id == id
                                  && t.BrokerAccount.Members.Any( m =>
-                                   m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
+                                   m.AppUserId == userId ) ) ;
 
   /// <inheritdoc />
   public async Task UpdateAsync( StockTransaction transaction, long userId )
@@ -115,7 +109,7 @@ public partial class StockTransactionService(
     // Outer null → transaction missing; NewSpendAccountId null → caller not a member of the new
     // broker. Both surface as 404.
     var newBrokerId = transaction.BrokerAccountId ;
-    var fetched = await stockTransactionRepository.QueryActive()
+    var fetched = await stockTransactionRepository.Query()
       .AsNoTracking()
       .Where( t => t.Id == transaction.Id )
       .Select( t => new
@@ -124,9 +118,9 @@ public partial class StockTransactionService(
         t.TotalAmount,
         t.BrokerAccountId,
         OldSpendAccountId = t.BrokerAccount.SpendAccountId,
-        NewSpendAccountId = brokerRepository.QueryActive()
+        NewSpendAccountId = brokerRepository.Query()
           .Where( b => b.Id == newBrokerId
-                       && b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) )
+                       && b.Members.Any( m => m.AppUserId == userId ) )
           .Select( b => ( long? )b.SpendAccountId )
           .FirstOrDefault()
       } )
@@ -145,21 +139,24 @@ public partial class StockTransactionService(
     var newDelta = ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
     var oldSpendId = fetched.OldSpendAccountId ;
 
-    await unitOfWork.ExecuteInTransactionAsync( async () =>
+    if ( oldSpendId == newSpendId )
     {
-      if ( oldSpendId == newSpendId )
+      var netDelta = newDelta - oldDelta ;
+      if ( netDelta != 0L )
       {
-        await spendBalanceWriter.ApplyDeltaAsync( newSpendId, newDelta - oldDelta ) ;
+        var spendAccount = await spendRepository.GetByIdOrThrowAsync( oldSpendId ) ;
+        spendAccount.Balance += netDelta ;
       }
-      else
-      {
-        await spendBalanceWriter.ApplyDeltaAsync( oldSpendId, -oldDelta ) ;
-        await spendBalanceWriter.ApplyDeltaAsync( newSpendId, newDelta ) ;
-      }
+    }
+    else
+    {
+      var oldSpend = await spendRepository.GetByIdOrThrowAsync( oldSpendId ) ;
+      oldSpend.Balance -= oldDelta ;
+      var newSpend = await spendRepository.GetByIdOrThrowAsync( newSpendId ) ;
+      newSpend.Balance += newDelta ;
+    }
 
-      stockTransactionRepository.Update( transaction ) ;
-      await stockTransactionRepository.SaveAsync() ;
-    } ) ;
+    await SaveWithConcurrencyGuardAsync( newSpendId ) ;
   }
 
   /// <inheritdoc />
@@ -174,12 +171,12 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task<List<StockTransaction>> GetAllAsync( long? userId = null, string? symbol = null )
   {
-    var query = stockTransactionRepository.QueryActive() ;
+    var query = stockTransactionRepository.Query() ;
 
     if ( userId is not null )
     {
       query =
-        query.Where( t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId.Value && ! m.AppUser.IsDeleted ) ) ;
+        query.Where( t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId.Value ) ) ;
     }
 
     if ( ! string.IsNullOrWhiteSpace( symbol ) )
@@ -195,7 +192,7 @@ public partial class StockTransactionService(
 
   /// <inheritdoc />
   public async Task<StockTransaction?> GetByIdAsync( long id ) =>
-    await stockTransactionRepository.QueryActive()
+    await stockTransactionRepository.Query()
       .Include( t => t.BrokerAccount )
       .FirstOrDefaultAsync( t => t.Id == id ) ;
 
@@ -209,13 +206,24 @@ public partial class StockTransactionService(
 
   private async Task SoftDeleteAndReverseAsync( StockTransaction transaction )
   {
-    var reversal = -ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
-    await unitOfWork.ExecuteInTransactionAsync( async () =>
+    var spendId = transaction.BrokerAccount.SpendAccountId ;
+    var spendAccount = await spendRepository.GetByIdOrThrowAsync( spendId ) ;
+    spendAccount.Balance -= ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
+    stockTransactionRepository.SoftDelete( transaction ) ;
+    await SaveWithConcurrencyGuardAsync( spendId ) ;
+  }
+
+  private async Task SaveWithConcurrencyGuardAsync( long spendAccountId )
+  {
+    try
     {
-      await spendBalanceWriter.ApplyDeltaAsync( transaction.BrokerAccount.SpendAccountId, reversal ) ;
-      stockTransactionRepository.SoftDelete( transaction ) ;
       await stockTransactionRepository.SaveAsync() ;
-    } ) ;
+    }
+    catch ( DbUpdateConcurrencyException )
+    {
+      throw new ConflictException(
+        $"SpendAccount {spendAccountId} balance was modified concurrently — retry the operation." ) ;
+    }
   }
 
   private static long ComputeBalanceDelta( TransactionType type, long totalAmount ) =>
@@ -311,7 +319,7 @@ public partial class StockTransactionService(
   private async Task<long?> ResolveBrokerAsync( string brokerName )
   {
     var lowered = brokerName.ToLowerInvariant() ;
-    var broker = await brokerRepository.QueryActive()
+    var broker = await brokerRepository.Query()
       .FirstOrDefaultAsync( b => b.Name.ToLower() == lowered ) ;
     return broker?.Id ;
   }

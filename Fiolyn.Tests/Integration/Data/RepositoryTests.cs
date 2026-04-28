@@ -14,7 +14,7 @@ public class RepositoryTests : IDisposable
   private Repository<TestEntity> CreateRepository() => new(_dbContext) ;
 
   [Fact]
-  public async Task QueryActive_ExcludesSoftDeletedEntities()
+  public async Task Query_ExcludesSoftDeletedEntities()
   {
     var repo = CreateRepository() ;
     await repo.AddAsync( new TestEntity
@@ -30,29 +30,10 @@ public class RepositoryTests : IDisposable
     repo.SoftDelete( ( await repo.GetByIdAsync( 2L ) )! ) ;
     await repo.SaveAsync() ;
 
-    var result = await repo.QueryActive().ToListAsync() ;
+    var result = await repo.Query().ToListAsync() ;
 
     result.Should().ContainSingle( e => e.Id == 1L ) ;
     result.Should().NotContain( e => e.Id == 2L ) ;
-  }
-
-  [Fact]
-  public async Task QueryActive_ReturnsAllWhenNoneDeleted()
-  {
-    var repo = CreateRepository() ;
-    await repo.AddAsync( new TestEntity
-    {
-      Id = 10L
-    } ) ;
-    await repo.AddAsync( new TestEntity
-    {
-      Id = 11L
-    } ) ;
-    await repo.SaveAsync() ;
-
-    var result = await repo.QueryActive().ToListAsync() ;
-
-    result.Should().HaveCount( 2 ) ;
   }
 
   [Fact]
@@ -112,40 +93,9 @@ public class RepositoryTests : IDisposable
   }
 
   [Fact]
-  public async Task GetByIdAsync_ReturnsCorrectEntity()
+  public async Task GetByIdAsync_ReturnsSoftDeletedEntity()
   {
-    var repo = CreateRepository() ;
-    await repo.AddAsync( new TestEntity
-    {
-      Id = 50L
-    } ) ;
-    await repo.SaveAsync() ;
-
-    var result = await repo.GetByIdAsync( 50L ) ;
-
-    result.Should().NotBeNull() ;
-    result!.Id.Should().Be( 50L ) ;
-  }
-
-  [Fact]
-  public async Task GetActiveByIdAsync_ReturnsActiveEntity()
-  {
-    var repo = CreateRepository() ;
-    await repo.AddAsync( new TestEntity
-    {
-      Id = 60L
-    } ) ;
-    await repo.SaveAsync() ;
-
-    var result = await repo.GetActiveByIdAsync( 60L ) ;
-
-    result.Should().NotBeNull() ;
-    result!.Id.Should().Be( 60L ) ;
-  }
-
-  [Fact]
-  public async Task GetActiveByIdAsync_ReturnsNullForSoftDeletedEntity()
-  {
+    // FindAsync bypasses query filters by design — only GetByIdOrThrowAsync enforces "active".
     var repo = CreateRepository() ;
     var entity = new TestEntity
     {
@@ -157,18 +107,61 @@ public class RepositoryTests : IDisposable
     repo.SoftDelete( entity ) ;
     await repo.SaveAsync() ;
 
-    var result = await repo.GetActiveByIdAsync( 70L ) ;
+    var result = await repo.GetByIdAsync( 70L ) ;
+
+    result.Should().NotBeNull() ;
+    result!.IsDeleted.Should().BeTrue() ;
+  }
+
+  [Fact]
+  public async Task GetByIdAsync_ReturnsNullForNonExistentEntity()
+  {
+    var repo = CreateRepository() ;
+
+    var result = await repo.GetByIdAsync( 999L ) ;
 
     result.Should().BeNull() ;
   }
 
   [Fact]
-  public async Task GetActiveByIdAsync_ReturnsNullForNonExistentEntity()
+  public async Task GetByIdOrThrowAsync_ReturnsActiveEntity()
+  {
+    var repo = CreateRepository() ;
+    await repo.AddAsync( new TestEntity
+    {
+      Id = 80L
+    } ) ;
+    await repo.SaveAsync() ;
+
+    var result = await repo.GetByIdOrThrowAsync( 80L ) ;
+
+    result.Id.Should().Be( 80L ) ;
+  }
+
+  [Fact]
+  public async Task GetByIdOrThrowAsync_ThrowsForSoftDeletedEntity()
+  {
+    var repo = CreateRepository() ;
+    var entity = new TestEntity
+    {
+      Id = 81L
+    } ;
+    await repo.AddAsync( entity ) ;
+    await repo.SaveAsync() ;
+
+    repo.SoftDelete( entity ) ;
+    await repo.SaveAsync() ;
+
+    var act = async () => await repo.GetByIdOrThrowAsync( 81L ) ;
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+  }
+
+  [Fact]
+  public async Task GetByIdOrThrowAsync_ThrowsForNonExistentEntity()
   {
     var repo = CreateRepository() ;
 
-    var result = await repo.GetActiveByIdAsync( 999L ) ;
-
-    result.Should().BeNull() ;
+    var act = async () => await repo.GetByIdOrThrowAsync( 999L ) ;
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
   }
 }

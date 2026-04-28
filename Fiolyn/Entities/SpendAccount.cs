@@ -34,6 +34,7 @@ public class SpendAccount : IAuditable, ISoftDelete
   ///   Gets or sets the current balance in whole VND. Signed — may be negative for credit accounts.
   /// </summary>
   [Required]
+  [ConcurrencyCheck]
   public long Balance { get ; set ; }
 
   /// <summary>

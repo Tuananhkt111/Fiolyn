@@ -43,8 +43,12 @@ public class RefreshToken : IAuditable
 
   /// <summary>
   ///   Gets or sets the UTC timestamp when this token was revoked (logout, rotation, or reuse).
-  ///   Null while the token is still valid.
+  ///   Null while the token is still valid. Marked as a concurrency token so two concurrent
+  ///   rotations of the same refresh token race for one — the loser sees
+  ///   <see cref="Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException" /> at SaveChanges
+  ///   and the new token it staged is rolled back atomically.
   /// </summary>
+  [ConcurrencyCheck]
   public DateTime? RevokedAt { get ; set ; }
 
   /// <summary>

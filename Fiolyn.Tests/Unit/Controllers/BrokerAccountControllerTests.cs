@@ -157,21 +157,38 @@ public class BrokerAccountControllerTests
     var result = await sut.UpdateAsync( 99, new BrokerAccountRequest( "X", 1 ) ) ;
 
     result.Should().BeOfType<NotFoundResult>() ;
-    await _service.DidNotReceive().UpdateAsync( Arg.Any<BrokerAccount>(), Arg.Any<long>() ) ;
+    await _service.DidNotReceive()
+      .UpdateAsync( Arg.Any<BrokerAccount>(), Arg.Any<long>(), Arg.Any<long>() ) ;
   }
 
   [Fact]
-  public async Task UpdateAsync_Existing_AppliesChangesAndReturns200()
+  public async Task UpdateAsync_RenameOnly_SkipsRefetch()
   {
-    var existing = BuildEntity() ;
+    var existing = BuildEntity( 10, "Old", 7 ) ;
     _service.GetByIdForUserAsync( 10, 7 ).Returns( existing ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "Renamed", 9 ) ) ;
+    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "Renamed", 7 ) ) ;
 
     existing.Name.Should().Be( "Renamed" ) ;
+    existing.SpendAccountId.Should().Be( 7 ) ;
+    await _service.Received( 1 ).UpdateAsync( existing, oldSpendAccountId: 7L, callerUserId: 7L ) ;
+    await _service.Received( 1 ).GetByIdForUserAsync( 10, 7 ) ;
+    result.Should().BeOfType<OkObjectResult>() ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_SpendAccountIdChanged_RefetchesForFreshNav()
+  {
+    var existing = BuildEntity( 10, "VPS", 7 ) ;
+    _service.GetByIdForUserAsync( 10, 7 ).Returns( existing ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "VPS", 9 ) ) ;
+
     existing.SpendAccountId.Should().Be( 9 ) ;
-    await _service.Received( 1 ).UpdateAsync( existing, 7 ) ;
+    await _service.Received( 1 ).UpdateAsync( existing, oldSpendAccountId: 7L, callerUserId: 7L ) ;
+    await _service.Received( 2 ).GetByIdForUserAsync( 10, 7 ) ;
     result.Should().BeOfType<OkObjectResult>() ;
   }
 

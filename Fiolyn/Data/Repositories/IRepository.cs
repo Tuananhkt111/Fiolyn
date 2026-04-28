@@ -7,39 +7,29 @@ namespace Fiolyn.Data.Repositories ;
 public interface IRepository<T> where T : class
 {
   /// <summary>
-  ///   Gets a queryable collection of all entities (including soft-deleted).
+  ///   Gets a queryable collection of entities. Global query filters apply, so soft-deleted
+  ///   rows are excluded for entities registered with <c>HasQueryFilter</c> in
+  ///   <see cref="AppDbContext.OnModelCreating" />. Chain <c>.IgnoreQueryFilters()</c> to
+  ///   include them.
   /// </summary>
-  /// <returns>An IQueryable of all entities for composing queries.</returns>
+  /// <returns>An IQueryable of entities for composing queries.</returns>
   IQueryable<T> Query() ;
 
   /// <summary>
-  ///   Gets a queryable collection of non-deleted entities.
-  ///   For entities that don't implement ISoftDelete, returns all entities.
-  /// </summary>
-  /// <returns>An IQueryable of non-deleted entities.</returns>
-  IQueryable<T> QueryActive() ;
-
-  /// <summary>
-  ///   Gets an entity by its primary key.
+  ///   Gets an entity by its primary key via <c>FindAsync</c>. Note that <c>FindAsync</c>
+  ///   bypasses global query filters, so soft-deleted rows are returned as-is. Prefer
+  ///   <see cref="GetByIdOrThrowAsync" /> when "must be active" is part of the contract.
   /// </summary>
   /// <param name="id">The primary key value.</param>
   /// <returns>The entity if found; otherwise null.</returns>
   Task<T?> GetByIdAsync( object id ) ;
 
   /// <summary>
-  ///   Gets a non-deleted entity by its primary key.
-  ///   Returns null if the entity is not found or has been soft-deleted.
+  ///   Gets an active entity by its primary key, or throws <see cref="KeyNotFoundException" />
+  ///   (→ HTTP 404 via <c>GlobalExceptionHandler</c>) if not found or soft-deleted.
   /// </summary>
   /// <param name="id">The primary key value.</param>
-  /// <returns>The entity if found and active; otherwise null.</returns>
-  Task<T?> GetActiveByIdAsync( object id ) ;
-
-  /// <summary>
-  ///   Gets a non-deleted entity by its primary key, or throws
-  ///   <see cref="KeyNotFoundException" /> (→ HTTP 404) if not found or soft-deleted.
-  /// </summary>
-  /// <param name="id">The primary key value.</param>
-  Task<T> GetActiveByIdOrThrowAsync( object id ) ;
+  Task<T> GetByIdOrThrowAsync( object id ) ;
 
   /// <summary>
   ///   Adds a new entity to the database.

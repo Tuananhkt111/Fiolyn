@@ -168,7 +168,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
-  public async Task UpdateAsync_Existing_AppliesChangesAndReturns200()
+  public async Task UpdateAsync_BrokerUnchanged_SkipsRefetch()
   {
     var existing = BuildEntity() ;
     existing.Quantity = 50L ;
@@ -180,6 +180,23 @@ public class StockTransactionControllerTests
     existing.Quantity.Should().Be( 100L ) ;
     result.Should().BeOfType<OkObjectResult>() ;
     await _service.Received( 1 ).UpdateAsync( existing, 42 ) ;
+    await _service.Received( 1 ).GetByIdForUserAsync( 10, 42 ) ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_BrokerChanged_RefetchesForFreshNav()
+  {
+    var existing = BuildEntity() ;
+    existing.BrokerAccountId = 5 ;
+    _service.GetByIdForUserAsync( 10, 42 ).Returns( existing ) ;
+    var sut = CreateSut( 42 ) ;
+
+    var result = await sut.UpdateAsync( 10, BuildRequest() ) ;
+
+    existing.BrokerAccountId.Should().Be( 3 ) ;
+    result.Should().BeOfType<OkObjectResult>() ;
+    await _service.Received( 1 ).UpdateAsync( existing, 42 ) ;
+    await _service.Received( 2 ).GetByIdForUserAsync( 10, 42 ) ;
   }
 
   [Fact]

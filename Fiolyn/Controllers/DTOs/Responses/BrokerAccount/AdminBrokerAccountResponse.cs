@@ -19,7 +19,6 @@ public record AdminBrokerAccountResponse(
       b.SpendAccountId,
       b.SpendAccount.Name,
       b.Members
-        .Where( m => ! m.AppUser.IsDeleted )
         .OrderBy( m => m.JoinedAt )
         .Select( m => new BrokerAccountMemberResponse( m ) )
         .ToList(),

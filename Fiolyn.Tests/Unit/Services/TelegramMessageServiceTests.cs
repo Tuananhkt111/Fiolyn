@@ -36,13 +36,13 @@ public class TelegramMessageServiceTests
         IsDeleted = false
       }
     ] ;
-    _userRepository.QueryActive().Returns( users.BuildMock() ) ;
+    _userRepository.Query().Returns( users.BuildMock() ) ;
   }
 
   private void SetupNoAllowedUsers()
   {
     List<AppUser> users = [] ;
-    _userRepository.QueryActive().Returns( users.BuildMock() ) ;
+    _userRepository.Query().Returns( users.BuildMock() ) ;
   }
 
   [Fact]

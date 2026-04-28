@@ -25,14 +25,14 @@ public class AuthService(
     var payload = await googleVerifier.VerifyAsync( idToken ) ;
     var normalizedEmail = AppUser.NormalizeEmail( payload.Email ) ;
 
-    var whitelisted = await allowedEmailRepository.QueryActive()
+    var whitelisted = await allowedEmailRepository.Query()
       .AnyAsync( a => a.Email == normalizedEmail ) ;
     if ( ! whitelisted )
     {
       throw new ForbiddenAccessException( "This email is not authorized to sign in." ) ;
     }
 
-    var user = await userRepository.QueryActive()
+    var user = await userRepository.Query()
       .FirstOrDefaultAsync( u => u.GoogleSub == payload.Sub || u.Email == normalizedEmail ) ;
 
     if ( user is null )
@@ -102,7 +102,15 @@ public class AuthService(
     stored.RevokedAt = DateTime.UtcNow ;
     stored.ReplacedByTokenHash = jwtService.HashRefreshToken( newPair.RefreshToken ) ;
     refreshTokenRepository.Update( stored ) ;
-    await refreshTokenRepository.SaveAsync() ; // one flush: INSERT new token + UPDATE old token in one transaction
+    try
+    {
+      await refreshTokenRepository.SaveAsync() ;
+    }
+    catch ( DbUpdateConcurrencyException )
+    {
+      logger.LogWarning( "Concurrent refresh-token rotation race lost for user {UserId}", stored.UserId ) ;
+      throw new UnauthorizedAccessException() ;
+    }
 
     return newPair ;
   }
@@ -133,8 +141,6 @@ public class AuthService(
     }
   }
 
-  // Stages the new RefreshToken via AddAsync; persistence is the caller's responsibility
-  // so login and refresh can flush all tracked changes in a single transaction.
   private async Task<AuthResponse> IssueTokensAsync( AppUser user )
   {
     var access = jwtService.CreateAccessToken( user ) ;
@@ -152,20 +158,9 @@ public class AuthService(
 
   private async Task RevokeAllActiveTokensAsync( long userId )
   {
-    var active = await refreshTokenRepository.Query()
-      .Where( r => r.UserId == userId && r.RevokedAt == null )
-      .ToListAsync() ;
-
     var now = DateTime.UtcNow ;
-    foreach ( var token in active )
-    {
-      token.RevokedAt = now ;
-    }
-
-    if ( active.Count > 0 )
-    {
-      refreshTokenRepository.UpdateRange( active ) ;
-      await refreshTokenRepository.SaveAsync() ;
-    }
+    await refreshTokenRepository.Query()
+      .Where( r => r.UserId == userId && r.RevokedAt == null )
+      .ExecuteUpdateAsync( setters => setters.SetProperty( r => r.RevokedAt, _ => now ) ) ;
   }
 }

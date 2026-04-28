@@ -35,41 +35,34 @@ public class BrokerAccountService(
 
   /// <inheritdoc />
   public async Task<List<BrokerAccount>> GetAllForUserAsync( long userId ) =>
-    await repository.QueryActive()
+    await repository.Query()
       .AsNoTracking()
       .Include( b => b.SpendAccount )
-      .Where( b => b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) )
+      .Where( b => b.Members.Any( m => m.AppUserId == userId ) )
       .OrderBy( b => b.Name )
       .ToListAsync() ;
 
   /// <inheritdoc />
   public async Task<BrokerAccount?> GetByIdForUserAsync( long id, long userId ) =>
-    await repository.QueryActive()
+    await repository.Query()
       .Include( b => b.SpendAccount )
       .FirstOrDefaultAsync( b => b.Id == id
-                                 && b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
+                                 && b.Members.Any( m => m.AppUserId == userId ) ) ;
 
   /// <inheritdoc />
   public async Task<bool> ExistsForUserAsync( long id, long userId ) =>
-    await repository.QueryActive()
+    await repository.Query()
       .AnyAsync( b => b.Id == id
-                      && b.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
+                      && b.Members.Any( m => m.AppUserId == userId ) ) ;
 
   /// <inheritdoc />
-  public async Task UpdateAsync( BrokerAccount account, long callerUserId )
+  public async Task UpdateAsync( BrokerAccount account, long oldSpendAccountId, long callerUserId )
   {
-    var oldSpendId = await repository.Query()
-      .AsNoTracking()
-      .Where( b => b.Id == account.Id )
-      .Select( b => ( long? )b.SpendAccountId )
-      .FirstOrDefaultAsync() ;
-
-    if ( oldSpendId != account.SpendAccountId )
+    if ( oldSpendAccountId != account.SpendAccountId )
     {
       await EnsureUserIsSpendAccountMemberAsync( account.SpendAccountId, callerUserId ) ;
     }
 
-    repository.Update( account ) ;
     await repository.SaveAsync() ;
   }
 
@@ -85,51 +78,80 @@ public class BrokerAccountService(
   /// <inheritdoc />
   public async Task<List<BrokerAccountMember>> GetMembersAsync( long accountId, long callerUserId )
   {
-    await EnsureCallerIsMemberAsync( accountId, callerUserId ) ;
-    return await LoadActiveMembersAsync( accountId ) ;
+    var members = await repository.Query()
+      .AsNoTracking()
+      .Where( b => b.Id == accountId )
+      .Select( b => b.Members
+        .OrderBy( m => m.JoinedAt )
+        .ToList() )
+      .FirstOrDefaultAsync() ;
+
+    if ( members is null || members.All( m => m.AppUserId != callerUserId ) )
+    {
+      throw new KeyNotFoundException( $"BrokerAccount {accountId} not found for user {callerUserId}." ) ;
+    }
+
+    return members ;
   }
 
   /// <inheritdoc />
   public async Task<List<BrokerAccountMember>> AddMemberAsync( long accountId, long callerUserId, string email )
   {
-    await EnsureCallerIsMemberAsync( accountId, callerUserId ) ;
-
     var normalized = AppUser.NormalizeEmail( email ) ;
-    var target = await userRepository.QueryActive()
-                   .FirstOrDefaultAsync( u => u.Email == normalized )
-                 ?? throw new KeyNotFoundException( $"User with email {normalized} not found." ) ;
 
-    var alreadyMember = await memberRepository.Query()
-      .AnyAsync( m => m.BrokerAccountId == accountId && m.AppUserId == target.Id ) ;
+    var data = await repository.Query()
+      .Where( b => b.Id == accountId
+                   && b.Members.Any( m => m.AppUserId == callerUserId ) )
+      .Select( b => b.Members
+        .OrderBy( m => m.JoinedAt )
+        .ToList() )
+      .FirstOrDefaultAsync() ;
 
-    if ( ! alreadyMember )
+    if ( data is null )
     {
-      await memberRepository.AddAsync( new BrokerAccountMember
-      {
-        BrokerAccountId = accountId,
-        AppUserId = target.Id,
-        JoinedAt = DateTime.UtcNow
-      } ) ;
-      await memberRepository.SaveAsync() ;
+      throw new KeyNotFoundException( $"BrokerAccount {accountId} not found for user {callerUserId}." ) ;
     }
 
-    return await LoadActiveMembersAsync( accountId ) ;
+    var targetId = await userRepository.Query()
+                     .Where( u => u.Email == normalized )
+                     .Select( u => ( long? )u.Id )
+                     .FirstOrDefaultAsync()
+                   ?? throw new KeyNotFoundException( $"User with email {normalized} not found." ) ;
+
+    if ( data.Any( m => m.AppUserId == targetId ) )
+    {
+      return data ;
+    }
+
+    await memberRepository.AddAsync( new BrokerAccountMember
+    {
+      BrokerAccountId = accountId,
+      AppUserId = targetId,
+      JoinedAt = DateTime.UtcNow
+    } ) ;
+    await memberRepository.SaveAsync() ;
+
+    return await LoadMembersAsync( accountId ) ;
   }
 
   /// <inheritdoc />
   public async Task RemoveMemberAsync( long accountId, long callerUserId, long targetUserId )
   {
-    await EnsureCallerIsMemberAsync( accountId, callerUserId ) ;
+    var members = await repository.Query()
+      .Where( b => b.Id == accountId )
+      .Select( b => b.Members.ToList() )
+      .FirstOrDefaultAsync() ;
 
-    var target = await memberRepository.Query()
-                   .FirstOrDefaultAsync( m => m.BrokerAccountId == accountId && m.AppUserId == targetUserId )
+    if ( members is null || members.All( m => m.AppUserId != callerUserId ) )
+    {
+      throw new KeyNotFoundException( $"BrokerAccount {accountId} not found for user {callerUserId}." ) ;
+    }
+
+    var target = members.FirstOrDefault( m => m.AppUserId == targetUserId )
                  ?? throw new KeyNotFoundException(
                    $"User {targetUserId} is not a member of BrokerAccount {accountId}." ) ;
 
-    var memberCount = await memberRepository.Query()
-      .CountAsync( m => m.BrokerAccountId == accountId ) ;
-
-    if ( memberCount <= 1 )
+    if ( members.Count <= 1 )
     {
       throw new BadRequestException(
         "Cannot remove the last member — delete the account instead." ) ;
@@ -142,7 +164,7 @@ public class BrokerAccountService(
   /// <inheritdoc />
   public async Task<List<BrokerAccount>> GetAllAsync( long? userId = null )
   {
-    IQueryable<BrokerAccount> query = repository.QueryActive()
+    IQueryable<BrokerAccount> query = repository.Query()
       .AsNoTracking()
       .Include( b => b.SpendAccount )
       .Include( b => b.Members )
@@ -160,7 +182,7 @@ public class BrokerAccountService(
 
   /// <inheritdoc />
   public async Task<BrokerAccount?> GetByIdAsync( long id ) =>
-    await repository.QueryActive()
+    await repository.Query()
       .Include( b => b.SpendAccount )
       .Include( b => b.Members )
       .ThenInclude( m => m.AppUser )
@@ -169,7 +191,7 @@ public class BrokerAccountService(
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id )
   {
-    var account = await repository.GetActiveByIdOrThrowAsync( id ) ;
+    var account = await repository.GetByIdOrThrowAsync( id ) ;
     repository.SoftDelete( account ) ;
     await repository.SaveAsync() ;
   }
@@ -177,28 +199,15 @@ public class BrokerAccountService(
   /// <inheritdoc />
   public async Task UpdateAsync( BrokerAccount account )
   {
-    await spendRepository.GetActiveByIdOrThrowAsync( account.SpendAccountId ) ;
-    repository.Update( account ) ;
+    await spendRepository.GetByIdOrThrowAsync( account.SpendAccountId ) ;
     await repository.SaveAsync() ;
-  }
-
-  private async Task EnsureCallerIsMemberAsync( long accountId, long callerUserId )
-  {
-    var exists = await repository.QueryActive()
-      .AnyAsync( b => b.Id == accountId
-                      && b.Members.Any( m => m.AppUserId == callerUserId && ! m.AppUser.IsDeleted ) ) ;
-
-    if ( ! exists )
-    {
-      throw new KeyNotFoundException( $"BrokerAccount {accountId} not found for user {callerUserId}." ) ;
-    }
   }
 
   private async Task EnsureUserIsSpendAccountMemberAsync( long spendAccountId, long userId )
   {
-    var ok = await spendRepository.QueryActive()
+    var ok = await spendRepository.Query()
       .AnyAsync( s => s.Id == spendAccountId
-                      && s.Members.Any( m => m.AppUserId == userId && ! m.AppUser.IsDeleted ) ) ;
+                      && s.Members.Any( m => m.AppUserId == userId ) ) ;
 
     if ( ! ok )
     {
@@ -206,11 +215,11 @@ public class BrokerAccountService(
     }
   }
 
-  private async Task<List<BrokerAccountMember>> LoadActiveMembersAsync( long accountId ) =>
+  private async Task<List<BrokerAccountMember>> LoadMembersAsync( long accountId ) =>
     await memberRepository.Query()
       .AsNoTracking()
       .Include( m => m.AppUser )
-      .Where( m => m.BrokerAccountId == accountId && ! m.AppUser.IsDeleted )
+      .Where( m => m.BrokerAccountId == accountId )
       .OrderBy( m => m.JoinedAt )
       .ToListAsync() ;
 }

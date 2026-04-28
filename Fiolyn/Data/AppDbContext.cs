@@ -29,6 +29,16 @@ public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext(
       .WithMany()
       .HasForeignKey( b => b.SpendAccountId )
       .OnDelete( DeleteBehavior.Restrict ) ;
+
+    // Global soft-delete filters
+    modelBuilder.Entity<AppUser>().HasQueryFilter( e => ! e.IsDeleted ) ;
+    modelBuilder.Entity<AllowedEmail>().HasQueryFilter( e => ! e.IsDeleted ) ;
+    modelBuilder.Entity<SpendAccount>().HasQueryFilter( e => ! e.IsDeleted ) ;
+    modelBuilder.Entity<BrokerAccount>().HasQueryFilter( e => ! e.IsDeleted ) ;
+    modelBuilder.Entity<StockTransaction>().HasQueryFilter( e => ! e.IsDeleted ) ;
+    modelBuilder.Entity<BrokerAccountMember>().HasQueryFilter( m => ! m.AppUser.IsDeleted ) ;
+    modelBuilder.Entity<SpendAccountMember>().HasQueryFilter( m => ! m.AppUser.IsDeleted ) ;
+    modelBuilder.Entity<RefreshToken>().HasQueryFilter( r => ! r.User.IsDeleted ) ;
   }
 
   public override int SaveChanges()

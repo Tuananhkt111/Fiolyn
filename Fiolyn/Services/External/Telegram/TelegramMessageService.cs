@@ -34,7 +34,7 @@ public class TelegramMessageService(
 
       var fromId = from.GetProperty( "id" ).GetInt64() ;
 
-      var callerId = await userRepository.QueryActive()
+      var callerId = await userRepository.Query()
         .Where( u => u.TelegramId == fromId )
         .Select( u => ( long? )u.Id )
         .FirstOrDefaultAsync() ;

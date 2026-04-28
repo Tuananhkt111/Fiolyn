@@ -3,6 +3,7 @@ using Fiolyn.Entities ;
 using Fiolyn.Infrastructure.Exceptions ;
 using Fiolyn.Services.Internal.Interfaces ;
 using Microsoft.EntityFrameworkCore ;
+using Npgsql ;
 
 namespace Fiolyn.Services.Internal ;
 
@@ -12,11 +13,11 @@ namespace Fiolyn.Services.Internal ;
 public class UserService( IRepository<AppUser> repository, ILogger<UserService> logger ) : IUserService
 {
   /// <inheritdoc />
-  public Task<AppUser> GetByIdAsync( long id ) => repository.GetActiveByIdOrThrowAsync( id ) ;
+  public Task<AppUser> GetByIdAsync( long id ) => repository.GetByIdOrThrowAsync( id ) ;
 
   /// <inheritdoc />
   public async Task<List<AppUser>> GetAllAsync() =>
-    await repository.QueryActive().AsNoTracking().OrderBy( u => u.Email ).ToListAsync() ;
+    await repository.Query().AsNoTracking().OrderBy( u => u.Email ).ToListAsync() ;
 
   /// <inheritdoc />
   public async Task<AppUser> UpdateDisplayNameAsync( long id, string? displayName )
@@ -42,11 +43,11 @@ public class UserService( IRepository<AppUser> repository, ILogger<UserService> 
   /// <inheritdoc />
   public async Task<AppUser> UpdateTelegramIdAsync( long id, long? telegramId )
   {
-    var user = await GetByIdAsync( id ) ;
+    var user = await repository.GetByIdOrThrowAsync( id ) ;
 
     if ( telegramId is not null )
     {
-      var takenByOther = await repository.QueryActive()
+      var takenByOther = await repository.Query()
         .AnyAsync( u => u.TelegramId == telegramId && u.Id != id ) ;
       if ( takenByOther )
       {
@@ -56,7 +57,16 @@ public class UserService( IRepository<AppUser> repository, ILogger<UserService> 
 
     user.TelegramId = telegramId ;
     repository.Update( user ) ;
-    await repository.SaveAsync() ;
+    try
+    {
+      await repository.SaveAsync() ;
+    }
+    catch ( DbUpdateException ex )
+      when ( ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } )
+    {
+      throw new ConflictException( $"TelegramId {telegramId} is already linked to another user." ) ;
+    }
+
     logger.LogInformation(
       "TelegramId for user {UserId} set to {TelegramId}", id, telegramId?.ToString() ?? "null" ) ;
     return user ;

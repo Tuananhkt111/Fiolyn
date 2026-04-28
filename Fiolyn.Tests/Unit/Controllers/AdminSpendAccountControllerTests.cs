@@ -154,28 +154,43 @@ public class AdminSpendAccountControllerTests
     _service.GetByIdAsync( 99 ).Returns( ( SpendAccount? )null ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.UpdateAsync( 99, new SpendAccountRequest( "x", SpendAccountType.Cash, 0L ) ) ;
+    var result = await sut.UpdateAsync( 99, new SpendAccountUpdateRequest( "x", SpendAccountType.Cash ) ) ;
 
     result.Should().BeOfType<NotFoundResult>() ;
     await _service.DidNotReceive().UpdateAsync( Arg.Any<SpendAccount>() ) ;
   }
 
   [Fact]
-  public async Task UpdateAsync_Existing_AppliesChangesAndReturns200()
+  public async Task UpdateAsync_Existing_AppliesNameAndType_DoesNotMutateBalance_AndReturns200()
   {
-    var existing = BuildEntity( 10, [7] ) ;
+    var existing = BuildEntity( 10, [7], balance: 1_000_000L ) ;
     _service.GetByIdAsync( 10 ).Returns( existing ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 10,
-      new SpendAccountRequest( "Renamed", SpendAccountType.Credit, 7_500_000L ) ) ;
+      new SpendAccountUpdateRequest( "Renamed", SpendAccountType.Credit ) ) ;
 
     existing.Name.Should().Be( "Renamed" ) ;
     existing.Type.Should().Be( SpendAccountType.Credit ) ;
-    existing.Balance.Should().Be( 7_500_000L ) ;
+    existing.Balance.Should().Be( 1_000_000L ) ;
     await _service.Received( 1 ).UpdateAsync( existing ) ;
     result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<AdminSpendAccountResponse>() ;
+  }
+
+  [Fact]
+  public async Task AdjustBalanceAsync_PassesDelta_AndReturnsNewBalance()
+  {
+    _service.AdjustBalanceAsync( 10, -100_000L ).Returns( 900_000L ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.AdjustBalanceAsync( 10, new SpendAccountBalanceAdjustmentRequest( -100_000L ) ) ;
+
+    var body = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<SpendAccountBalanceResponse>().Which ;
+    body.Id.Should().Be( 10 ) ;
+    body.Balance.Should().Be( 900_000L ) ;
+    await _service.Received( 1 ).AdjustBalanceAsync( 10, -100_000L ) ;
   }
 
   [Fact]

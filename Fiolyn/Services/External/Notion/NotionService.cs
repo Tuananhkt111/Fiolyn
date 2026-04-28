@@ -44,7 +44,7 @@ public class NotionService(
 
     var json = JsonSerializer.Serialize( payload ) ;
     using var content = new StringContent( json, Encoding.UTF8, "application/json" ) ;
-    var response = await httpClient.PostAsync( "pages", content ) ;
+    using var response = await httpClient.PostAsync( "pages", content ) ;
 
     if ( ! response.IsSuccessStatusCode )
     {

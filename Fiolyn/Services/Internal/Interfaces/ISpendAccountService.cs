@@ -33,11 +33,36 @@ public interface ISpendAccountService
   Task<SpendAccount?> GetByIdForUserAsync( long id, long userId ) ;
 
   /// <summary>
-  ///   Updates an existing spend account. Membership is assumed to have been verified by the caller
-  ///   (typically by fetching via <see cref="GetByIdForUserAsync" /> first).
+  ///   Updates an existing spend account's <c>Name</c> and <c>Type</c>. Membership is assumed to have
+  ///   been verified by the caller (typically by fetching via <see cref="GetByIdForUserAsync" /> first).
+  ///   Does NOT persist <c>Balance</c> changes — Balance must flow through
+  ///   <see cref="AdjustBalanceForUserAsync" /> / <see cref="AdjustBalanceAsync(long, long)" /> so
+  ///   concurrent stock-transaction increments are not stomped by a stale read-modify-write.
   /// </summary>
-  /// <param name="account">The spend account with updated values.</param>
+  /// <param name="account">The tracked spend-account entity with mutated <c>Name</c>/<c>Type</c>.</param>
   Task UpdateAsync( SpendAccount account ) ;
+
+  /// <summary>
+  ///   Adds <paramref name="delta" /> to the spend account's <c>Balance</c> for a user who must be a
+  ///   member. Uses optimistic concurrency (<c>[ConcurrencyCheck]</c> on <c>Balance</c>) — concurrent
+  ///   writes on the same account surface as 409 <see cref="Fiolyn.Infrastructure.Exceptions.ConflictException" />.
+  ///   Throws <see cref="KeyNotFoundException" /> if the account is missing or caller is not a member.
+  /// </summary>
+  /// <param name="id">The spend account primary key.</param>
+  /// <param name="userId">The caller's primary key.</param>
+  /// <param name="delta">The signed amount in whole VND to add to <c>Balance</c>.</param>
+  /// <returns>The new <c>Balance</c> after the adjustment.</returns>
+  Task<long> AdjustBalanceForUserAsync( long id, long userId, long delta ) ;
+
+  /// <summary>
+  ///   (Admin) Adds <paramref name="delta" /> to the spend account's <c>Balance</c> without a
+  ///   membership check. Uses optimistic concurrency — concurrent writes surface as 409.
+  ///   Throws <see cref="KeyNotFoundException" /> if the account is missing or soft-deleted.
+  /// </summary>
+  /// <param name="id">The spend account primary key.</param>
+  /// <param name="delta">The signed amount in whole VND to add to <c>Balance</c>.</param>
+  /// <returns>The new <c>Balance</c> after the adjustment.</returns>
+  Task<long> AdjustBalanceAsync( long id, long delta ) ;
 
   /// <summary>
   ///   Soft-deletes a spend account by ID, requiring the caller to be a member.

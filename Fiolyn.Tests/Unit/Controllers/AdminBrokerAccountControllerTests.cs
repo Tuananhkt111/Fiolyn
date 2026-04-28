@@ -165,9 +165,9 @@ public class AdminBrokerAccountControllerTests
   }
 
   [Fact]
-  public async Task UpdateAsync_Existing_AppliesChangesAndReturns200()
+  public async Task UpdateAsync_RenameOnly_SkipsRefetch()
   {
-    var existing = BuildEntity( 10, [7] ) ;
+    var existing = BuildEntity( 10, [7], "Old", 9 ) ;
     _service.GetByIdAsync( 10 ).Returns( existing ) ;
     var sut = CreateSut() ;
 
@@ -176,6 +176,23 @@ public class AdminBrokerAccountControllerTests
     existing.Name.Should().Be( "Renamed" ) ;
     existing.SpendAccountId.Should().Be( 9 ) ;
     await _service.Received( 1 ).UpdateAsync( existing ) ;
+    await _service.Received( 1 ).GetByIdAsync( 10 ) ;
+    result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<AdminBrokerAccountResponse>() ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_SpendAccountIdChanged_RefetchesForFreshNav()
+  {
+    var existing = BuildEntity( 10, [7], "VPS", 1 ) ;
+    _service.GetByIdAsync( 10 ).Returns( existing ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "VPS", 9 ) ) ;
+
+    existing.SpendAccountId.Should().Be( 9 ) ;
+    await _service.Received( 1 ).UpdateAsync( existing ) ;
+    await _service.Received( 2 ).GetByIdAsync( 10 ) ;
     result.Should().BeOfType<OkObjectResult>()
       .Which.Value.Should().BeOfType<AdminBrokerAccountResponse>() ;
   }
