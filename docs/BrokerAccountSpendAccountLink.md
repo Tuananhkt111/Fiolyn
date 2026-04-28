@@ -99,25 +99,27 @@ Run in dev and prod (Neon) before applying B.
 ### `BrokerAccountService` (`Fiolyn/Services/Internal/BrokerAccountService.cs`)
 
 - Injects `IRepository<SpendAccount> spendRepository`.
-- Private helper `EnsureUserIsSpendAccountMemberAsync(spendId, userId)` mirrors `EnsureCallerIsMemberAsync`.
+- Private helper `EnsureUserIsSpendAccountMemberAsync(spendId, userId)` verifies the caller is a member of the target spend account; throws `KeyNotFoundException` if not.
 - `CreateAsync(account, creatorUserId)` validates spend-account membership before `AddAsync`.
-- `UpdateAsync(account, callerUserId)` re-reads the original `SpendAccountId` via an `AsNoTracking` projection and only re-validates membership when the value changed.
-- Admin `UpdateAsync(account)` overload skips the per-user check but still verifies the target spend account exists.
+- `UpdateAsync(account, oldSpendAccountId, callerUserId)` — `oldSpendAccountId` is captured by the controller **before** mutating the entity in memory and passed in; the service only re-validates spend-account membership when `oldSpendAccountId != account.SpendAccountId`. No DB round-trip for the old value.
+- Admin `UpdateAsync(account)` overload skips the per-user check but still verifies the target spend account exists via `spendRepository.GetByIdOrThrowAsync`.
+- `GetMembersAsync(accountId, callerUserId)` — loads the broker via `.Include(b => b.Members).ThenInclude(m => m.AppUser)` (not a `Select`-projection) so the response DTO can read `m.AppUser.Email` / `DisplayName`. Caller-membership is checked in-memory after materialise; result is sorted by `JoinedAt`.
 
 ### `StockTransactionService` (`Fiolyn/Services/Internal/StockTransactionService.cs`)
 
 Injects `IRepository<StockTransaction>`, `IRepository<BrokerAccount>`, `IRepository<SpendAccount>`.
 
-- **`CreateAsync`** — one fused query (`Query().Where(member-filter).Select(SpendAccountId).FirstOrDefaultAsync()`) returns the linked spend ID or null → 404. Load the spend account, apply `+delta` to `Balance`, add the transaction, single `SaveAsync`.
-- **`UpdateAsync`** — one combined projection fetches `(TransactionType, TotalAmount, BrokerAccountId, OldSpendAccountId)` with a correlated subquery for the new broker's `SpendAccountId` (null → 404 "broker not member"). Same-broker: load the single spend account, apply `newDelta − oldDelta`; broker-change: load both spend accounts, reverse old delta on the old, apply new delta on the new. Then `Update` + single `SaveAsync`.
-- **`SoftDeleteAsync(id, userId)`** — `GetByIdForUserAsync` eager-loads `BrokerAccount`; load the spend account via `spendRepository`, apply `−delta`, soft-delete transaction, single `SaveAsync`.
-- **Admin `SoftDeleteAsync(id)`** — same, loading the transaction via `Query().Include(BrokerAccount).FirstOrDefaultAsync()`.
+- **`CreateAsync`** — one fused query (`brokerRepository.Query().Where(member-filter).Select(b => (long?)b.SpendAccountId).FirstOrDefaultAsync()`) returns the linked spend ID or null → 404. Load the spend account, apply `+delta` to `Balance`, `AddAsync` the transaction, single `SaveAsync`.
+- **`UpdateAsync`** — `GetByIdForUserAsync` returns a **tracked** entity (no `AsNoTracking`), so the controller's in-memory mutations are detected by EF's change tracker without an explicit `repository.Update()` call. A separate `AsNoTracking` projection fetches the original `(TransactionType, TotalAmount, BrokerAccountId, OldSpendAccountId)` and validates new-broker membership via a correlated subquery (null → 404). Same-broker: apply `newDelta − oldDelta`; broker-change: reverse old delta on the old spend, apply new delta on the new. Single `SaveAsync` flushes both the spend-balance change and the transaction field updates atomically.
+- **`SoftDeleteAsync(id, userId)`** — `GetByIdForUserAsync` eager-loads `BrokerAccount`; load the spend account via `spendRepository`, apply `−delta`, `SoftDelete` the transaction, single `SaveAsync`.
+- **Admin `SoftDeleteAsync(id)`** — `GetByIdAsync` eager-loads `BrokerAccount`; same delta-reversal pattern.
 
-`SaveWithConcurrencyGuardAsync(spendAccountId)` wraps `SaveAsync`, catching `DbUpdateConcurrencyException` → `ConflictException` (409) for all three paths.
+`SaveWithConcurrencyGuardAsync(spendAccountId)` wraps `SaveAsync`, catching `DbUpdateConcurrencyException` → `ConflictException` (409) for all three mutating paths.
 
 ### `SpendAccountService` (`Fiolyn/Services/Internal/SpendAccountService.cs`)
 
-Injects `IRepository<BrokerAccount> brokerRepository`. `AdjustBalanceForUserAsync` / `AdjustBalanceAsync` delegate to a private `ApplyAndReadBalanceAsync(id, delta)`: load via `GetByIdOrThrowAsync`, mutate `Balance += delta`, call `SaveAsync` (catching `DbUpdateConcurrencyException` → `ConflictException`), return the new `Balance`. Both soft-delete overloads guard:
+Injects `IRepository<BrokerAccount> brokerRepository`. `AdjustBalanceForUserAsync(id, userId, delta)` / `AdjustBalanceAsync(id, delta)` delegate to a private `ApplyAndReadBalanceAsync(id, delta)`: load via `GetByIdOrThrowAsync`, mutate `Balance += delta`, call `SaveAsync` (catching `DbUpdateConcurrencyException` → `ConflictException`), return the new `Balance`. Both soft-delete overloads call `EnsureNotReferencedByActiveBrokerAsync`:
+
 ```csharp
 var stillReferenced = await brokerRepository.Query()
   .AnyAsync( b => b.SpendAccountId == id ) ;
@@ -128,18 +130,90 @@ if ( stillReferenced )
 }
 ```
 
-This prevents a `BrokerAccount` from being orphaned to a soft-deleted spend account, which would otherwise blow up `GetByIdOrThrowAsync(spendId)` on the next stock transaction.
+`GetMembersAsync` uses the same Include-based pattern as `BrokerAccountService.GetMembersAsync`.
+
+---
+
+## API Endpoints
+
+### `SpendAccountController` — `GET|POST|PUT|DELETE /api/spend-accounts`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/api/spend-accounts` | Create; caller becomes first member. Returns 201 + `SpendAccountResponse`. |
+| `GET` | `/api/spend-accounts` | List all the caller is a member of, ordered by name. |
+| `GET` | `/api/spend-accounts/{id}` | Get by ID. 404 if not a member. |
+| `PUT` | `/api/spend-accounts/{id}` | Update `Name` + `Type` only. Balance is **not** updatable here. 404 if not a member. |
+| `DELETE` | `/api/spend-accounts/{id}` | Soft-delete. 400 if any active broker still references it. |
+| `POST` | `/api/spend-accounts/{id}/balance-adjustments` | Atomically adjust balance by signed `delta`. Returns `{ id, newBalance }`. 409 on concurrent write. |
+| `GET` | `/api/spend-accounts/{id}/members` | List members (ordered by join time). 404 if not a member. |
+| `POST` | `/api/spend-accounts/{id}/members` | Add user by email. Idempotent. 404 if not a member or target unknown. |
+| `DELETE` | `/api/spend-accounts/{id}/members/{userId}` | Remove a member. 400 if it would leave zero members. |
+
+### `AdminSpendAccountController` — `GET|POST|PUT|DELETE /api/admin/spend-accounts`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/api/admin/spend-accounts` | List all; optional `?userId` filter. Returns `AdminSpendAccountResponse` (includes member list). |
+| `GET` | `/api/admin/spend-accounts/{id}` | Get any account by ID. |
+| `POST` | `/api/admin/spend-accounts` | Create with `AppUserId` as first member. |
+| `PUT` | `/api/admin/spend-accounts/{id}` | Update `Name` + `Type`. Balance not updatable here. |
+| `POST` | `/api/admin/spend-accounts/{id}/balance-adjustments` | Atomically adjust any account's balance by signed `delta`. No user-scope check. |
+| `DELETE` | `/api/admin/spend-accounts/{id}` | Soft-delete any account. 400 if still referenced by active broker. |
+
+### `BrokerAccountController` — `GET|POST|PUT|DELETE /api/broker-accounts`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/api/broker-accounts` | Create with `{ name, spendAccountId }`; caller must be a member of the spend account. Returns 201. |
+| `GET` | `/api/broker-accounts` | List all the caller is a member of, ordered by name. |
+| `GET` | `/api/broker-accounts/{id}` | Get by ID. 404 if not a member. |
+| `HEAD` | `/api/broker-accounts/{id}` | Membership existence check. 200 or 404. |
+| `PUT` | `/api/broker-accounts/{id}` | Update `{ name, spendAccountId }`. Caller must be a member of both accounts when `spendAccountId` changes. 404 if not a member. |
+| `DELETE` | `/api/broker-accounts/{id}` | Soft-delete. |
+| `GET` | `/api/broker-accounts/{id}/members` | List members. 404 if not a member. |
+| `POST` | `/api/broker-accounts/{id}/members` | Add user by email. Idempotent. |
+| `DELETE` | `/api/broker-accounts/{id}/members/{userId}` | Remove a member. 400 if it would leave zero members. |
+
+### `AdminBrokerAccountController` — `GET|POST|PUT|DELETE /api/admin/broker-accounts`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/api/admin/broker-accounts` | List all; optional `?userId` filter. Returns `AdminBrokerAccountResponse` (includes member list). |
+| `GET` | `/api/admin/broker-accounts/{id}` | Get any account by ID. |
+| `POST` | `/api/admin/broker-accounts` | Create with `{ name, spendAccountId, appUserId }` as first member. Skips spend-account membership check. |
+| `PUT` | `/api/admin/broker-accounts/{id}` | Update `{ name, spendAccountId }`. Skips membership check; verifies target spend account exists. |
+| `DELETE` | `/api/admin/broker-accounts/{id}` | Soft-delete any account. |
+
+### `StockTransactionController` — `GET|POST|PUT|DELETE /api/stock-transactions`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/api/stock-transactions` | Create. Auto-adjusts linked spend balance. 404 if not a member of the broker. |
+| `GET` | `/api/stock-transactions` | List all on brokers the caller is a member of. Optional `?symbol` filter. |
+| `GET` | `/api/stock-transactions/{id}` | Get by ID. 404 if not a member of the broker. |
+| `HEAD` | `/api/stock-transactions/{id}` | Membership existence check. |
+| `PUT` | `/api/stock-transactions/{id}` | Update; reverses old balance delta and applies new. 404 if not a member of the current or reassigned broker. |
+| `DELETE` | `/api/stock-transactions/{id}` | Soft-delete; reverses balance delta. |
+
+### `AdminStockTransactionController` — `GET|DELETE /api/admin/stock-transactions`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/api/admin/stock-transactions` | List all. Optional `?userId` and `?symbol` filters. |
+| `GET` | `/api/admin/stock-transactions/{id}` | Get any transaction by ID. |
+| `DELETE` | `/api/admin/stock-transactions/{id}` | Soft-delete any transaction; reverses balance delta. |
 
 ---
 
 ## DTOs
 
-- `Controllers/DTOs/Requests/BrokerAccount/BrokerAccountRequest.cs` — add `[Required] long SpendAccountId`.
-- `Controllers/DTOs/Requests/BrokerAccount/AdminBrokerAccountCreateRequest.cs` — same.
-- `Controllers/DTOs/Responses/BrokerAccount/BrokerAccountResponse.cs` — add `SpendAccountId` (and optionally `SpendAccountName` via `.Include(b => b.SpendAccount)` in the read paths).
-- `Controllers/DTOs/Responses/BrokerAccount/AdminBrokerAccountResponse.cs` — same.
-
-`BrokerAccountController.CreateAsync` / `UpdateAsync` set `brokerAccount.SpendAccountId = request.SpendAccountId`.
+- `Controllers/DTOs/Requests/BrokerAccount/BrokerAccountRequest.cs` — `[Required] string Name`, `[Required] long SpendAccountId`. Used for user `POST` and user/admin `PUT`.
+- `Controllers/DTOs/Requests/BrokerAccount/AdminBrokerAccountCreateRequest.cs` — `Name`, `SpendAccountId`, `AppUserId` (initial member). Used for admin `POST` only.
+- `Controllers/DTOs/Responses/BrokerAccount/BrokerAccountResponse.cs` — `Id`, `Name`, `SpendAccountId`, `SpendAccountName` (via `.Include(b => b.SpendAccount)` in all read paths).
+- `Controllers/DTOs/Responses/BrokerAccount/AdminBrokerAccountResponse.cs` — same, plus `Members` list.
+- `Controllers/DTOs/Requests/SpendAccount/SpendAccountBalanceAdjustmentRequest.cs` — `long Delta` (signed). Used by both user and admin `/balance-adjustments`.
+- `Controllers/DTOs/Responses/SpendAccount/SpendAccountBalanceResponse.cs` — `{ id, newBalance }`. Returned by both balance-adjustment endpoints.
 
 ---
 
