@@ -78,20 +78,18 @@ public class BrokerAccountService(
   /// <inheritdoc />
   public async Task<List<BrokerAccountMember>> GetMembersAsync( long accountId, long callerUserId )
   {
-    var members = await repository.Query()
+    var account = await repository.Query()
       .AsNoTracking()
-      .Where( b => b.Id == accountId )
-      .Select( b => b.Members
-        .OrderBy( m => m.JoinedAt )
-        .ToList() )
-      .FirstOrDefaultAsync() ;
+      .Include( b => b.Members )
+      .ThenInclude( m => m.AppUser )
+      .FirstOrDefaultAsync( b => b.Id == accountId ) ;
 
-    if ( members is null || members.All( m => m.AppUserId != callerUserId ) )
+    if ( account is null || account.Members.All( m => m.AppUserId != callerUserId ) )
     {
       throw new KeyNotFoundException( $"BrokerAccount {accountId} not found for user {callerUserId}." ) ;
     }
 
-    return members ;
+    return account.Members.OrderBy( m => m.JoinedAt ).ToList() ;
   }
 
   /// <inheritdoc />

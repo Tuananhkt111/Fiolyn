@@ -78,20 +78,18 @@ public class SpendAccountService(
   /// <inheritdoc />
   public async Task<List<SpendAccountMember>> GetMembersAsync( long accountId, long callerUserId )
   {
-    var members = await repository.Query()
+    var account = await repository.Query()
       .AsNoTracking()
-      .Where( a => a.Id == accountId )
-      .Select( a => a.Members
-        .OrderBy( m => m.JoinedAt )
-        .ToList() )
-      .FirstOrDefaultAsync() ;
+      .Include( a => a.Members )
+      .ThenInclude( m => m.AppUser )
+      .FirstOrDefaultAsync( a => a.Id == accountId ) ;
 
-    if ( members is null || members.All( m => m.AppUserId != callerUserId ) )
+    if ( account is null || account.Members.All( m => m.AppUserId != callerUserId ) )
     {
       throw new KeyNotFoundException( $"SpendAccount {accountId} not found for user {callerUserId}." ) ;
     }
 
-    return members ;
+    return account.Members.OrderBy( m => m.JoinedAt ).ToList() ;
   }
 
   /// <inheritdoc />
