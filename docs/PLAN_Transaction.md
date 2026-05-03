@@ -71,7 +71,7 @@ Each leaf service validates that any supplied `CategoryId` has a matching `Kind`
 | `POST/GET/PUT/DELETE /api/adjustment-transactions` | `/api/admin/adjustment-transactions` | Replaces `/balance-adjustments` |
 | `POST/GET/PUT/DELETE /api/stock-transactions` | `/api/admin/stock-transactions` | Pre-existing |
 | `GET /api/transactions` | `GET /api/admin/transactions` | Polymorphic union |
-| — | `GET/POST/PUT/DELETE /api/admin/transaction-categories?kind=…` | Admin-only |
+| `GET /api/transaction-categories?kind=…` | `GET/POST/PUT/DELETE /api/admin/transaction-categories?kind=…` | Read available to all authenticated users; write is admin-only |
 
 Removed: `POST /api/spend-accounts/{id}/balance-adjustments` (and admin twin).
 
@@ -125,7 +125,7 @@ For `Update` and `Transfer`, the same single-`SaveAsync` covers the cross-spend 
 
 **New services:** one per leaf (`IncomeTransactionService`, `ExpenseTransactionService`, `LendTransactionService`, `BorrowingTransactionService`, `TransferTransactionService`, `AdjustmentTransactionService`) plus `TransactionCategoryService` and `TransactionReadService`. The simple five share a `StandardTransactionServiceBase<T>` in `Services/Internal/Helpers/`.
 
-**New controllers:** one user + one admin per leaf, plus `TransactionController` (unified GET) and `AdminTransactionCategoryController`.
+**New controllers:** one user + one admin per leaf, plus `TransactionController` (unified GET), `TransactionCategoryController` (read-only, all authenticated users), and `AdminTransactionCategoryController`.
 
 **New DTOs:** under `Controllers/DTOs/{Requests,Responses}/{Leaf}/`. Polymorphic `TransactionResponse` for the unified GET.
 
