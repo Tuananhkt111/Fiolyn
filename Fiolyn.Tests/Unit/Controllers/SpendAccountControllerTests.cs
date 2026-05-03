@@ -130,44 +130,30 @@ public class SpendAccountControllerTests
   [Fact]
   public async Task UpdateAsync_Missing_Returns404()
   {
-    _service.GetByIdForUserAsync( 99, 7 ).Returns( ( SpendAccount? )null ) ;
+    _service.UpdateAsync( 99, 7, Arg.Any<string>(), Arg.Any<SpendAccountType>() )
+      .Returns( ( SpendAccount? )null ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 99, BuildUpdateRequest() ) ;
 
     result.Should().BeOfType<NotFoundResult>() ;
-    await _service.DidNotReceive().UpdateAsync( Arg.Any<SpendAccount>() ) ;
   }
 
   [Fact]
-  public async Task UpdateAsync_Existing_AppliesNameAndType_DoesNotMutateBalance_AndReturns200()
+  public async Task UpdateAsync_Existing_PassesScalarsToService_AndReturns200()
   {
-    var existing = BuildEntity( balance: 1_000_000L ) ;
-    _service.GetByIdForUserAsync( 10, 7 ).Returns( existing ) ;
+    var updated = BuildEntity( name: "Renamed", type: SpendAccountType.Credit, balance: 1_000_000L ) ;
+    _service.UpdateAsync( 10, 7, "Renamed", SpendAccountType.Credit ).Returns( updated ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 10, BuildUpdateRequest( "Renamed", SpendAccountType.Credit ) ) ;
 
-    existing.Name.Should().Be( "Renamed" ) ;
-    existing.Type.Should().Be( SpendAccountType.Credit ) ;
-    existing.Balance.Should().Be( 1_000_000L ) ;
-    await _service.Received( 1 ).UpdateAsync( existing ) ;
-    result.Should().BeOfType<OkObjectResult>() ;
-  }
-
-  [Fact]
-  public async Task AdjustBalanceAsync_PassesDelta_AndReturnsNewBalance()
-  {
-    _service.AdjustBalanceForUserAsync( 10, 7, 250_000L ).Returns( 1_250_000L ) ;
-    var sut = CreateSut() ;
-
-    var result = await sut.AdjustBalanceAsync( 10, new SpendAccountBalanceAdjustmentRequest( 250_000L ) ) ;
-
+    await _service.Received( 1 ).UpdateAsync( 10, 7, "Renamed", SpendAccountType.Credit ) ;
     var body = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<SpendAccountBalanceResponse>().Which ;
-    body.Id.Should().Be( 10 ) ;
-    body.Balance.Should().Be( 1_250_000L ) ;
-    await _service.Received( 1 ).AdjustBalanceForUserAsync( 10, 7, 250_000L ) ;
+      .Which.Value.Should().BeOfType<SpendAccountResponse>().Which ;
+    body.Name.Should().Be( "Renamed" ) ;
+    body.Type.Should().Be( SpendAccountType.Credit ) ;
+    body.Balance.Should().Be( 1_000_000L ) ;
   }
 
   [Fact]

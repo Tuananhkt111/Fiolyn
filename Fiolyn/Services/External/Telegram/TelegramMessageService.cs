@@ -66,6 +66,7 @@ public class TelegramMessageService(
           return ProcessResult.Error( "Invalid stock message format" ) ;
         }
 
+        transaction.PayerId = callerId.Value ;
         try
         {
           await stockTransactionService.CreateAsync( transaction, callerId.Value ) ;
@@ -79,7 +80,7 @@ public class TelegramMessageService(
         }
 
         logger.LogInformation( "Stock transaction from {TelegramId} saved: {Symbol} {Type}",
-          fromId, transaction.Symbol, transaction.TransactionType ) ;
+          fromId, transaction.Symbol, transaction.StockTransactionType ) ;
         return ProcessResult.Success() ;
       }
 

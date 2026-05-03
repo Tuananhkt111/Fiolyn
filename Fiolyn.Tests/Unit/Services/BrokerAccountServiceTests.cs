@@ -222,63 +222,117 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  public async Task UpdateAsync_ReturnsNull_WhenCallerIsNotMember()
+  {
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      BuildAccount( 5, [99], spendAccountId: 7 )
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.UpdateAsync( 5, 10, "Renamed", 7 ) ;
+
+    result.Should().BeNull() ;
+    await _accountRepo.DidNotReceive().SaveAsync() ;
+  }
+
+  [Fact]
   public async Task UpdateAsync_DoesNotRevalidateSpendMembership_WhenSpendAccountIdUnchanged()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      account
+    }.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    await sut.UpdateAsync( account, oldSpendAccountId: 7, callerUserId: 10 ) ;
+    var result = await sut.UpdateAsync( 5, 10, "Renamed", 7 ) ;
 
+    result.Should().BeSameAs( account ) ;
+    account.Name.Should().Be( "Renamed" ) ;
+    account.SpendAccountId.Should().Be( 7 ) ;
     await _accountRepo.Received( 1 ).SaveAsync() ;
     _spendRepo.DidNotReceive().Query() ;
   }
 
   [Fact]
-  public async Task UpdateAsync_RevalidatesSpendMembership_WhenSpendAccountIdChanges()
+  public async Task UpdateAsync_RevalidatesSpendMembership_AndRefetches_WhenSpendAccountIdChanges()
   {
-    var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
+    var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      account
+    }.BuildMock() ) ;
     SetupSpendAccount( 9, [10] ) ;
     var sut = CreateSut() ;
 
-    await sut.UpdateAsync( account, oldSpendAccountId: 7, callerUserId: 10 ) ;
+    var result = await sut.UpdateAsync( 5, 10, "VPS", 9 ) ;
 
+    result.Should().BeSameAs( account ) ;
+    account.SpendAccountId.Should().Be( 9 ) ;
     await _accountRepo.Received( 1 ).SaveAsync() ;
   }
 
   [Fact]
   public async Task UpdateAsync_ThrowsKeyNotFound_WhenChangedSpendAccountIsNotMember()
   {
-    var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
+    var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      account
+    }.BuildMock() ) ;
     SetupSpendAccount( 9, [99] ) ;
     var sut = CreateSut() ;
 
-    var act = async () => await sut.UpdateAsync( account, oldSpendAccountId: 7, callerUserId: 10 ) ;
+    var act = async () => await sut.UpdateAsync( 5, 10, "VPS", 9 ) ;
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
     await _accountRepo.DidNotReceive().SaveAsync() ;
   }
 
   [Fact]
-  public async Task AdminUpdateAsync_VerifiesSpendAccountExists_AndSaves()
+  public async Task AdminUpdateAsync_ReturnsNull_WhenMissing()
   {
-    var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
     var sut = CreateSut() ;
 
-    await sut.UpdateAsync( account ) ;
+    var result = await sut.UpdateAsync( 99, "VPS", 7 ) ;
 
-    await _spendRepo.Received( 1 ).GetByIdOrThrowAsync( 9L ) ;
+    result.Should().BeNull() ;
+    await _accountRepo.DidNotReceive().SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task AdminUpdateAsync_RenameOnly_SkipsSpendAccountLookup_AndSaves()
+  {
+    var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.UpdateAsync( 5, "Renamed", 7 ) ;
+
+    result.Should().BeSameAs( account ) ;
+    account.Name.Should().Be( "Renamed" ) ;
+    await _spendRepo.DidNotReceive().GetByIdOrThrowAsync( Arg.Any<long>() ) ;
     await _accountRepo.Received( 1 ).SaveAsync() ;
   }
 
   [Fact]
   public async Task AdminUpdateAsync_PropagatesKeyNotFound_WhenSpendAccountMissing()
   {
-    var account = BuildAccount( 5, [10], spendAccountId: 9 ) ;
+    var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      account
+    }.BuildMock() ) ;
     _spendRepo.GetByIdOrThrowAsync( 9L )
       .Returns<Task<SpendAccount>>( _ => throw new KeyNotFoundException() ) ;
     var sut = CreateSut() ;
 
-    var act = async () => await sut.UpdateAsync( account ) ;
+    var act = async () => await sut.UpdateAsync( 5, "Renamed", 9 ) ;
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
     await _accountRepo.DidNotReceive().SaveAsync() ;

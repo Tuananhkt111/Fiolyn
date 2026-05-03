@@ -62,6 +62,9 @@ public class Repository<T>( AppDbContext dbContext ) : IRepository<T> where T : 
     }
   }
 
+  /// <inheritdoc />
+  public async Task SaveAsync() => await dbContext.SaveChangesAsync() ;
+
   private void MarkIsDeletedModified( T entity )
   {
     var entry = dbContext.Entry( entity ) ;
@@ -70,9 +73,7 @@ public class Repository<T>( AppDbContext dbContext ) : IRepository<T> where T : 
       dbContext.Set<T>().Attach( entity ) ;
       entry = dbContext.Entry( entity ) ;
     }
+
     entry.Property( nameof( ISoftDelete.IsDeleted ) ).IsModified = true ;
   }
-
-  /// <inheritdoc />
-  public async Task SaveAsync() => await dbContext.SaveChangesAsync() ;
 }

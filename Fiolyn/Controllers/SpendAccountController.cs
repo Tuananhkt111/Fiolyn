@@ -67,38 +67,20 @@ public class SpendAccountController(
 
   /// <summary>
   ///   Updates a spend account's name and type. 404 if the caller is not a member.
-  ///   Balance is intentionally not updatable here — use POST /balance-adjustments so the change goes
-  ///   through the same atomic SQL path as stock-transaction balance writes.
+  ///   Balance is intentionally not updatable here — every balance change flows through a
+  ///   transaction (Income/Expense/Lend/Borrowing/Transfer/Adjustment/Stock) so the audit trail and
+  ///   atomic SQL path are uniform.
   /// </summary>
   [HttpPut( "{id:long}" )]
   public async Task<IActionResult> UpdateAsync( long id, [FromBody] SpendAccountUpdateRequest request )
   {
-    var userId = User.GetUserId() ;
-    var existing = await spendAccountService.GetByIdForUserAsync( id, userId ) ;
-    if ( existing is null )
+    var updated = await spendAccountService.UpdateAsync( id, User.GetUserId(), request.Name, request.Type ) ;
+    if ( updated is null )
     {
       return NotFound() ;
     }
 
-    existing.Name = request.Name ;
-    existing.Type = request.Type ;
-
-    await spendAccountService.UpdateAsync( existing ) ;
-    return Ok( new SpendAccountResponse( existing ) ) ;
-  }
-
-  /// <summary>
-  ///   Atomically adjusts the spend account's balance by a signed delta. 404 if the caller is not
-  ///   a member.
-  /// </summary>
-  [HttpPost( "{id:long}/balance-adjustments" )]
-  public async Task<IActionResult> AdjustBalanceAsync(
-    long id,
-    [FromBody] SpendAccountBalanceAdjustmentRequest request )
-  {
-    var userId = User.GetUserId() ;
-    var newBalance = await spendAccountService.AdjustBalanceForUserAsync( id, userId, request.Delta ) ;
-    return Ok( new SpendAccountBalanceResponse( id, newBalance ) ) ;
+    return Ok( new SpendAccountResponse( updated ) ) ;
   }
 
   /// <summary>

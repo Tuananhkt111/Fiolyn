@@ -1,5 +1,7 @@
 # Plan: StockTransaction Entity + Telegram Parsing + CRUD API
 
+> **Update (2026-04-29):** `StockTransaction` is now a TPT child of `TransactionBase`. Common fields (`Date`, `Description`, `SpendAccountId`, `Amount`, `PayerId`, `CategoryId`, audit, soft-delete) live on the base; the stock-specific columns (`Symbol`, `StockTransactionType`, `Quantity`, `Price`, `BrokerAccountId`) stay on the `StockTransaction` table. The legacy `TotalAmount` column was dropped — it is fully derivable as `Math.Abs(Amount)`. The signed `Amount` is computed at the boundary (controller / Telegram parser) via `StockTransaction.ComputeAmount`: Buy → negative, Sell/Dividend → positive. Broker-membership is still the access gate. The original DTO field names `TransactionDate` / `Notes` were renamed to `Date` / `Description`. The `TransactionType` enum was renamed to `StockTransactionType`. See `PLAN_Transaction.md` for the full hierarchy.
+
 ## Context
 
 The user wants to save stock transactions (Buy, Sell, Dividend) to PostgreSQL. The data flows in two ways: (1) a

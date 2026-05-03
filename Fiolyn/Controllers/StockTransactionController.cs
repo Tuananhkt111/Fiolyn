@@ -27,13 +27,15 @@ public class StockTransactionController(
     var transaction = new StockTransaction
     {
       Symbol = request.Symbol,
-      TransactionType = request.TransactionType,
+      StockTransactionType = request.StockTransactionType,
       Quantity = request.Quantity,
       Price = request.Price,
-      TotalAmount = request.TotalAmount,
-      TransactionDate = request.TransactionDate,
+      Amount = StockTransaction.ComputeAmount( request.StockTransactionType, request.TotalAmount ),
+      Date = request.Date,
       BrokerAccountId = request.BrokerAccountId,
-      Notes = request.Notes
+      Description = request.Description,
+      CategoryId = request.CategoryId,
+      PayerId = request.PayerId ?? userId
     } ;
 
     var created = await stockTransactionService.CreateAsync( transaction, userId ) ;
@@ -95,13 +97,15 @@ public class StockTransactionController(
 
     var oldBrokerId = existing.BrokerAccountId ;
     existing.Symbol = request.Symbol ;
-    existing.TransactionType = request.TransactionType ;
+    existing.StockTransactionType = request.StockTransactionType ;
     existing.Quantity = request.Quantity ;
     existing.Price = request.Price ;
-    existing.TotalAmount = request.TotalAmount ;
-    existing.TransactionDate = request.TransactionDate ;
+    existing.Amount = StockTransaction.ComputeAmount( request.StockTransactionType, request.TotalAmount ) ;
+    existing.Date = request.Date ;
     existing.BrokerAccountId = request.BrokerAccountId ;
-    existing.Notes = request.Notes ;
+    existing.Description = request.Description ;
+    existing.CategoryId = request.CategoryId ;
+    existing.PayerId = request.PayerId ?? userId ;
 
     await stockTransactionService.UpdateAsync( existing, userId ) ;
 

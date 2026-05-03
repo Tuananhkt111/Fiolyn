@@ -14,12 +14,19 @@ namespace Fiolyn.Tests.Unit.Services ;
 public class StockTransactionServiceTests
 {
   private readonly IRepository<BrokerAccount> _brokerRepository = Substitute.For<IRepository<BrokerAccount>>() ;
+
+  private readonly IRepository<TransactionCategory> _categoryRepository =
+    Substitute.For<IRepository<TransactionCategory>>() ;
+
   private readonly ILogger<StockTransactionService> _logger = Substitute.For<ILogger<StockTransactionService>>() ;
   private readonly IRepository<StockTransaction> _repository = Substitute.For<IRepository<StockTransaction>>() ;
   private readonly IRepository<SpendAccount> _spendRepository = Substitute.For<IRepository<SpendAccount>>() ;
 
+  public StockTransactionServiceTests() =>
+    _categoryRepository.Query().Returns( new List<TransactionCategory>().BuildMock() ) ;
+
   private StockTransactionService CreateSut() =>
-    new( _repository, _brokerRepository, _spendRepository, _logger ) ;
+    new(_repository, _brokerRepository, _spendRepository, _categoryRepository, _logger) ;
 
   private SpendAccount SetupSpendAccount( long id, long initialBalance = 0 )
   {
@@ -68,8 +75,7 @@ public class StockTransactionServiceTests
     }.BuildMock() ) ;
   }
 
-  private void SetupNoBrokers() =>
-    _brokerRepository.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
+  private void SetupNoBrokers() => _brokerRepository.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
 
   [Fact]
   public async Task ParseMessageAsync_BuyMessage_ReturnsBuyTransaction()
@@ -82,13 +88,13 @@ public class StockTransactionServiceTests
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;
-    result.TransactionType.Should().Be( TransactionType.Buy ) ;
+    result.StockTransactionType.Should().Be( StockTransactionType.Buy ) ;
     result.Quantity.Should().Be( 100L ) ;
     result.Price.Should().Be( 45000L ) ;
-    result.TotalAmount.Should().Be( 4501500L ) ;
+    result.Amount.Should().Be( -4501500L ) ;
     result.BrokerAccountId.Should().Be( 1L ) ;
-    result.Notes.Should().Be( "bought at support" ) ;
-    result.TransactionDate.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
+    result.Description.Should().Be( "bought at support" ) ;
+    result.Date.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
   }
 
   [Fact]
@@ -101,12 +107,12 @@ public class StockTransactionServiceTests
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "AAPL" ) ;
-    result.TransactionType.Should().Be( TransactionType.Sell ) ;
+    result.StockTransactionType.Should().Be( StockTransactionType.Sell ) ;
     result.Quantity.Should().Be( 10L ) ;
     result.Price.Should().Be( 150L ) ;
-    result.TotalAmount.Should().Be( 1500L ) ;
+    result.Amount.Should().Be( 1500L ) ;
     result.BrokerAccountId.Should().Be( 2L ) ;
-    result.Notes.Should().Be( "profit taking" ) ;
+    result.Description.Should().Be( "profit taking" ) ;
   }
 
   [Fact]
@@ -119,12 +125,12 @@ public class StockTransactionServiceTests
 
     result.Should().NotBeNull() ;
     result!.Symbol.Should().Be( "VNM" ) ;
-    result.TransactionType.Should().Be( TransactionType.Dividend ) ;
+    result.StockTransactionType.Should().Be( StockTransactionType.Dividend ) ;
     result.Quantity.Should().Be( 0L ) ;
     result.Price.Should().Be( 0L ) ;
-    result.TotalAmount.Should().Be( 500000L ) ;
-    result.Notes.Should().Be( "Q2 dividend" ) ;
-    result.TransactionDate.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
+    result.Amount.Should().Be( 500000L ) ;
+    result.Description.Should().Be( "Q2 dividend" ) ;
+    result.Date.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
   }
 
   [Theory]
@@ -188,11 +194,11 @@ public class StockTransactionServiceTests
     var transaction = new StockTransaction
     {
       Symbol = "VNM",
-      TransactionType = TransactionType.Buy,
+      StockTransactionType = StockTransactionType.Buy,
       Quantity = 100,
       Price = 45000,
-      TotalAmount = 4_501_500L,
-      TransactionDate = DateTime.UtcNow,
+      Amount = -4_501_500L,
+      Date = DateTime.UtcNow,
       BrokerAccountId = 1
     } ;
 
@@ -213,8 +219,8 @@ public class StockTransactionServiceTests
     var transaction = new StockTransaction
     {
       Symbol = "VNM",
-      TransactionType = TransactionType.Sell,
-      TotalAmount = 2_500_000L,
+      StockTransactionType = StockTransactionType.Sell,
+      Amount = 2_500_000L,
       BrokerAccountId = 1
     } ;
 
@@ -232,8 +238,8 @@ public class StockTransactionServiceTests
     var transaction = new StockTransaction
     {
       Symbol = "VNM",
-      TransactionType = TransactionType.Dividend,
-      TotalAmount = 500_000L,
+      StockTransactionType = StockTransactionType.Dividend,
+      Amount = 500_000L,
       BrokerAccountId = 1
     } ;
 
@@ -273,7 +279,7 @@ public class StockTransactionServiceTests
         Symbol = "VNM",
         BrokerAccountId = 1,
         BrokerAccount = userBroker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       },
       new()
       {
@@ -281,7 +287,7 @@ public class StockTransactionServiceTests
         Symbol = "AAPL",
         BrokerAccountId = 2,
         BrokerAccount = otherBroker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       }
     ] ;
     _repository.Query().Returns( transactions.BuildMock() ) ;
@@ -304,7 +310,7 @@ public class StockTransactionServiceTests
         Symbol = "VNM",
         BrokerAccountId = 1,
         BrokerAccount = broker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       },
       new()
       {
@@ -312,7 +318,7 @@ public class StockTransactionServiceTests
         Symbol = "AAPL",
         BrokerAccountId = 1,
         BrokerAccount = broker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       }
     ] ;
     _repository.Query().Returns( transactions.BuildMock() ) ;
@@ -335,7 +341,7 @@ public class StockTransactionServiceTests
         Symbol = "VNM",
         BrokerAccountId = 1,
         BrokerAccount = broker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       }
     ] ;
     _repository.Query().Returns( transactions.BuildMock() ) ;
@@ -358,7 +364,7 @@ public class StockTransactionServiceTests
         Id = 5,
         BrokerAccountId = 1,
         BrokerAccount = broker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       }
     ] ;
     _repository.Query().Returns( transactions.BuildMock() ) ;
@@ -417,8 +423,9 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = BuildBroker( 1, "VPS", [42], 7 ),
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_000_000L
+      SpendAccountId = 7,
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_000_000L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -429,8 +436,8 @@ public class StockTransactionServiceTests
     {
       Id = 5,
       BrokerAccountId = 1,
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_500_000L
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_500_000L
     } ;
 
     await sut.UpdateAsync( updated, 42 ) ;
@@ -448,8 +455,9 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = BuildBroker( 1, "VPS", [42], 7 ),
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_000_000L
+      SpendAccountId = 7,
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_000_000L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -460,8 +468,8 @@ public class StockTransactionServiceTests
     {
       Id = 5,
       BrokerAccountId = 1,
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_000_000L
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_000_000L
     } ;
 
     await sut.UpdateAsync( updated, 42 ) ;
@@ -479,8 +487,9 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = BuildBroker( 1, "VPS", [42], 7 ),
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 2_500_000L
+      SpendAccountId = 7,
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -2_500_000L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -491,8 +500,8 @@ public class StockTransactionServiceTests
     {
       Id = 5,
       BrokerAccountId = 1,
-      TransactionType = TransactionType.Sell,
-      TotalAmount = 2_500_000L
+      StockTransactionType = StockTransactionType.Sell,
+      Amount = 2_500_000L
     } ;
 
     await sut.UpdateAsync( updated, 42 ) ;
@@ -531,8 +540,9 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = oldBroker,
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_000_000L
+      SpendAccountId = 7,
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_000_000L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -543,8 +553,8 @@ public class StockTransactionServiceTests
     {
       Id = 5,
       BrokerAccountId = 2,
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_000_000L
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_000_000L
     } ;
 
     await sut.UpdateAsync( updated, 42 ) ;
@@ -563,8 +573,8 @@ public class StockTransactionServiceTests
     {
       Id = 99,
       BrokerAccountId = 1,
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1L
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1L
     } ;
 
     var act = async () => await sut.UpdateAsync( updated, 42 ) ;
@@ -582,8 +592,8 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = BuildBroker( 1, "VPS", [99], 7 ),
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1L
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -617,8 +627,9 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = broker,
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_000_000L
+      SpendAccountId = 7,
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_000_000L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -666,7 +677,7 @@ public class StockTransactionServiceTests
         Symbol = "VNM",
         BrokerAccountId = 1,
         BrokerAccount = broker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       },
       new()
       {
@@ -674,7 +685,7 @@ public class StockTransactionServiceTests
         Symbol = "AAPL",
         BrokerAccountId = 1,
         BrokerAccount = broker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       }
     ] ;
     _repository.Query().Returns( transactions.BuildMock() ) ;
@@ -697,14 +708,14 @@ public class StockTransactionServiceTests
         Id = 1,
         BrokerAccountId = 1,
         BrokerAccount = userBroker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       },
       new()
       {
         Id = 2,
         BrokerAccountId = 2,
         BrokerAccount = otherBroker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       }
     ] ;
     _repository.Query().Returns( transactions.BuildMock() ) ;
@@ -746,8 +757,9 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = broker,
-      TransactionType = TransactionType.Sell,
-      TotalAmount = 750_000L
+      SpendAccountId = 7,
+      StockTransactionType = StockTransactionType.Sell,
+      Amount = 750_000L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -784,8 +796,8 @@ public class StockTransactionServiceTests
     var transaction = new StockTransaction
     {
       Symbol = "VNM",
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_000_000L,
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_000_000L,
       BrokerAccountId = 1
     } ;
 
@@ -804,8 +816,9 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = BuildBroker( 1, "VPS", [42], 7 ),
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_000_000L
+      SpendAccountId = 7,
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_000_000L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -817,8 +830,8 @@ public class StockTransactionServiceTests
     {
       Id = 5,
       BrokerAccountId = 1,
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_500_000L
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_500_000L
     } ;
 
     var act = async () => await sut.UpdateAsync( updated, 42 ) ;
@@ -840,8 +853,9 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = broker,
-      TransactionType = TransactionType.Buy,
-      TotalAmount = 1_000_000L
+      SpendAccountId = 7,
+      StockTransactionType = StockTransactionType.Buy,
+      Amount = -1_000_000L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -865,8 +879,9 @@ public class StockTransactionServiceTests
       Id = 5,
       BrokerAccountId = 1,
       BrokerAccount = broker,
-      TransactionType = TransactionType.Sell,
-      TotalAmount = 750_000L
+      SpendAccountId = 7,
+      StockTransactionType = StockTransactionType.Sell,
+      Amount = 750_000L
     } ;
     _repository.Query().Returns( new List<StockTransaction>
     {
@@ -892,7 +907,7 @@ public class StockTransactionServiceTests
         Symbol = "VNM",
         BrokerAccountId = 1,
         BrokerAccount = broker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       },
       new()
       {
@@ -900,7 +915,7 @@ public class StockTransactionServiceTests
         Symbol = "AAPL",
         BrokerAccountId = 1,
         BrokerAccount = broker,
-        TransactionDate = DateTime.UtcNow
+        Date = DateTime.UtcNow
       }
     ] ;
     _repository.Query().Returns( transactions.BuildMock() ) ;

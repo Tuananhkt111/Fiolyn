@@ -20,18 +20,18 @@ public class AdminStockTransactionControllerTests
     {
       Id = id,
       Symbol = "VNM",
-      TransactionType = TransactionType.Buy,
+      StockTransactionType = StockTransactionType.Buy,
       Quantity = 100L,
       Price = 45000L,
-      TotalAmount = 4_501_500L,
-      TransactionDate = new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ),
+      Amount = -4_501_500L,
+      Date = new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ),
       BrokerAccountId = 3,
       BrokerAccount = new BrokerAccount
       {
         Id = 3,
         Name = "VPS"
       },
-      Notes = "notes"
+      Description = "notes"
     } ;
 
   [Fact]

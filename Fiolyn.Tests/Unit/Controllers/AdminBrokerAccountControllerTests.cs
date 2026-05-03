@@ -155,46 +155,29 @@ public class AdminBrokerAccountControllerTests
   [Fact]
   public async Task UpdateAsync_Missing_Returns404()
   {
-    _service.GetByIdAsync( 99 ).Returns( ( BrokerAccount? )null ) ;
+    _service.UpdateAsync( 99, Arg.Any<string>(), Arg.Any<long>() )
+      .Returns( ( BrokerAccount? )null ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 99, new BrokerAccountRequest( "x", 1 ) ) ;
 
     result.Should().BeOfType<NotFoundResult>() ;
-    await _service.DidNotReceive().UpdateAsync( Arg.Any<BrokerAccount>() ) ;
   }
 
   [Fact]
-  public async Task UpdateAsync_RenameOnly_SkipsRefetch()
+  public async Task UpdateAsync_PassesScalarsToService_AndReturns200()
   {
-    var existing = BuildEntity( 10, [7], "Old", 9 ) ;
-    _service.GetByIdAsync( 10 ).Returns( existing ) ;
+    var updated = BuildEntity( 10, [7], "Renamed", 9 ) ;
+    _service.UpdateAsync( 10, "Renamed", 9 ).Returns( updated ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "Renamed", 9 ) ) ;
 
-    existing.Name.Should().Be( "Renamed" ) ;
-    existing.SpendAccountId.Should().Be( 9 ) ;
-    await _service.Received( 1 ).UpdateAsync( existing ) ;
-    await _service.Received( 1 ).GetByIdAsync( 10 ) ;
-    result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<AdminBrokerAccountResponse>() ;
-  }
-
-  [Fact]
-  public async Task UpdateAsync_SpendAccountIdChanged_RefetchesForFreshNav()
-  {
-    var existing = BuildEntity( 10, [7], "VPS", 1 ) ;
-    _service.GetByIdAsync( 10 ).Returns( existing ) ;
-    var sut = CreateSut() ;
-
-    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "VPS", 9 ) ) ;
-
-    existing.SpendAccountId.Should().Be( 9 ) ;
-    await _service.Received( 1 ).UpdateAsync( existing ) ;
-    await _service.Received( 2 ).GetByIdAsync( 10 ) ;
-    result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<AdminBrokerAccountResponse>() ;
+    await _service.Received( 1 ).UpdateAsync( 10, "Renamed", 9 ) ;
+    var body = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<AdminBrokerAccountResponse>().Which ;
+    body.Name.Should().Be( "Renamed" ) ;
+    body.SpendAccountId.Should().Be( 9 ) ;
   }
 
   [Fact]

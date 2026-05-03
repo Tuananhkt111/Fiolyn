@@ -79,26 +79,14 @@ public class BrokerAccountController(
   [HttpPut( "{id:long}" )]
   public async Task<IActionResult> UpdateAsync( long id, [FromBody] BrokerAccountRequest request )
   {
-    var userId = User.GetUserId() ;
-    var existing = await brokerAccountService.GetByIdForUserAsync( id, userId ) ;
-    if ( existing is null )
+    var updated = await brokerAccountService.UpdateAsync(
+      id, User.GetUserId(), request.Name, request.SpendAccountId ) ;
+    if ( updated is null )
     {
       return NotFound() ;
     }
 
-    var oldSpendId = existing.SpendAccountId ;
-    existing.Name = request.Name ;
-    existing.SpendAccountId = request.SpendAccountId ;
-
-    await brokerAccountService.UpdateAsync( existing, oldSpendId, userId ) ;
-
-    if ( oldSpendId == request.SpendAccountId )
-    {
-      return Ok( new BrokerAccountResponse( existing ) ) ;
-    }
-
-    var refreshed = await brokerAccountService.GetByIdForUserAsync( id, userId ) ;
-    return Ok( new BrokerAccountResponse( refreshed! ) ) ;
+    return Ok( new BrokerAccountResponse( updated ) ) ;
   }
 
   /// <summary>

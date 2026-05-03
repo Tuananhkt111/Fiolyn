@@ -3,6 +3,7 @@ using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 using Fiolyn.Infrastructure.Exceptions ;
+using Fiolyn.Services.Internal.Helpers ;
 using Fiolyn.Services.Internal.Interfaces ;
 using Fiolyn.Utils ;
 using Microsoft.EntityFrameworkCore ;
@@ -13,9 +14,11 @@ namespace Fiolyn.Services.Internal ;
 ///   Manages stock transactions and parses Telegram message format. User-scoped methods enforce
 ///   that the caller is a member of the transaction's parent <see cref="BrokerAccount" /> — not a
 ///   member → 404 (via <see cref="KeyNotFoundException" />).
-///   Every persisted transaction adjusts the broker's linked <see cref="SpendAccount" />.<c>Balance</c>:
-///   Buy → <c>-TotalAmount</c>; Sell, Dividend → <c>+TotalAmount</c>. Updates reverse the old delta and
-///   apply the new; soft-deletes reverse. Balance mutations go through EF change tracking with
+///   Every persisted transaction adjusts the broker's linked <see cref="SpendAccount" />.<c>Balance</c>
+///   via the signed <c>Amount</c> on <see cref="TransactionBase" />, computed at the boundary by
+///   <see cref="StockTransaction.ComputeAmount" />: Buy → negative; Sell, Dividend → positive.
+///   Updates reverse the old delta and apply the new;
+///   soft-deletes reverse. Balance mutations go through EF change tracking with
 ///   <c>[ConcurrencyCheck]</c> on <c>Balance</c> — concurrent writers race for the row and the loser
 ///   gets a 409 <see cref="ConflictException" />. Both the balance change and the transaction write land
 ///   in one <c>SaveChanges</c> call, so they are implicitly atomic.
@@ -24,6 +27,7 @@ public partial class StockTransactionService(
   IRepository<StockTransaction> stockTransactionRepository,
   IRepository<BrokerAccount> brokerRepository,
   IRepository<SpendAccount> spendRepository,
+  IRepository<TransactionCategory> categoryRepository,
   ILogger<StockTransactionService> logger ) : IStockTransactionService
 {
   /// <inheritdoc />
@@ -64,10 +68,15 @@ public partial class StockTransactionService(
                   ?? throw new KeyNotFoundException(
                     $"BrokerAccount {transaction.BrokerAccountId} not found for user {userId}." ) ;
 
+    await TransactionCategoryGuard.EnsureKindMatchesAsync(
+      categoryRepository, transaction.CategoryId, TransactionKind.Stock ) ;
+
+    transaction.SpendAccountId = spendId ;
+
     var spendAccount = await spendRepository.GetByIdOrThrowAsync( spendId ) ;
-    spendAccount.Balance += ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
+    spendAccount.Balance += transaction.Amount ;
     await stockTransactionRepository.AddAsync( transaction ) ;
-    await SaveWithConcurrencyGuardAsync( spendId ) ;
+    await TransactionBalanceWriter.SaveWithConcurrencyGuardAsync( stockTransactionRepository, spendId ) ;
 
     return transaction ;
   }
@@ -84,8 +93,11 @@ public partial class StockTransactionService(
       query = query.Where( t => t.Symbol == normalizedSymbol ) ;
     }
 
-    return await query.AsNoTracking().Include( t => t.BrokerAccount )
-      .OrderByDescending( t => t.TransactionDate )
+    return await query.AsNoTracking()
+      .Include( t => t.BrokerAccount )
+      .Include( t => t.Category )
+      .Include( t => t.Payer )
+      .OrderByDescending( t => t.Date )
       .ToListAsync() ;
   }
 
@@ -99,6 +111,8 @@ public partial class StockTransactionService(
   public async Task<StockTransaction?> GetByIdForUserAsync( long id, long userId ) =>
     await stockTransactionRepository.Query()
       .Include( t => t.BrokerAccount )
+      .Include( t => t.Category )
+      .Include( t => t.Payer )
       .FirstOrDefaultAsync( t => t.Id == id
                                  && t.BrokerAccount.Members.Any( m =>
                                    m.AppUserId == userId ) ) ;
@@ -114,10 +128,9 @@ public partial class StockTransactionService(
       .Where( t => t.Id == transaction.Id )
       .Select( t => new
       {
-        t.TransactionType,
-        t.TotalAmount,
+        t.Amount,
         t.BrokerAccountId,
-        OldSpendAccountId = t.BrokerAccount.SpendAccountId,
+        t.SpendAccountId,
         NewSpendAccountId = brokerRepository.Query()
           .Where( b => b.Id == newBrokerId
                        && b.Members.Any( m => m.AppUserId == userId ) )
@@ -135,9 +148,14 @@ public partial class StockTransactionService(
                      ?? throw new KeyNotFoundException(
                        $"BrokerAccount {newBrokerId} not found for user {userId}." ) ;
 
-    var oldDelta = ComputeBalanceDelta( fetched.TransactionType, fetched.TotalAmount ) ;
-    var newDelta = ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
-    var oldSpendId = fetched.OldSpendAccountId ;
+    await TransactionCategoryGuard.EnsureKindMatchesAsync(
+      categoryRepository, transaction.CategoryId, TransactionKind.Stock ) ;
+
+    var oldDelta = fetched.Amount ;
+    var newDelta = transaction.Amount ;
+    var oldSpendId = fetched.SpendAccountId ;
+
+    transaction.SpendAccountId = newSpendId ;
 
     if ( oldSpendId == newSpendId )
     {
@@ -156,7 +174,8 @@ public partial class StockTransactionService(
       newSpend.Balance += newDelta ;
     }
 
-    await SaveWithConcurrencyGuardAsync( newSpendId ) ;
+    await TransactionBalanceWriter.SaveWithConcurrencyGuardAsync(
+      stockTransactionRepository, oldSpendId, newSpendId ) ;
   }
 
   /// <inheritdoc />
@@ -185,8 +204,11 @@ public partial class StockTransactionService(
       query = query.Where( t => t.Symbol == normalizedSymbol ) ;
     }
 
-    return await query.AsNoTracking().Include( t => t.BrokerAccount )
-      .OrderByDescending( t => t.TransactionDate )
+    return await query.AsNoTracking()
+      .Include( t => t.BrokerAccount )
+      .Include( t => t.Category )
+      .Include( t => t.Payer )
+      .OrderByDescending( t => t.Date )
       .ToListAsync() ;
   }
 
@@ -194,6 +216,8 @@ public partial class StockTransactionService(
   public async Task<StockTransaction?> GetByIdAsync( long id ) =>
     await stockTransactionRepository.Query()
       .Include( t => t.BrokerAccount )
+      .Include( t => t.Category )
+      .Include( t => t.Payer )
       .FirstOrDefaultAsync( t => t.Id == id ) ;
 
   /// <inheritdoc />
@@ -206,34 +230,12 @@ public partial class StockTransactionService(
 
   private async Task SoftDeleteAndReverseAsync( StockTransaction transaction )
   {
-    var spendId = transaction.BrokerAccount.SpendAccountId ;
+    var spendId = transaction.SpendAccountId ;
     var spendAccount = await spendRepository.GetByIdOrThrowAsync( spendId ) ;
-    spendAccount.Balance -= ComputeBalanceDelta( transaction.TransactionType, transaction.TotalAmount ) ;
+    spendAccount.Balance -= transaction.Amount ;
     stockTransactionRepository.SoftDelete( transaction ) ;
-    await SaveWithConcurrencyGuardAsync( spendId ) ;
+    await TransactionBalanceWriter.SaveWithConcurrencyGuardAsync( stockTransactionRepository, spendId ) ;
   }
-
-  private async Task SaveWithConcurrencyGuardAsync( long spendAccountId )
-  {
-    try
-    {
-      await stockTransactionRepository.SaveAsync() ;
-    }
-    catch ( DbUpdateConcurrencyException )
-    {
-      throw new ConflictException(
-        $"SpendAccount {spendAccountId} balance was modified concurrently — retry the operation." ) ;
-    }
-  }
-
-  private static long ComputeBalanceDelta( TransactionType type, long totalAmount ) =>
-    type switch
-    {
-      TransactionType.Buy => -totalAmount,
-      TransactionType.Sell => totalAmount,
-      TransactionType.Dividend => totalAmount,
-      _ => 0L
-    } ;
 
   [GeneratedRegex( @"(\w+):(.+?)(?=\s+\w+:|\s*$)" )]
   private static partial Regex NamedParamRegex() ;
@@ -260,17 +262,18 @@ public partial class StockTransactionService(
     }
 
     var (named, brokerAccountId) = resolved.Value ;
+    var stockType = typeStr == "buy" ? StockTransactionType.Buy : StockTransactionType.Sell ;
 
     return new StockTransaction
     {
       Symbol = parts[ 2 ],
-      TransactionType = typeStr == "buy" ? TransactionType.Buy : TransactionType.Sell,
+      StockTransactionType = stockType,
       Quantity = qty,
       Price = price,
-      TotalAmount = total,
-      TransactionDate = DateTimeUtils.ParseDateOrUtcNow( named.GetValueOrDefault( "date" ) ),
+      Amount = StockTransaction.ComputeAmount( stockType, total ),
+      Date = DateTimeUtils.ParseDateOrUtcNow( named.GetValueOrDefault( "date" ) ),
       BrokerAccountId = brokerAccountId,
-      Notes = named.GetValueOrDefault( "notes", "" )
+      Description = named.GetValueOrDefault( "notes", "" )
     } ;
   }
 
@@ -298,13 +301,13 @@ public partial class StockTransactionService(
     return new StockTransaction
     {
       Symbol = parts[ 2 ],
-      TransactionType = TransactionType.Dividend,
+      StockTransactionType = StockTransactionType.Dividend,
       Quantity = 0,
       Price = 0,
-      TotalAmount = total,
-      TransactionDate = DateTimeUtils.ParseDateOrUtcNow( named.GetValueOrDefault( "date" ) ),
+      Amount = StockTransaction.ComputeAmount( StockTransactionType.Dividend, total ),
+      Date = DateTimeUtils.ParseDateOrUtcNow( named.GetValueOrDefault( "date" ) ),
       BrokerAccountId = brokerAccountId,
-      Notes = named.GetValueOrDefault( "notes", "" )
+      Description = named.GetValueOrDefault( "notes", "" )
     } ;
   }
 
@@ -319,9 +322,10 @@ public partial class StockTransactionService(
   private async Task<long?> ResolveBrokerAsync( string brokerName )
   {
     var lowered = brokerName.ToLowerInvariant() ;
-    var broker = await brokerRepository.Query()
-      .FirstOrDefaultAsync( b => b.Name.ToLower() == lowered ) ;
-    return broker?.Id ;
+    return await brokerRepository.Query()
+      .Where( b => b.Name.ToLower() == lowered )
+      .Select( b => ( long? )b.Id )
+      .FirstOrDefaultAsync() ;
   }
 
   private static Dictionary<string, string> ExtractNamedParams( string text )

@@ -1,6 +1,6 @@
 namespace Fiolyn.Enums ;
 
-public enum TransactionType
+public enum StockTransactionType
 {
   Buy,
   Sell,

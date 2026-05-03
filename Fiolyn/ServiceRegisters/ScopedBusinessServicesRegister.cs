@@ -23,5 +23,13 @@ public class ScopedBusinessServicesRegister : IServiceRegister
     services.AddScoped<IAuthService, AuthService>() ;
     services.AddScoped<IAllowedEmailService, AllowedEmailService>() ;
     services.AddScoped<IUserService, UserService>() ;
+    services.AddScoped<ITransactionCategoryService, TransactionCategoryService>() ;
+    services.AddScoped<ITransactionReadService, TransactionReadService>() ;
+    services.AddScoped<IIncomeTransactionService, IncomeTransactionService>() ;
+    services.AddScoped<IExpenseTransactionService, ExpenseTransactionService>() ;
+    services.AddScoped<ILendTransactionService, LendTransactionService>() ;
+    services.AddScoped<IBorrowingTransactionService, BorrowingTransactionService>() ;
+    services.AddScoped<ITransferTransactionService, TransferTransactionService>() ;
+    services.AddScoped<IAdjustmentTransactionService, AdjustmentTransactionService>() ;
   }
 }

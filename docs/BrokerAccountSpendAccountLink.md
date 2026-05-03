@@ -101,8 +101,8 @@ Run in dev and prod (Neon) before applying B.
 - Injects `IRepository<SpendAccount> spendRepository`.
 - Private helper `EnsureUserIsSpendAccountMemberAsync(spendId, userId)` verifies the caller is a member of the target spend account; throws `KeyNotFoundException` if not.
 - `CreateAsync(account, creatorUserId)` validates spend-account membership before `AddAsync`.
-- `UpdateAsync(account, oldSpendAccountId, callerUserId)` — `oldSpendAccountId` is captured by the controller **before** mutating the entity in memory and passed in; the service only re-validates spend-account membership when `oldSpendAccountId != account.SpendAccountId`. No DB round-trip for the old value.
-- Admin `UpdateAsync(account)` overload skips the per-user check but still verifies the target spend account exists via `spendRepository.GetByIdOrThrowAsync`.
+- `UpdateAsync(id, userId, name, spendAccountId)` — service owns the full load + mutate + save. Loads the tracked entity via `GetByIdForUserAsync` (null → controller maps to 404), captures the old `SpendAccountId` from that load, only re-validates spend-account membership when the new id differs, mutates `Name` / `SpendAccountId` on the tracked entity, saves, and refetches via `GetByIdForUserAsync` so the response carries the fresh `SpendAccount` nav when the FK changed.
+- Admin `UpdateAsync(id, name, spendAccountId)` overload skips the per-user check and only verifies the target spend account exists (via `spendRepository.GetByIdOrThrowAsync`) when the FK actually changed — rename-only updates skip the lookup. Same load+mutate+save shape.
 - `GetMembersAsync(accountId, callerUserId)` — loads the broker via `.Include(b => b.Members).ThenInclude(m => m.AppUser)` (not a `Select`-projection) so the response DTO can read `m.AppUser.Email` / `DisplayName`. Caller-membership is checked in-memory after materialise; result is sorted by `JoinedAt`.
 
 ### `StockTransactionService` (`Fiolyn/Services/Internal/StockTransactionService.cs`)

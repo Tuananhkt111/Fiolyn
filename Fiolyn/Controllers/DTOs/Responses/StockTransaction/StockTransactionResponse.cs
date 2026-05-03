@@ -1,3 +1,4 @@
+using Fiolyn.Controllers.DTOs.Responses.Transaction ;
 using Fiolyn.Enums ;
 
 namespace Fiolyn.Controllers.DTOs.Responses.StockTransaction ;
@@ -8,22 +9,31 @@ namespace Fiolyn.Controllers.DTOs.Responses.StockTransaction ;
 public record StockTransactionResponse(
   long Id,
   string Symbol,
-  TransactionType TransactionType,
+  StockTransactionType StockTransactionType,
   long Quantity,
   long Price,
   long TotalAmount,
-  DateTime TransactionDate,
+  long SpendAccountId,
+  string SpendAccountName,
+  long Amount,
+  DateTime Date,
   long BrokerAccountId,
   string BrokerAccountName,
-  string Notes,
+  string Description,
+  TransactionCategoryRefResponse? Category,
+  TransactionPayerResponse? Payer,
   DateTime Created,
   DateTime LastModified )
 {
   public StockTransactionResponse( Entities.StockTransaction t )
     : this(
-      t.Id, t.Symbol, t.TransactionType, t.Quantity, t.Price,
-      t.TotalAmount, t.TransactionDate, t.BrokerAccountId,
-      t.BrokerAccount.Name, t.Notes, t.Created, t.LastModified )
+      t.Id, t.Symbol, t.StockTransactionType, t.Quantity, t.Price,
+      Math.Abs( t.Amount ), t.SpendAccountId,
+      t.SpendAccount?.Name ?? string.Empty, t.Amount, t.Date, t.BrokerAccountId,
+      t.BrokerAccount?.Name ?? string.Empty, t.Description,
+      t.Category is null ? null : new TransactionCategoryRefResponse( t.Category ),
+      t.Payer is null ? null : new TransactionPayerResponse( t.Payer ),
+      t.Created, t.LastModified )
   {
   }
 }

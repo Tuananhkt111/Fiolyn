@@ -8,10 +8,12 @@ namespace Fiolyn.Controllers.DTOs.Requests.StockTransaction ;
 /// </summary>
 public record StockTransactionRequest(
   [Required] [MaxLength( 20 )] string Symbol,
-  [Required] TransactionType TransactionType,
+  [Required] StockTransactionType StockTransactionType,
   [Required] long Quantity,
   [Required] long Price,
   [Required] long TotalAmount,
-  [Required] DateTime TransactionDate,
+  [Required] DateTime Date,
   [Required] long BrokerAccountId,
-  [MaxLength( 500 )] string Notes = "" ) ;
+  long? CategoryId = null,
+  long? PayerId = null,
+  [MaxLength( 500 )] string Description = "" ) ;

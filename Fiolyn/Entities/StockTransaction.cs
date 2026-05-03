@@ -1,20 +1,18 @@
 using System.ComponentModel.DataAnnotations ;
-using Fiolyn.Entities.Base ;
 using Fiolyn.Enums ;
 
 namespace Fiolyn.Entities ;
 
 /// <summary>
-///   Represents a stock transaction (buy, sell, or dividend) stored in the database.
+///   A stock transaction (buy, sell, or dividend). Inherits the common transaction columns
+///   (<c>Date</c>, <c>Description</c>, <c>SpendAccountId</c>, <c>Amount</c>, <c>PayerId</c>,
+///   <c>CategoryId</c>, audit, soft-delete) from <see cref="TransactionBase" />. The signed
+///   <c>Amount</c> is computed at the boundary via <see cref="ComputeAmount" /> from
+///   <c>StockTransactionType</c> + an unsigned trade total: Buy → negative, Sell/Dividend → positive.
+///   The unsigned trade total is therefore <c>Math.Abs(Amount)</c>.
 /// </summary>
-public class StockTransaction : IAuditable, ISoftDelete
+public class StockTransaction : TransactionBase
 {
-  /// <summary>
-  ///   Gets or sets the unique identifier (primary key, auto-increment).
-  /// </summary>
-  [Key]
-  public long Id { get ; set ; }
-
   /// <summary>
   ///   Gets or sets the ticker symbol, e.g. VNM, AAPL. Auto-normalized to uppercase.
   /// </summary>
@@ -27,10 +25,10 @@ public class StockTransaction : IAuditable, ISoftDelete
   } = string.Empty ;
 
   /// <summary>
-  ///   Gets or sets the transaction type (Buy, Sell, or Dividend).
+  ///   Gets or sets the stock-specific transaction type (Buy, Sell, or Dividend).
   /// </summary>
   [Required]
-  public TransactionType TransactionType { get ; set ; }
+  public StockTransactionType StockTransactionType { get ; set ; }
 
   /// <summary>
   ///   Gets or sets the quantity of shares traded. Zero for dividends.
@@ -45,18 +43,6 @@ public class StockTransaction : IAuditable, ISoftDelete
   public long Price { get ; set ; }
 
   /// <summary>
-  ///   Gets or sets the total cash amount in whole VND, including fees.
-  /// </summary>
-  [Required]
-  public long TotalAmount { get ; set ; }
-
-  /// <summary>
-  ///   Gets or sets the UTC date of the trade.
-  /// </summary>
-  [Required]
-  public DateTime TransactionDate { get ; set ; }
-
-  /// <summary>
   ///   Gets or sets the foreign key to the associated broker account.
   /// </summary>
   [Required]
@@ -68,31 +54,20 @@ public class StockTransaction : IAuditable, ISoftDelete
   public BrokerAccount BrokerAccount { get ; set ; } = null! ;
 
   /// <summary>
-  ///   Gets or sets optional free-text notes.
-  /// </summary>
-  [MaxLength( 500 )]
-  public string Notes { get ; set ; } = string.Empty ;
-
-  /// <summary>
-  ///   Gets or sets the UTC timestamp when this record was created.
-  /// </summary>
-  [Required]
-  public DateTime Created { get ; set ; }
-
-  /// <summary>
-  ///   Gets or sets the UTC timestamp when this record was last modified.
-  /// </summary>
-  [Required]
-  public DateTime LastModified { get ; set ; }
-
-  /// <summary>
-  ///   Gets or sets a value indicating whether this record has been soft-deleted.
-  /// </summary>
-  [Required]
-  public bool IsDeleted { get ; set ; }
-
-  /// <summary>
   ///   Normalizes a stock ticker symbol to uppercase.
   /// </summary>
   public static string NormalizeSymbol( string symbol ) => symbol.ToUpperInvariant() ;
+
+  /// <summary>
+  ///   Computes the signed <see cref="TransactionBase.Amount" /> for a stock trade from its type and
+  ///   unsigned cash total. Buy → negative; Sell, Dividend → positive.
+  /// </summary>
+  public static long ComputeAmount( StockTransactionType type, long totalAmount ) =>
+    type switch
+    {
+      StockTransactionType.Buy => -totalAmount,
+      StockTransactionType.Sell => totalAmount,
+      StockTransactionType.Dividend => totalAmount,
+      _ => 0L
+    } ;
 }

@@ -13,6 +13,8 @@ Access is controlled by membership: the service layer filters `SpendAccount` by 
 
 **Money representation:** all monetary fields are `long` (whole-VND units). This matches the project-wide rule documented in `.claude/CLAUDE.md`.
 
+**Balance writes:** every change to `SpendAccount.Balance` flows through a `TransactionBase` leaf (Income / Expense / Lend / Borrowing / Transfer / Adjustment / Stock); see `PLAN_Transaction.md` for the hierarchy and atomic-write pattern. `PUT /api/spend-accounts/{id}` cannot change `Balance`. Soft-deleting a `SpendAccount` is blocked while it is referenced as a `BrokerAccount` link, as a transaction's `SpendAccountId`, or as a `TransferTransaction.DestinationSpendAccountId`.
+
 ---
 
 ## 1. Entity Design
@@ -120,7 +122,8 @@ public interface ISpendAccountService
   Task<SpendAccount> CreateAsync( SpendAccount account, long creatorUserId ) ;
   Task<List<SpendAccount>> GetAllForUserAsync( long userId ) ;
   Task<SpendAccount?> GetByIdForUserAsync( long id, long userId ) ;
-  Task UpdateAsync( SpendAccount account ) ;
+  // Service owns load + mutate + save; null return → 404 in the controller.
+  Task<SpendAccount?> UpdateAsync( long id, long userId, string name, SpendAccountType type ) ;
   Task SoftDeleteAsync( long id, long userId ) ;
 
   // Member management (caller must be a member)
@@ -132,6 +135,7 @@ public interface ISpendAccountService
   Task<List<SpendAccount>> GetAllAsync( long? userId = null ) ;
   Task<SpendAccount?> GetByIdAsync( long id ) ;
   Task SoftDeleteAsync( long id ) ;
+  Task<SpendAccount?> UpdateAsync( long id, string name, SpendAccountType type ) ;
 }
 ```
 
@@ -225,7 +229,7 @@ Route: `api/spend-accounts`. `[Authorize]`. Pipes `User.GetUserId()` into every 
 | `POST`   | `/`                           | Create; caller becomes the first member.                                  |
 | `GET`    | `/`                           | List accounts caller is a member of.                                      |
 | `GET`    | `/{id:long}`                  | Get one. 404 if caller is not a member.                                   |
-| `PUT`    | `/{id:long}`                  | Update Name / Type / Balance. 404 if caller is not a member.              |
+| `PUT`    | `/{id:long}`                  | Update Name / Type. 404 if caller is not a member. **Balance is read-only here — see `PLAN_Transaction.md`.** |
 | `DELETE` | `/{id:long}`                  | Soft-delete. 404 if caller is not a member.                               |
 | `GET`    | `/{id:long}/members`          | List current members. 404 if caller is not a member.                      |
 | `POST`   | `/{id:long}/members`          | Add a member by email. Idempotent — 200 + list if target is already in.   |
@@ -238,7 +242,7 @@ Route: `api/admin/spend-accounts`. `[Authorize(Policy = AuthConstants.AdminPolic
 - `GET /` — list all accounts; optional `?userId=X` narrows to accounts X is a member of. Returns with full `Members` list.
 - `GET /{id:long}` — get any account by ID, not scoped.
 - `POST /` — create on behalf of the specified `AppUserId` (becomes the initial member). Response includes the member list.
-- `PUT /{id:long}` — update Name / Type / Balance on any account.
+- `PUT /{id:long}` — update Name / Type on any account. Balance is read-only here (see `PLAN_Transaction.md`).
 - `DELETE /{id:long}` — soft-delete any account.
 
 ---

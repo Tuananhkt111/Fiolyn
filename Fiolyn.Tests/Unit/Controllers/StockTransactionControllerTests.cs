@@ -34,26 +34,26 @@ public class StockTransactionControllerTests
   }
 
   private static StockTransactionRequest BuildRequest() =>
-    new("vnm", TransactionType.Buy, 100L, 45000L, 4_501_500L,
-      new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ), 3, "notes") ;
+    new("vnm", StockTransactionType.Buy, 100L, 45000L, 4_501_500L,
+      new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ), 3, Description: "notes") ;
 
   private static StockTransaction BuildEntity( long id = 10, BrokerAccount? broker = null ) =>
     new()
     {
       Id = id,
       Symbol = "VNM",
-      TransactionType = TransactionType.Buy,
+      StockTransactionType = StockTransactionType.Buy,
       Quantity = 100L,
       Price = 45000L,
-      TotalAmount = 4_501_500L,
-      TransactionDate = new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ),
+      Amount = -4_501_500L,
+      Date = new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ),
       BrokerAccountId = 3,
       BrokerAccount = broker ?? new BrokerAccount
       {
         Id = 3,
         Name = "VPS"
       },
-      Notes = "notes"
+      Description = "notes"
     } ;
 
   [Fact]

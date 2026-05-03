@@ -1,5 +1,6 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
+using Fiolyn.Enums ;
 using Fiolyn.Infrastructure.Exceptions ;
 using Fiolyn.Services.Internal.Interfaces ;
 using Microsoft.EntityFrameworkCore ;
@@ -15,7 +16,9 @@ public class SpendAccountService(
   IRepository<SpendAccount> repository,
   IRepository<SpendAccountMember> memberRepository,
   IRepository<AppUser> userRepository,
-  IRepository<BrokerAccount> brokerRepository ) : ISpendAccountService
+  IRepository<BrokerAccount> brokerRepository,
+  IRepository<TransactionBase> transactionRepository,
+  IRepository<TransferTransaction> transferRepository ) : ISpendAccountService
 {
   /// <inheritdoc />
   public async Task<SpendAccount> CreateAsync( SpendAccount account, long creatorUserId )
@@ -45,25 +48,19 @@ public class SpendAccountService(
                                  && a.Members.Any( m => m.AppUserId == userId ) ) ;
 
   /// <inheritdoc />
-  public async Task UpdateAsync( SpendAccount account ) => await repository.SaveAsync() ;
-
-  /// <inheritdoc />
-  public async Task<long> AdjustBalanceForUserAsync( long id, long userId, long delta )
+  public async Task<SpendAccount?> UpdateAsync( long id, long userId, string name, SpendAccountType type )
   {
-    var isMember = await repository.Query()
-      .AnyAsync( a => a.Id == id
-                      && a.Members.Any( m => m.AppUserId == userId ) ) ;
-    if ( ! isMember )
+    var account = await GetByIdForUserAsync( id, userId ) ;
+    if ( account is null )
     {
-      throw new KeyNotFoundException( $"SpendAccount {id} not found for user {userId}." ) ;
+      return null ;
     }
 
-    return await ApplyAndReadBalanceAsync( id, delta ) ;
+    account.Name = name ;
+    account.Type = type ;
+    await repository.SaveAsync() ;
+    return account ;
   }
-
-  /// <inheritdoc />
-  public Task<long> AdjustBalanceAsync( long id, long delta ) =>
-    ApplyAndReadBalanceAsync( id, delta ) ;
 
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id, long userId )
@@ -71,6 +68,7 @@ public class SpendAccountService(
     var account = await GetByIdForUserAsync( id, userId )
                   ?? throw new KeyNotFoundException( $"SpendAccount {id} not found for user {userId}." ) ;
     await EnsureNotReferencedByActiveBrokerAsync( id ) ;
+    await EnsureNotReferencedByActiveTransactionAsync( id ) ;
     repository.SoftDelete( account ) ;
     await repository.SaveAsync() ;
   }
@@ -189,8 +187,24 @@ public class SpendAccountService(
   {
     var account = await repository.GetByIdOrThrowAsync( id ) ;
     await EnsureNotReferencedByActiveBrokerAsync( id ) ;
+    await EnsureNotReferencedByActiveTransactionAsync( id ) ;
     repository.SoftDelete( account ) ;
     await repository.SaveAsync() ;
+  }
+
+  /// <inheritdoc />
+  public async Task<SpendAccount?> UpdateAsync( long id, string name, SpendAccountType type )
+  {
+    var account = await GetByIdAsync( id ) ;
+    if ( account is null )
+    {
+      return null ;
+    }
+
+    account.Name = name ;
+    account.Type = type ;
+    await repository.SaveAsync() ;
+    return account ;
   }
 
   private async Task EnsureNotReferencedByActiveBrokerAsync( long spendAccountId )
@@ -204,6 +218,25 @@ public class SpendAccountService(
     }
   }
 
+  private async Task EnsureNotReferencedByActiveTransactionAsync( long spendAccountId )
+  {
+    var referencedAsSource = await transactionRepository.Query()
+      .AnyAsync( t => t.SpendAccountId == spendAccountId ) ;
+    if ( referencedAsSource )
+    {
+      throw new BadRequestException(
+        $"SpendAccount {spendAccountId} is referenced by one or more active transactions — delete or reassign them first." ) ;
+    }
+
+    var referencedAsTransferDestination = await transferRepository.Query()
+      .AnyAsync( t => t.DestinationSpendAccountId == spendAccountId ) ;
+    if ( referencedAsTransferDestination )
+    {
+      throw new BadRequestException(
+        $"SpendAccount {spendAccountId} is referenced by one or more active transfer transactions — delete or reassign them first." ) ;
+    }
+  }
+
   private async Task<List<SpendAccountMember>> LoadMembersAsync( long accountId ) =>
     await memberRepository.Query()
       .AsNoTracking()
@@ -211,20 +244,4 @@ public class SpendAccountService(
       .Where( m => m.SpendAccountId == accountId )
       .OrderBy( m => m.JoinedAt )
       .ToListAsync() ;
-
-  private async Task<long> ApplyAndReadBalanceAsync( long id, long delta )
-  {
-    var account = await repository.GetByIdOrThrowAsync( id ) ;
-    account.Balance += delta ;
-    try
-    {
-      await repository.SaveAsync() ;
-    }
-    catch ( DbUpdateConcurrencyException )
-    {
-      throw new ConflictException(
-        $"SpendAccount {id} balance was modified concurrently — retry the operation." ) ;
-    }
-    return account.Balance ;
-  }
 }

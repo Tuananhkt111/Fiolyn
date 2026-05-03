@@ -149,10 +149,10 @@ public class TelegramMessageServiceTests
     var parsedTransaction = new StockTransaction
     {
       Symbol = "VNM",
-      TransactionType = TransactionType.Buy,
+      StockTransactionType = StockTransactionType.Buy,
       Quantity = 100,
       Price = 45000,
-      TotalAmount = 4501500
+      Amount = -4501500
     } ;
     _stockTransactionService.ParseMessageAsync( Arg.Any<string>() )
       .Returns( Task.FromResult<StockTransaction?>( parsedTransaction ) ) ;
@@ -175,10 +175,10 @@ public class TelegramMessageServiceTests
     var parsedTransaction = new StockTransaction
     {
       Symbol = "VNM",
-      TransactionType = TransactionType.Buy,
+      StockTransactionType = StockTransactionType.Buy,
       Quantity = 100,
       Price = 45000,
-      TotalAmount = 4501500
+      Amount = -4501500
     } ;
     _stockTransactionService.ParseMessageAsync( Arg.Any<string>() )
       .Returns( Task.FromResult<StockTransaction?>( parsedTransaction ) ) ;

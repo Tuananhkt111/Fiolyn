@@ -16,8 +16,6 @@ public class RepositoriesServiceRegister : IServiceRegister
   /// <summary>
   ///   Registers repository services.
   /// </summary>
-  public void RegisterServices( IServiceCollection services, IConfiguration configuration )
-  {
+  public void RegisterServices( IServiceCollection services, IConfiguration configuration ) =>
     services.AddScoped( typeof( IRepository<> ), typeof( Repository<> ) ) ;
-  }
 }

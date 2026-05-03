@@ -56,14 +56,30 @@ public class BrokerAccountService(
                       && b.Members.Any( m => m.AppUserId == userId ) ) ;
 
   /// <inheritdoc />
-  public async Task UpdateAsync( BrokerAccount account, long oldSpendAccountId, long callerUserId )
+  public async Task<BrokerAccount?> UpdateAsync( long id, long userId, string name, long spendAccountId )
   {
-    if ( oldSpendAccountId != account.SpendAccountId )
+    var account = await GetByIdForUserAsync( id, userId ) ;
+    if ( account is null )
     {
-      await EnsureUserIsSpendAccountMemberAsync( account.SpendAccountId, callerUserId ) ;
+      return null ;
     }
 
+    var oldSpendId = account.SpendAccountId ;
+    if ( oldSpendId != spendAccountId )
+    {
+      await EnsureUserIsSpendAccountMemberAsync( spendAccountId, userId ) ;
+    }
+
+    account.Name = name ;
+    account.SpendAccountId = spendAccountId ;
     await repository.SaveAsync() ;
+
+    if ( oldSpendId == spendAccountId )
+    {
+      return account ;
+    }
+
+    return await GetByIdForUserAsync( id, userId ) ;
   }
 
   /// <inheritdoc />
@@ -195,10 +211,30 @@ public class BrokerAccountService(
   }
 
   /// <inheritdoc />
-  public async Task UpdateAsync( BrokerAccount account )
+  public async Task<BrokerAccount?> UpdateAsync( long id, string name, long spendAccountId )
   {
-    await spendRepository.GetByIdOrThrowAsync( account.SpendAccountId ) ;
+    var account = await GetByIdAsync( id ) ;
+    if ( account is null )
+    {
+      return null ;
+    }
+
+    var oldSpendId = account.SpendAccountId ;
+    if ( oldSpendId != spendAccountId )
+    {
+      await spendRepository.GetByIdOrThrowAsync( spendAccountId ) ;
+    }
+
+    account.Name = name ;
+    account.SpendAccountId = spendAccountId ;
     await repository.SaveAsync() ;
+
+    if ( oldSpendId == spendAccountId )
+    {
+      return account ;
+    }
+
+    return await GetByIdAsync( id ) ;
   }
 
   private async Task EnsureUserIsSpendAccountMemberAsync( long spendAccountId, long userId )

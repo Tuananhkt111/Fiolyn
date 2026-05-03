@@ -151,45 +151,29 @@ public class BrokerAccountControllerTests
   [Fact]
   public async Task UpdateAsync_Missing_Returns404()
   {
-    _service.GetByIdForUserAsync( 99, 7 ).Returns( ( BrokerAccount? )null ) ;
+    _service.UpdateAsync( 99, 7, Arg.Any<string>(), Arg.Any<long>() )
+      .Returns( ( BrokerAccount? )null ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 99, new BrokerAccountRequest( "X", 1 ) ) ;
 
     result.Should().BeOfType<NotFoundResult>() ;
-    await _service.DidNotReceive()
-      .UpdateAsync( Arg.Any<BrokerAccount>(), Arg.Any<long>(), Arg.Any<long>() ) ;
   }
 
   [Fact]
-  public async Task UpdateAsync_RenameOnly_SkipsRefetch()
+  public async Task UpdateAsync_PassesScalarsToService_AndReturns200()
   {
-    var existing = BuildEntity( 10, "Old", 7 ) ;
-    _service.GetByIdForUserAsync( 10, 7 ).Returns( existing ) ;
+    var updated = BuildEntity( 10, "Renamed", 7 ) ;
+    _service.UpdateAsync( 10, 7, "Renamed", 7 ).Returns( updated ) ;
     var sut = CreateSut() ;
 
     var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "Renamed", 7 ) ) ;
 
-    existing.Name.Should().Be( "Renamed" ) ;
-    existing.SpendAccountId.Should().Be( 7 ) ;
-    await _service.Received( 1 ).UpdateAsync( existing, oldSpendAccountId: 7L, callerUserId: 7L ) ;
-    await _service.Received( 1 ).GetByIdForUserAsync( 10, 7 ) ;
-    result.Should().BeOfType<OkObjectResult>() ;
-  }
-
-  [Fact]
-  public async Task UpdateAsync_SpendAccountIdChanged_RefetchesForFreshNav()
-  {
-    var existing = BuildEntity( 10, "VPS", 7 ) ;
-    _service.GetByIdForUserAsync( 10, 7 ).Returns( existing ) ;
-    var sut = CreateSut() ;
-
-    var result = await sut.UpdateAsync( 10, new BrokerAccountRequest( "VPS", 9 ) ) ;
-
-    existing.SpendAccountId.Should().Be( 9 ) ;
-    await _service.Received( 1 ).UpdateAsync( existing, oldSpendAccountId: 7L, callerUserId: 7L ) ;
-    await _service.Received( 2 ).GetByIdForUserAsync( 10, 7 ) ;
-    result.Should().BeOfType<OkObjectResult>() ;
+    await _service.Received( 1 ).UpdateAsync( 10, 7, "Renamed", 7 ) ;
+    var body = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<BrokerAccountResponse>().Which ;
+    body.Name.Should().Be( "Renamed" ) ;
+    body.SpendAccountId.Should().Be( 7 ) ;
   }
 
   [Fact]

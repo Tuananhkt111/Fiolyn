@@ -151,7 +151,9 @@ public interface IBrokerAccountService
   Task<List<BrokerAccount>> GetAllForUserAsync( long userId ) ;
   Task<BrokerAccount?> GetByIdForUserAsync( long id, long userId ) ;
   Task<bool> ExistsForUserAsync( long id, long userId ) ;
-  Task UpdateAsync( BrokerAccount account ) ;
+  // Service owns load + mutate + save; revalidates spend membership when SpendAccountId changes;
+  // refetches via GetByIdForUserAsync so the response carries the fresh SpendAccount nav. Null → 404.
+  Task<BrokerAccount?> UpdateAsync( long id, long userId, string name, long spendAccountId ) ;
   Task SoftDeleteAsync( long id, long userId ) ;
 
   // Member management (caller must be a member)
@@ -163,6 +165,8 @@ public interface IBrokerAccountService
   Task<List<BrokerAccount>> GetAllAsync( long? userId = null ) ;
   Task<BrokerAccount?> GetByIdAsync( long id ) ;
   Task SoftDeleteAsync( long id ) ;
+  // Admin variant — skips spend-membership check; still verifies spend account exists.
+  Task<BrokerAccount?> UpdateAsync( long id, string name, long spendAccountId ) ;
 }
 ```
 

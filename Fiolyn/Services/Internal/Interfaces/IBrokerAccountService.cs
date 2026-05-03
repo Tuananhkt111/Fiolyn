@@ -44,19 +44,19 @@ public interface IBrokerAccountService
   Task<bool> ExistsForUserAsync( long id, long userId ) ;
 
   /// <summary>
-  ///   Updates an existing broker account. Broker membership is assumed to have been verified by the
-  ///   caller (typically by fetching via <see cref="GetByIdForUserAsync" /> first). When
-  ///   <paramref name="oldSpendAccountId" /> differs from the new <c>SpendAccountId</c> on
-  ///   <paramref name="account" />, the caller's membership of the new spend account is verified
-  ///   here — throws <see cref="KeyNotFoundException" /> if the caller is not a member.
+  ///   Updates a broker account's <c>Name</c> and <c>SpendAccountId</c>, requiring the caller to be a
+  ///   member. Returns null if no matching broker is found or the caller is not a member (controller
+  ///   maps to 404). When the new <c>SpendAccountId</c> differs from the existing one, the caller's
+  ///   membership of the new spend account is verified — throws <see cref="KeyNotFoundException" />
+  ///   if the caller is not a member. The returned entity has the (potentially refetched) updated
+  ///   <c>SpendAccount</c> nav populated.
   /// </summary>
-  /// <param name="account">The broker account with updated values.</param>
-  /// <param name="oldSpendAccountId">
-  ///   The pre-mutation <c>SpendAccountId</c>, captured by the caller before the in-memory swap.
-  ///   Used to short-circuit the membership re-check when the link did not change.
-  /// </param>
-  /// <param name="callerUserId">The caller's primary key, for the spend-account membership re-check.</param>
-  Task UpdateAsync( BrokerAccount account, long oldSpendAccountId, long callerUserId ) ;
+  /// <param name="id">The broker account primary key.</param>
+  /// <param name="userId">The caller's primary key.</param>
+  /// <param name="name">The new broker name.</param>
+  /// <param name="spendAccountId">The new linked spend-account primary key.</param>
+  /// <returns>The updated broker account, or null if not found or caller is not a member.</returns>
+  Task<BrokerAccount?> UpdateAsync( long id, long userId, string name, long spendAccountId ) ;
 
   /// <summary>
   ///   Soft-deletes a broker account by ID, requiring the caller to be a member.
@@ -118,11 +118,14 @@ public interface IBrokerAccountService
   Task SoftDeleteAsync( long id ) ;
 
   /// <summary>
-  ///   (Admin) Updates an existing broker account. Skips the caller-membership checks — caller
-  ///   authorization is the controller's responsibility (admin policy). Still verifies the target
-  ///   <c>SpendAccountId</c> references an active spend account; throws
+  ///   (Admin) Updates any broker account's <c>Name</c> and <c>SpendAccountId</c> without
+  ///   user-scoping. Returns null if the broker does not exist (controller maps to 404). Verifies the
+  ///   target <c>SpendAccountId</c> references an active spend account; throws
   ///   <see cref="KeyNotFoundException" /> if not.
   /// </summary>
-  /// <param name="account">The broker account with updated values.</param>
-  Task UpdateAsync( BrokerAccount account ) ;
+  /// <param name="id">The broker account primary key.</param>
+  /// <param name="name">The new broker name.</param>
+  /// <param name="spendAccountId">The new linked spend-account primary key.</param>
+  /// <returns>The updated broker account, or null if not found.</returns>
+  Task<BrokerAccount?> UpdateAsync( long id, string name, long spendAccountId ) ;
 }
