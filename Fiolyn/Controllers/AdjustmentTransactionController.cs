@@ -27,7 +27,7 @@ public class AdjustmentTransactionController(
     {
       SpendAccountId = request.SpendAccountId,
       CategoryId = request.CategoryId,
-      Amount = request.Delta,
+      Amount = request.Amount,
       Date = request.Date,
       Description = request.Description,
       PayerId = request.PayerId ?? userId
@@ -74,7 +74,7 @@ public class AdjustmentTransactionController(
 
     existing.SpendAccountId = request.SpendAccountId ;
     existing.CategoryId = request.CategoryId ;
-    existing.Amount = request.Delta ;
+    existing.Amount = request.Amount ;
     existing.Date = request.Date ;
     existing.Description = request.Description ;
     existing.PayerId = request.PayerId ?? userId ;
