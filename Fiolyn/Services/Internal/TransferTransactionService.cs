@@ -114,6 +114,7 @@ public class TransferTransactionService(
     await BuildReadQuery( transferRepository.Query()
         .Where( t => t.SpendAccount.Members.Any( m => m.AppUserId == userId )
                      || t.DestinationSpendAccount.Members.Any( m => m.AppUserId == userId ) ) )
+      .AsNoTracking()
       .ToListAsync() ;
 
   /// <inheritdoc />
@@ -142,7 +143,7 @@ public class TransferTransactionService(
         || t.DestinationSpendAccount.Members.Any( m => m.AppUserId == userId.Value ) ) ;
     }
 
-    return await BuildReadQuery( query ).ToListAsync() ;
+    return await BuildReadQuery( query ).AsNoTracking().ToListAsync() ;
   }
 
   /// <inheritdoc />
@@ -163,8 +164,13 @@ public class TransferTransactionService(
       transferRepository, transaction.SpendAccountId, transaction.DestinationSpendAccountId ) ;
   }
 
+  // Tracking-on by default — single-row callers (Update, SoftDelete) need the tracked entity and
+  // its included SpendAccount / DestinationSpendAccount in the change tracker, so the subsequent
+  // FindAsync calls inside the write paths return the same instances instead of allocating a
+  // duplicate-keyed tracked entity. List callers chain .AsNoTracking() themselves before
+  // .ToListAsync().
   private static IQueryable<TransferTransaction> BuildReadQuery( IQueryable<TransferTransaction> query ) =>
-    query.AsNoTracking()
+    query
       .Include( t => t.SpendAccount )
       .Include( t => t.DestinationSpendAccount )
       .Include( t => t.Category )

@@ -132,6 +132,7 @@ public abstract class StandardTransactionServiceBase<T>(
   public async Task<List<T>> GetAllForUserAsync( long userId ) =>
     await BuildReadQuery( transactionRepository.Query()
         .Where( t => t.SpendAccount.Members.Any( m => m.AppUserId == userId ) ) )
+      .AsNoTracking()
       .ToListAsync() ;
 
   /// <summary>
@@ -161,7 +162,7 @@ public abstract class StandardTransactionServiceBase<T>(
       query = query.Where( t => t.SpendAccount.Members.Any( m => m.AppUserId == userId.Value ) ) ;
     }
 
-    return await BuildReadQuery( query ).ToListAsync() ;
+    return await BuildReadQuery( query ).AsNoTracking().ToListAsync() ;
   }
 
   /// <summary>
@@ -174,10 +175,13 @@ public abstract class StandardTransactionServiceBase<T>(
   /// <summary>
   ///   Hook for derived services to extend the read query with type-specific includes (e.g.
   ///   <c>TransferTransaction.DestinationSpendAccount</c>). Default implementation eager-loads the
-  ///   columns every leaf needs.
+  ///   columns every leaf needs. Tracking-on by default — single-row callers (Update, SoftDelete)
+  ///   need the tracked entity and its included navs in the change tracker so the subsequent
+  ///   <c>FindAsync</c> on <c>SpendAccount</c> returns the same instance instead of a duplicate.
+  ///   List callers chain <c>.AsNoTracking()</c> themselves before <c>.ToListAsync()</c>.
   /// </summary>
   protected virtual IQueryable<T> BuildReadQuery( IQueryable<T> query ) =>
-    query.AsNoTracking()
+    query
       .Include( t => t.SpendAccount )
       .Include( t => t.Category )
       .Include( t => t.Payer )
