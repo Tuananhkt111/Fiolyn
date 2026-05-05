@@ -20,6 +20,9 @@ public class WebApiServiceRegister : IServiceRegister
       options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver() ;
       options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore ;
       options.SerializerSettings.Converters.Add( new StringEnumConverter() ) ;
+      // Postgres columns are timestamptz; Npgsql 6+ rejects DateTime writes unless Kind=Utc.
+      // Treat incoming dates without offset as UTC; convert dates with offset to UTC.
+      options.SerializerSettings.DateTimeZoneHandling = DateTimeZoneHandling.Utc ;
     } ) ;
 
     services.AddProblemDetails() ;
