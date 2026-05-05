@@ -95,6 +95,7 @@ public partial class StockTransactionService(
 
     return await query.AsNoTracking()
       .Include( t => t.BrokerAccount )
+      .Include( t => t.SpendAccount )
       .Include( t => t.Category )
       .Include( t => t.Payer )
       .OrderByDescending( t => t.Date )
@@ -111,6 +112,7 @@ public partial class StockTransactionService(
   public async Task<StockTransaction?> GetByIdForUserAsync( long id, long userId ) =>
     await stockTransactionRepository.Query()
       .Include( t => t.BrokerAccount )
+      .Include( t => t.SpendAccount )
       .Include( t => t.Category )
       .Include( t => t.Payer )
       .FirstOrDefaultAsync( t => t.Id == id
@@ -206,6 +208,7 @@ public partial class StockTransactionService(
 
     return await query.AsNoTracking()
       .Include( t => t.BrokerAccount )
+      .Include( t => t.SpendAccount )
       .Include( t => t.Category )
       .Include( t => t.Payer )
       .OrderByDescending( t => t.Date )
@@ -216,6 +219,7 @@ public partial class StockTransactionService(
   public async Task<StockTransaction?> GetByIdAsync( long id ) =>
     await stockTransactionRepository.Query()
       .Include( t => t.BrokerAccount )
+      .Include( t => t.SpendAccount )
       .Include( t => t.Category )
       .Include( t => t.Payer )
       .FirstOrDefaultAsync( t => t.Id == id ) ;
