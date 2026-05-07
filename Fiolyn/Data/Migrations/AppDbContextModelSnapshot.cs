@@ -324,6 +324,9 @@ namespace Fiolyn.Data.Migrations
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<long?>("ParentTransactionId")
+                        .HasColumnType("bigint");
+
                     b.Property<long?>("PayerId")
                         .HasColumnType("bigint");
 
@@ -333,6 +336,8 @@ namespace Fiolyn.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("ParentTransactionId");
 
                     b.HasIndex("PayerId");
 
@@ -543,6 +548,11 @@ namespace Fiolyn.Data.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Fiolyn.Entities.TransactionBase", "ParentTransaction")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Fiolyn.Entities.AppUser", "Payer")
                         .WithMany()
                         .HasForeignKey("PayerId")
@@ -555,6 +565,8 @@ namespace Fiolyn.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+
+                    b.Navigation("ParentTransaction");
 
                     b.Navigation("Payer");
 
@@ -673,6 +685,11 @@ namespace Fiolyn.Data.Migrations
             modelBuilder.Entity("Fiolyn.Entities.SpendAccount", b =>
                 {
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("Fiolyn.Entities.TransactionBase", b =>
+                {
+                    b.Navigation("Children");
                 });
 #pragma warning restore 612, 618
         }

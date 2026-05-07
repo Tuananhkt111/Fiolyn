@@ -1,3 +1,4 @@
+using Fiolyn.Controllers.DTOs.Responses.Shared ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 
@@ -6,7 +7,9 @@ namespace Fiolyn.Controllers.DTOs.Responses.Transaction ;
 /// <summary>
 ///   Discriminated polymorphic response for the unified <c>GET /api/transactions</c> list. Carries
 ///   the common <see cref="Entities.TransactionBase" /> fields plus a <c>kind</c> discriminator and
-///   one optional per-leaf detail block (only the matching block is populated).
+///   one optional per-leaf detail block (only the matching block is populated). For Income /
+///   Expense parents that have linked share-children, <see cref="LinkedShares" /> lists each
+///   child; everyone else gets an empty list.
 /// </summary>
 public record TransactionResponse(
   long Id,
@@ -21,6 +24,7 @@ public record TransactionResponse(
   TransactionStockDetail? Stock,
   TransactionTransferDetail? Transfer,
   TransactionCounterpartyDetail? Counterparty,
+  IReadOnlyList<LinkedShareResponse> LinkedShares,
   DateTime Created,
   DateTime LastModified )
 {
@@ -29,6 +33,7 @@ public record TransactionResponse(
     var category = t.Category is null ? null : new TransactionCategoryRefResponse( t.Category ) ;
     var payer = t.Payer is null ? null : new TransactionPayerResponse( t.Payer ) ;
     var spendName = t.SpendAccount?.Name ?? string.Empty ;
+    var linkedShares = LinkedShareResponse.FromParent( t ) ;
 
     return t switch
     {
@@ -40,6 +45,7 @@ public record TransactionResponse(
           s.BrokerAccountId, s.BrokerAccount?.Name ?? string.Empty ),
         null,
         null,
+        linkedShares,
         s.Created, s.LastModified ),
       Entities.TransferTransaction tr => new TransactionResponse(
         tr.Id, TransactionKind.Transfer, tr.SpendAccountId, spendName, tr.Amount, tr.Date, tr.Description,
@@ -48,6 +54,7 @@ public record TransactionResponse(
         new TransactionTransferDetail(
           tr.DestinationSpendAccountId, tr.DestinationSpendAccount?.Name ?? string.Empty ),
         null,
+        linkedShares,
         tr.Created, tr.LastModified ),
       Entities.LendTransaction l => new TransactionResponse(
         l.Id, TransactionKind.Lend, l.SpendAccountId, spendName, l.Amount, l.Date, l.Description,
@@ -55,6 +62,7 @@ public record TransactionResponse(
         null,
         null,
         new TransactionCounterpartyDetail( l.CounterpartyId, l.Counterparty.Name, l.DueDate ),
+        linkedShares,
         l.Created, l.LastModified ),
       Entities.BorrowingTransaction b => new TransactionResponse(
         b.Id, TransactionKind.Borrowing, b.SpendAccountId, spendName, b.Amount, b.Date, b.Description,
@@ -62,16 +70,17 @@ public record TransactionResponse(
         null,
         null,
         new TransactionCounterpartyDetail( b.CounterpartyId, b.Counterparty.Name, b.DueDate ),
+        linkedShares,
         b.Created, b.LastModified ),
       Entities.IncomeTransaction => new TransactionResponse(
         t.Id, TransactionKind.Income, t.SpendAccountId, spendName, t.Amount, t.Date, t.Description,
-        category, payer, null, null, null, t.Created, t.LastModified ),
+        category, payer, null, null, null, linkedShares, t.Created, t.LastModified ),
       Entities.ExpenseTransaction => new TransactionResponse(
         t.Id, TransactionKind.Expense, t.SpendAccountId, spendName, t.Amount, t.Date, t.Description,
-        category, payer, null, null, null, t.Created, t.LastModified ),
+        category, payer, null, null, null, linkedShares, t.Created, t.LastModified ),
       Entities.AdjustmentTransaction => new TransactionResponse(
         t.Id, TransactionKind.Adjustment, t.SpendAccountId, spendName, t.Amount, t.Date, t.Description,
-        category, payer, null, null, null, t.Created, t.LastModified ),
+        category, payer, null, null, null, linkedShares, t.Created, t.LastModified ),
       _ => throw new InvalidOperationException( $"Unknown transaction type {t.GetType().Name}" )
     } ;
   }

@@ -1,7 +1,7 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
-using Fiolyn.Services.Internal.Helpers ;
+using Fiolyn.Services.Internal.BaseServices ;
 using Fiolyn.Services.Internal.Interfaces ;
 
 namespace Fiolyn.Services.Internal ;
@@ -10,9 +10,15 @@ namespace Fiolyn.Services.Internal ;
 public class IncomeTransactionService(
   IRepository<IncomeTransaction> transactionRepository,
   IRepository<SpendAccount> spendRepository,
-  IRepository<TransactionCategory> categoryRepository )
-  : StandardTransactionServiceBase<IncomeTransaction>(
-    transactionRepository, spendRepository, categoryRepository ), IIncomeTransactionService
+  IRepository<TransactionCategory> categoryRepository,
+  IRepository<Counterparty> counterpartyRepository,
+  IRepository<BorrowingTransaction> childRepository )
+  : ShareableTransactionServiceBase<IncomeTransaction, BorrowingTransaction>(
+    transactionRepository,
+    spendRepository,
+    categoryRepository,
+    counterpartyRepository,
+    childRepository ), IIncomeTransactionService
 {
   protected override TransactionKind Kind => TransactionKind.Income ;
 }

@@ -56,7 +56,7 @@ Add a `CounterpartyResolver` helper (`Fiolyn/Services/Internal/Helpers/Counterpa
 
 Add a marker interface `IHasCounterparty` (`Entities/IHasCounterparty.cs`) implemented by `LendTransaction` and `BorrowingTransaction` — exposes `long CounterpartyId` + `Counterparty Counterparty`.
 
-Add a shared base `CounterpartyTransactionServiceBase<T>` (`Services/Internal/Helpers/CounterpartyTransactionServiceBase.cs`) sitting between `StandardTransactionServiceBase<T>` and the leaf services, generic on `T : TransactionBase, IHasCounterparty`. It injects `IRepository<Counterparty>`, exposes `CreateAsync(T, long, string)` and `UpdateAsync(T, long, string)` overloads that call the resolver and assign `tx.Counterparty = resolved` before delegating to the standard base, and overrides `BuildReadQuery` to chain `.Include(nameof(IHasCounterparty.Counterparty))`. The leaf services (`LendTransactionService`, `BorrowingTransactionService`) collapse to a 4-line shell — just the `Kind` override. No `ValidateLeafAsync` hook on the standard base; the existing `TransactionCategoryGuard` flow runs unchanged inside the standard base after the resolver assigns the nav.
+Add a shared base `CounterpartyTransactionServiceBase<T>` (`Services/Internal/BaseServices/CounterpartyTransactionServiceBase.cs`) sitting between `StandardTransactionServiceBase<T>` and the leaf services, generic on `T : TransactionBase, IHasCounterparty`. It injects `IRepository<Counterparty>`, exposes `CreateAsync(T, long, string)` and `UpdateAsync(T, long, string)` overloads that call the resolver and assign `tx.Counterparty = resolved` before delegating to the standard base, and overrides `BuildReadQuery` to chain `.Include(nameof(IHasCounterparty.Counterparty))`. The leaf services (`LendTransactionService`, `BorrowingTransactionService`) collapse to a 4-line shell — just the `Kind` override. No `ValidateLeafAsync` hook on the standard base; the existing `TransactionCategoryGuard` flow runs unchanged inside the standard base after the resolver assigns the nav.
 
 `UpdateAsync` short-circuits the resolver round-trip when `transaction.Counterparty.Name` already matches the inbound name (case-insensitive, trimmed) — PUTs that change non-counterparty fields skip the extra DB query.
 
@@ -128,7 +128,7 @@ This is required by the saved feedback memory (`feedback_update_claude_md.md`) �
 - `Fiolyn/Services/Internal/Interfaces/ICounterpartyService.cs`
 - `Fiolyn/Services/Internal/CounterpartyService.cs`
 - `Fiolyn/Services/Internal/Helpers/CounterpartyResolver.cs`
-- `Fiolyn/Services/Internal/Helpers/CounterpartyTransactionServiceBase.cs`
+- `Fiolyn/Services/Internal/BaseServices/CounterpartyTransactionServiceBase.cs`
 - `Fiolyn/Controllers/CounterpartyController.cs`
 - `Fiolyn/Controllers/DTOs/Requests/Counterparty/CounterpartyRequest.cs`
 - `Fiolyn/Controllers/DTOs/Responses/Counterparty/CounterpartyResponse.cs` + `CounterpartyRefResponse.cs`

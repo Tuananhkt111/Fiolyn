@@ -1,4 +1,5 @@
 using Fiolyn.Controllers.DTOs.Requests.IncomeTransaction ;
+using Fiolyn.Controllers.DTOs.Requests.Shared ;
 using Fiolyn.Controllers.DTOs.Responses.IncomeTransaction ;
 using Fiolyn.Entities ;
 using Fiolyn.Extensions ;
@@ -31,7 +32,7 @@ public class IncomeTransactionController(
       PayerId = request.PayerId ?? userId
     } ;
 
-    var created = await service.CreateAsync( entity, userId ) ;
+    var created = await service.CreateAsync( entity, userId, request.Shares.ToShareInputs() ) ;
     var refreshed = await service.GetByIdForUserAsync( created.Id, userId ) ;
     return CreatedAtRoute( "GetIncomeTransactionById", new
     {
@@ -77,7 +78,7 @@ public class IncomeTransactionController(
     existing.Description = request.Description ;
     existing.PayerId = request.PayerId ?? userId ;
 
-    await service.UpdateAsync( existing, userId ) ;
+    await service.UpdateAsync( existing, userId, request.Shares.ToShareInputs() ) ;
     var refreshed = await service.GetByIdForUserAsync( id, userId ) ;
     return Ok( new IncomeTransactionResponse( refreshed! ) ) ;
   }

@@ -104,6 +104,20 @@ public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext(
       .HasForeignKey( t => t.CounterpartyId )
       .OnDelete( DeleteBehavior.Restrict ) ;
 
+    // TransactionBase → TransactionBase (self): nullable FK linking auto-created share children
+    // (Lend / Borrowing rows) back to their parent (Income / Expense). Restrict on hard-delete —
+    // we never hard-delete TransactionBase rows in normal flow; cascade-on-soft-delete is
+    // enforced in service-layer code (ShareableTransactionServiceBase.SoftDeleteAsync), not at
+    // the DB. Indexed for the cascade-on-update / cascade-on-soft-delete subqueries.
+    modelBuilder.Entity<TransactionBase>()
+      .HasOne( t => t.ParentTransaction )
+      .WithMany( t => t.Children )
+      .HasForeignKey( t => t.ParentTransactionId )
+      .OnDelete( DeleteBehavior.Restrict ) ;
+
+    modelBuilder.Entity<TransactionBase>()
+      .HasIndex( t => t.ParentTransactionId ) ;
+
     // Global soft-delete filters
     modelBuilder.Entity<AppUser>().HasQueryFilter( e => ! e.IsDeleted ) ;
     modelBuilder.Entity<AllowedEmail>().HasQueryFilter( e => ! e.IsDeleted ) ;

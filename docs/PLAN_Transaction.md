@@ -123,7 +123,7 @@ For `Update` and `Transfer`, the same single-`SaveAsync` covers the cross-spend 
 
 **New enum:** `TransactionKind`. **Renamed enum:** `TransactionType` → `StockTransactionType`.
 
-**New services:** one per leaf (`IncomeTransactionService`, `ExpenseTransactionService`, `LendTransactionService`, `BorrowingTransactionService`, `TransferTransactionService`, `AdjustmentTransactionService`) plus `TransactionCategoryService` and `TransactionReadService`. The simple five share a `StandardTransactionServiceBase<T>` in `Services/Internal/Helpers/`.
+**New services:** one per leaf (`IncomeTransactionService`, `ExpenseTransactionService`, `LendTransactionService`, `BorrowingTransactionService`, `TransferTransactionService`, `AdjustmentTransactionService`) plus `TransactionCategoryService` and `TransactionReadService`. The simple five share a `StandardTransactionServiceBase<T>` in `Services/Internal/BaseServices/`.
 
 **New controllers:** one user + one admin per leaf, plus `TransactionController` (unified GET), `TransactionCategoryController` (read-only, all authenticated users), and `AdminTransactionCategoryController`.
 

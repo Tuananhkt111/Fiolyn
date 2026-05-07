@@ -1,8 +1,9 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
+using Fiolyn.Services.Internal.Helpers ;
 using Microsoft.EntityFrameworkCore ;
 
-namespace Fiolyn.Services.Internal.Helpers ;
+namespace Fiolyn.Services.Internal.BaseServices ;
 
 /// <summary>
 ///   Shared write/read plumbing for transaction leaves that reference a per-user

@@ -1,9 +1,10 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
+using Fiolyn.Services.Internal.Helpers ;
 using Microsoft.EntityFrameworkCore ;
 
-namespace Fiolyn.Services.Internal.Helpers ;
+namespace Fiolyn.Services.Internal.BaseServices ;
 
 /// <summary>
 ///   Shared CRUD + balance plumbing for the single-spend-account transaction leaves
@@ -24,6 +25,12 @@ public abstract class StandardTransactionServiceBase<T>(
   ///   <c>CategoryId</c> the caller supplies has a matching <c>TransactionCategory.Kind</c>.
   /// </summary>
   protected abstract TransactionKind Kind { get ; }
+
+  // Inherited accessors so derived classes can reuse the captured repos without re-receiving
+  // them through their own primary constructor (which would trigger CS9107 double-capture).
+  protected IRepository<T> TransactionRepository => transactionRepository ;
+  protected IRepository<SpendAccount> SpendRepository => spendRepository ;
+  protected IRepository<TransactionCategory> CategoryRepository => categoryRepository ;
 
   /// <summary>
   ///   Verifies caller is a member of the spend account, applies <c>entity.Amount</c> to the
@@ -187,7 +194,12 @@ public abstract class StandardTransactionServiceBase<T>(
       .Include( t => t.Payer )
       .OrderByDescending( t => t.Date ) ;
 
-  private async Task SoftDeleteAndReverseAsync( T entity )
+  /// <summary>
+  ///   Reverses the entity's signed <c>Amount</c> on its spend account balance, soft-deletes
+  ///   the row, and saves once. <c>ShareableTransactionServiceBase</c> overrides
+  ///   this to also reverse + soft-delete linked children before saving.
+  /// </summary>
+  protected virtual async Task SoftDeleteAndReverseAsync( T entity )
   {
     var spendAccount = await spendRepository.GetByIdOrThrowAsync( entity.SpendAccountId ) ;
     spendAccount.Balance -= entity.Amount ;
@@ -196,7 +208,7 @@ public abstract class StandardTransactionServiceBase<T>(
       transactionRepository, entity.SpendAccountId ) ;
   }
 
-  private async Task EnsureMembershipAsync( long spendAccountId, long userId )
+  protected async Task EnsureMembershipAsync( long spendAccountId, long userId )
   {
     var ok = await spendRepository.Query()
       .AnyAsync( s => s.Id == spendAccountId

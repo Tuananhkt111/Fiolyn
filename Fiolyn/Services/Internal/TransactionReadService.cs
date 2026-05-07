@@ -42,6 +42,7 @@ public class TransactionReadService(
   private IQueryable<TransactionBase> BuildQuery() =>
     transactionRepository.Query()
       .AsNoTracking()
+      .AsSplitQuery()
       .Include( t => t.SpendAccount )
       .Include( t => t.Category )
       .Include( t => t.Payer )
@@ -49,5 +50,11 @@ public class TransactionReadService(
       .Include( t => ( t as TransferTransaction )!.DestinationSpendAccount )
       .Include( t => ( t as LendTransaction )!.Counterparty )
       .Include( t => ( t as BorrowingTransaction )!.Counterparty )
+      // Children are auto-paired share rows — Income parents have BorrowingTransaction
+      // children, Expense parents have LendTransaction children. EF Core's translator only
+      // reliably resolves cast-includes against *concrete* TPT subtypes (interface casts in
+      // ThenInclude are not guaranteed), so chain a ThenInclude per concrete child type.
+      .Include( t => t.Children ).ThenInclude( c => ( c as LendTransaction )!.Counterparty )
+      .Include( t => t.Children ).ThenInclude( c => ( c as BorrowingTransaction )!.Counterparty )
       .OrderByDescending( t => t.Date ) ;
 }

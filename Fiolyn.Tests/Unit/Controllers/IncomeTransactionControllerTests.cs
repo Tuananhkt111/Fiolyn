@@ -4,6 +4,7 @@ using Fiolyn.Controllers ;
 using Fiolyn.Controllers.DTOs.Requests.IncomeTransaction ;
 using Fiolyn.Controllers.DTOs.Responses.IncomeTransaction ;
 using Fiolyn.Entities ;
+using Fiolyn.Services.Internal.BaseServices ;
 using Fiolyn.Services.Internal.Interfaces ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Http ;
@@ -40,7 +41,10 @@ public class IncomeTransactionControllerTests
       Name = "Wallet"
     } ;
     IncomeTransaction? captured = null ;
-    _service.CreateAsync( Arg.Do<IncomeTransaction>( t => captured = t ), 7L )
+    _service.CreateAsync(
+        Arg.Do<IncomeTransaction>( t => captured = t ),
+        7L,
+        Arg.Any<IReadOnlyList<TransactionShareInput>>() )
       .Returns( ci => ( IncomeTransaction )ci[ 0 ] ) ;
     _service.GetByIdForUserAsync( Arg.Any<long>(), 7L )
       .Returns( ci => new IncomeTransaction

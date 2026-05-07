@@ -72,6 +72,24 @@ public abstract class TransactionBase : IAuditable, ISoftDelete
   public long Amount { get ; set ; }
 
   /// <summary>
+  ///   Gets or sets the optional self-referential FK to the parent transaction. Set on
+  ///   auto-created <see cref="LendTransaction" /> / <see cref="BorrowingTransaction" /> rows
+  ///   that originated from sharing an <see cref="IncomeTransaction" /> or
+  ///   <see cref="ExpenseTransaction" /> with a counterparty by percent. Standalone Lend /
+  ///   Borrow rows leave this null.
+  /// </summary>
+  public long? ParentTransactionId { get ; set ; }
+
+  public TransactionBase? ParentTransaction { get ; set ; }
+
+  /// <summary>
+  ///   Gets or sets the linked children — populated only for shared Income / Expense rows.
+  ///   Each child is a <see cref="LendTransaction" /> (Expense parent) or
+  ///   <see cref="BorrowingTransaction" /> (Income parent) carrying a counterparty's slice.
+  /// </summary>
+  public ICollection<TransactionBase> Children { get ; set ; } = new List<TransactionBase>() ;
+
+  /// <summary>
   ///   Gets or sets the UTC timestamp when this record was created.
   /// </summary>
   [Required]

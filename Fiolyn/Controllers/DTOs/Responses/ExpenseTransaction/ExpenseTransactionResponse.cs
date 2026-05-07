@@ -1,9 +1,13 @@
+using Fiolyn.Controllers.DTOs.Responses.Shared ;
 using Fiolyn.Controllers.DTOs.Responses.Transaction ;
 
 namespace Fiolyn.Controllers.DTOs.Responses.ExpenseTransaction ;
 
 /// <summary>
-///   Response body for an <see cref="Entities.ExpenseTransaction" />.
+///   Response body for an <see cref="Entities.ExpenseTransaction" />. <see cref="Amount" /> is
+///   the caller's portion (after sharing); <see cref="LinkedShares" /> lists the auto-created
+///   <see cref="Entities.LendTransaction" /> children (one per share). The original request
+///   total = <see cref="Amount" /> + sum of <see cref="LinkedShares" /> amounts.
 /// </summary>
 public record ExpenseTransactionResponse(
   long Id,
@@ -14,6 +18,7 @@ public record ExpenseTransactionResponse(
   string Description,
   TransactionCategoryRefResponse? Category,
   TransactionPayerResponse? Payer,
+  IReadOnlyList<LinkedShareResponse> LinkedShares,
   DateTime Created,
   DateTime LastModified )
 {
@@ -27,6 +32,7 @@ public record ExpenseTransactionResponse(
       t.Description,
       t.Category is null ? null : new TransactionCategoryRefResponse( t.Category ),
       t.Payer is null ? null : new TransactionPayerResponse( t.Payer ),
+      LinkedShareResponse.FromParent( t ),
       t.Created,
       t.LastModified )
   {

@@ -1,7 +1,7 @@
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
-using Fiolyn.Services.Internal.Helpers ;
+using Fiolyn.Services.Internal.BaseServices ;
 using Fiolyn.Services.Internal.Interfaces ;
 
 namespace Fiolyn.Services.Internal ;
