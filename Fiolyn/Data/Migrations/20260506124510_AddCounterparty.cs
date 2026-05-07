@@ -105,12 +105,15 @@ namespace Fiolyn.Data.Migrations
                 SELECT 1;
             ");
 
+            // Postgres UPDATE … FROM doesn't allow re-referencing the target table from a JOIN
+            // inside the FROM list — list auxiliary tables comma-separated and pin the join
+            // conditions in WHERE.
             migrationBuilder.Sql(@"
                 UPDATE ""LendTransaction"" lt
                 SET ""CounterpartyId"" = c.""Id""
-                FROM ""Counterparty"" c
-                JOIN ""Transaction"" b ON b.""Id"" = lt.""Id""
-                WHERE c.""AppUserId"" = COALESCE(b.""PayerId"",
+                FROM ""Counterparty"" c, ""Transaction"" b
+                WHERE b.""Id"" = lt.""Id""
+                  AND c.""AppUserId"" = COALESCE(b.""PayerId"",
                                                   (SELECT m.""AppUserId""
                                                    FROM ""SpendAccountMember"" m
                                                    WHERE m.""SpendAccountId"" = b.""SpendAccountId""
@@ -125,9 +128,9 @@ namespace Fiolyn.Data.Migrations
             migrationBuilder.Sql(@"
                 UPDATE ""BorrowingTransaction"" bt
                 SET ""CounterpartyId"" = c.""Id""
-                FROM ""Counterparty"" c
-                JOIN ""Transaction"" b ON b.""Id"" = bt.""Id""
-                WHERE c.""AppUserId"" = COALESCE(b.""PayerId"",
+                FROM ""Counterparty"" c, ""Transaction"" b
+                WHERE b.""Id"" = bt.""Id""
+                  AND c.""AppUserId"" = COALESCE(b.""PayerId"",
                                                   (SELECT m.""AppUserId""
                                                    FROM ""SpendAccountMember"" m
                                                    WHERE m.""SpendAccountId"" = b.""SpendAccountId""
