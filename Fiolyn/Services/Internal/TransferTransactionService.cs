@@ -72,10 +72,10 @@ public class TransferTransactionService(
     // Reverse the old legs, then apply the new ones. Touched accounts deduplicated so we don't
     // load and mutate the same SpendAccount twice in this DbContext.
     var deltas = new Dictionary<long, long>() ;
-    deltas[ oldSourceId ] = ( deltas.GetValueOrDefault( oldSourceId, 0 ) ) + oldAmount ;
-    deltas[ oldDestId ] = ( deltas.GetValueOrDefault( oldDestId, 0 ) ) - oldAmount ;
-    deltas[ newSourceId ] = ( deltas.GetValueOrDefault( newSourceId, 0 ) ) - newAmount ;
-    deltas[ newDestId ] = ( deltas.GetValueOrDefault( newDestId, 0 ) ) + newAmount ;
+    deltas[ oldSourceId ] = deltas.GetValueOrDefault( oldSourceId, 0 ) + oldAmount ;
+    deltas[ oldDestId ] = deltas.GetValueOrDefault( oldDestId, 0 ) - oldAmount ;
+    deltas[ newSourceId ] = deltas.GetValueOrDefault( newSourceId, 0 ) - newAmount ;
+    deltas[ newDestId ] = deltas.GetValueOrDefault( newDestId, 0 ) + newAmount ;
 
     foreach ( var (spendId, delta) in deltas )
     {
