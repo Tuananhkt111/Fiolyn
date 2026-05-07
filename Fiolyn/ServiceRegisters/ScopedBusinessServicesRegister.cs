@@ -31,5 +31,6 @@ public class ScopedBusinessServicesRegister : IServiceRegister
     services.AddScoped<IBorrowingTransactionService, BorrowingTransactionService>() ;
     services.AddScoped<ITransferTransactionService, TransferTransactionService>() ;
     services.AddScoped<IAdjustmentTransactionService, AdjustmentTransactionService>() ;
+    services.AddScoped<ICounterpartyService, CounterpartyService>() ;
   }
 }

@@ -167,6 +167,38 @@ namespace Fiolyn.Data.Migrations
                     b.ToTable("BrokerAccountMember");
                 });
 
+            modelBuilder.Entity("Fiolyn.Entities.Counterparty", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AppUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppUserId");
+
+                    b.ToTable("Counterparty");
+                });
+
             modelBuilder.Entity("Fiolyn.Entities.RefreshToken", b =>
                 {
                     b.Property<long>("Id")
@@ -355,13 +387,13 @@ namespace Fiolyn.Data.Migrations
                 {
                     b.HasBaseType("Fiolyn.Entities.TransactionBase");
 
-                    b.Property<string>("CounterpartyName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<long>("CounterpartyId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.HasIndex("CounterpartyId");
 
                     b.ToTable("BorrowingTransaction", (string)null);
                 });
@@ -384,13 +416,13 @@ namespace Fiolyn.Data.Migrations
                 {
                     b.HasBaseType("Fiolyn.Entities.TransactionBase");
 
-                    b.Property<string>("CounterpartyName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<long>("CounterpartyId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.HasIndex("CounterpartyId");
 
                     b.ToTable("LendTransaction", (string)null);
                 });
@@ -463,6 +495,17 @@ namespace Fiolyn.Data.Migrations
                     b.Navigation("BrokerAccount");
                 });
 
+            modelBuilder.Entity("Fiolyn.Entities.Counterparty", b =>
+                {
+                    b.HasOne("Fiolyn.Entities.AppUser", "AppUser")
+                        .WithMany()
+                        .HasForeignKey("AppUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AppUser");
+                });
+
             modelBuilder.Entity("Fiolyn.Entities.RefreshToken", b =>
                 {
                     b.HasOne("Fiolyn.Entities.AppUser", "User")
@@ -529,11 +572,19 @@ namespace Fiolyn.Data.Migrations
 
             modelBuilder.Entity("Fiolyn.Entities.BorrowingTransaction", b =>
                 {
+                    b.HasOne("Fiolyn.Entities.Counterparty", "Counterparty")
+                        .WithMany()
+                        .HasForeignKey("CounterpartyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Fiolyn.Entities.TransactionBase", null)
                         .WithOne()
                         .HasForeignKey("Fiolyn.Entities.BorrowingTransaction", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Counterparty");
                 });
 
             modelBuilder.Entity("Fiolyn.Entities.ExpenseTransaction", b =>
@@ -556,11 +607,19 @@ namespace Fiolyn.Data.Migrations
 
             modelBuilder.Entity("Fiolyn.Entities.LendTransaction", b =>
                 {
+                    b.HasOne("Fiolyn.Entities.Counterparty", "Counterparty")
+                        .WithMany()
+                        .HasForeignKey("CounterpartyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Fiolyn.Entities.TransactionBase", null)
                         .WithOne()
                         .HasForeignKey("Fiolyn.Entities.LendTransaction", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Counterparty");
                 });
 
             modelBuilder.Entity("Fiolyn.Entities.StockTransaction", b =>

@@ -47,5 +47,7 @@ public class TransactionReadService(
       .Include( t => t.Payer )
       .Include( t => ( t as StockTransaction )!.BrokerAccount )
       .Include( t => ( t as TransferTransaction )!.DestinationSpendAccount )
+      .Include( t => ( t as LendTransaction )!.Counterparty )
+      .Include( t => ( t as BorrowingTransaction )!.Counterparty )
       .OrderByDescending( t => t.Date ) ;
 }

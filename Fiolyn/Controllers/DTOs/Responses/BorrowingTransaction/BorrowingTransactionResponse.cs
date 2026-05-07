@@ -1,3 +1,4 @@
+using Fiolyn.Controllers.DTOs.Responses.Counterparty ;
 using Fiolyn.Controllers.DTOs.Responses.Transaction ;
 
 namespace Fiolyn.Controllers.DTOs.Responses.BorrowingTransaction ;
@@ -12,7 +13,7 @@ public record BorrowingTransactionResponse(
   long Amount,
   DateTime Date,
   string Description,
-  string CounterpartyName,
+  CounterpartyRefResponse Counterparty,
   DateTime? DueDate,
   TransactionCategoryRefResponse? Category,
   TransactionPayerResponse? Payer,
@@ -27,7 +28,7 @@ public record BorrowingTransactionResponse(
       t.Amount,
       t.Date,
       t.Description,
-      t.CounterpartyName,
+      new CounterpartyRefResponse( t.Counterparty ),
       t.DueDate,
       t.Category is null ? null : new TransactionCategoryRefResponse( t.Category ),
       t.Payer is null ? null : new TransactionPayerResponse( t.Payer ),

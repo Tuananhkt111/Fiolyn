@@ -54,14 +54,14 @@ public record TransactionResponse(
         category, payer,
         null,
         null,
-        new TransactionCounterpartyDetail( l.CounterpartyName, l.DueDate ),
+        new TransactionCounterpartyDetail( l.CounterpartyId, l.Counterparty.Name, l.DueDate ),
         l.Created, l.LastModified ),
       Entities.BorrowingTransaction b => new TransactionResponse(
         b.Id, TransactionKind.Borrowing, b.SpendAccountId, spendName, b.Amount, b.Date, b.Description,
         category, payer,
         null,
         null,
-        new TransactionCounterpartyDetail( b.CounterpartyName, b.DueDate ),
+        new TransactionCounterpartyDetail( b.CounterpartyId, b.Counterparty.Name, b.DueDate ),
         b.Created, b.LastModified ),
       Entities.IncomeTransaction => new TransactionResponse(
         t.Id, TransactionKind.Income, t.SpendAccountId, spendName, t.Amount, t.Date, t.Description,
@@ -91,5 +91,6 @@ public record TransactionTransferDetail(
   string DestinationSpendAccountName ) ;
 
 public record TransactionCounterpartyDetail(
+  long CounterpartyId,
   string CounterpartyName,
   DateTime? DueDate ) ;

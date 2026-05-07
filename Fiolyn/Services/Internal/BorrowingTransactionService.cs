@@ -10,9 +10,11 @@ namespace Fiolyn.Services.Internal ;
 public class BorrowingTransactionService(
   IRepository<BorrowingTransaction> transactionRepository,
   IRepository<SpendAccount> spendRepository,
-  IRepository<TransactionCategory> categoryRepository )
-  : StandardTransactionServiceBase<BorrowingTransaction>(
-    transactionRepository, spendRepository, categoryRepository ), IBorrowingTransactionService
+  IRepository<TransactionCategory> categoryRepository,
+  IRepository<Counterparty> counterpartyRepository )
+  : CounterpartyTransactionServiceBase<BorrowingTransaction>(
+      transactionRepository, spendRepository, categoryRepository, counterpartyRepository ),
+    IBorrowingTransactionService
 {
   protected override TransactionKind Kind => TransactionKind.Borrowing ;
 }

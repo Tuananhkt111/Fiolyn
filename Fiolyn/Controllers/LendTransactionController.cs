@@ -29,11 +29,10 @@ public class LendTransactionController(
       Date = request.Date,
       Description = request.Description,
       PayerId = request.PayerId ?? userId,
-      CounterpartyName = request.CounterpartyName,
       DueDate = request.DueDate
     } ;
 
-    var created = await service.CreateAsync( entity, userId ) ;
+    var created = await service.CreateAsync( entity, userId, request.CounterpartyName ) ;
     var refreshed = await service.GetByIdForUserAsync( created.Id, userId ) ;
     return CreatedAtRoute( "GetLendTransactionById", new
     {
@@ -78,10 +77,9 @@ public class LendTransactionController(
     existing.Date = request.Date ;
     existing.Description = request.Description ;
     existing.PayerId = request.PayerId ?? userId ;
-    existing.CounterpartyName = request.CounterpartyName ;
     existing.DueDate = request.DueDate ;
 
-    await service.UpdateAsync( existing, userId ) ;
+    await service.UpdateAsync( existing, userId, request.CounterpartyName ) ;
     var refreshed = await service.GetByIdForUserAsync( id, userId ) ;
     return Ok( new LendTransactionResponse( refreshed! ) ) ;
   }

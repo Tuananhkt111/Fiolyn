@@ -22,6 +22,7 @@ public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext(
   public DbSet<BorrowingTransaction> BorrowingTransaction => Set<BorrowingTransaction>() ;
   public DbSet<TransferTransaction> TransferTransaction => Set<TransferTransaction>() ;
   public DbSet<AdjustmentTransaction> AdjustmentTransaction => Set<AdjustmentTransaction>() ;
+  public DbSet<Counterparty> Counterparty => Set<Counterparty>() ;
 
   protected override void OnModelCreating( ModelBuilder modelBuilder )
   {
@@ -80,6 +81,29 @@ public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext(
       .HasForeignKey( t => t.DestinationSpendAccountId )
       .OnDelete( DeleteBehavior.Restrict ) ;
 
+    // Counterparty → AppUser (owner): Restrict so the contact list isn't cascade-deleted with the
+    // user (soft-delete is the only path here anyway via the AppUser query filter).
+    modelBuilder.Entity<Counterparty>()
+      .HasOne( c => c.AppUser )
+      .WithMany()
+      .HasForeignKey( c => c.AppUserId )
+      .OnDelete( DeleteBehavior.Restrict ) ;
+
+    // LendTransaction → Counterparty: Restrict (block hard-delete; service blocks soft-delete via
+    // EnsureNotReferencedByActiveTransactionAsync).
+    modelBuilder.Entity<LendTransaction>()
+      .HasOne( t => t.Counterparty )
+      .WithMany()
+      .HasForeignKey( t => t.CounterpartyId )
+      .OnDelete( DeleteBehavior.Restrict ) ;
+
+    // BorrowingTransaction → Counterparty: Restrict.
+    modelBuilder.Entity<BorrowingTransaction>()
+      .HasOne( t => t.Counterparty )
+      .WithMany()
+      .HasForeignKey( t => t.CounterpartyId )
+      .OnDelete( DeleteBehavior.Restrict ) ;
+
     // Global soft-delete filters
     modelBuilder.Entity<AppUser>().HasQueryFilter( e => ! e.IsDeleted ) ;
     modelBuilder.Entity<AllowedEmail>().HasQueryFilter( e => ! e.IsDeleted ) ;
@@ -87,6 +111,10 @@ public class AppDbContext( DbContextOptions<AppDbContext> options ) : DbContext(
     modelBuilder.Entity<BrokerAccount>().HasQueryFilter( e => ! e.IsDeleted ) ;
     modelBuilder.Entity<TransactionBase>().HasQueryFilter( e => ! e.IsDeleted ) ;
     modelBuilder.Entity<TransactionCategory>().HasQueryFilter( e => ! e.IsDeleted ) ;
+    // Counterparty filter is IsDeleted only — do NOT also gate on !c.AppUser.IsDeleted, otherwise
+    // an eager-loaded Counterparty nav on a transaction read by a SpendAccount co-member would
+    // become null when the owner is soft-deleted and crash the response builder.
+    modelBuilder.Entity<Counterparty>().HasQueryFilter( e => ! e.IsDeleted ) ;
     modelBuilder.Entity<BrokerAccountMember>().HasQueryFilter( m => ! m.AppUser.IsDeleted ) ;
     modelBuilder.Entity<SpendAccountMember>().HasQueryFilter( m => ! m.AppUser.IsDeleted ) ;
     modelBuilder.Entity<RefreshToken>().HasQueryFilter( r => ! r.User.IsDeleted ) ;
