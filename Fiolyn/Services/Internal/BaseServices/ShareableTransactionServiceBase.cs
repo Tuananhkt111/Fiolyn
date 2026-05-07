@@ -28,7 +28,8 @@ public abstract class ShareableTransactionServiceBase<TParent, TChild>(
   where TParent : TransactionBase
   where TChild : TransactionBase, IHasCounterparty, new()
 {
-  private const string SharedDescriptionFormat = "Shared with {0}: {1}" ;
+  private const string SharedWithSuffixFormat = "Shared with {0}" ;
+  private const string SharedWithDescriptionFormat = "Shared with {0}: {1}" ;
   private const int PercentDivisor = 100 ;
 
   public async Task<TParent> CreateAsync(
@@ -182,7 +183,9 @@ public abstract class ShareableTransactionServiceBase<TParent, TChild>(
         SpendAccountId = parent.SpendAccountId,
         Date = parent.Date,
         PayerId = parent.PayerId,
-        Description = string.Format( SharedDescriptionFormat, counterparty.Name, parent.Description ),
+        Description = string.IsNullOrWhiteSpace( parent.Description )
+          ? string.Format( SharedWithSuffixFormat, counterparty.Name )
+          : string.Format( SharedWithDescriptionFormat, counterparty.Name, parent.Description ),
         ParentTransaction = parent,
         Counterparty = counterparty,
         Amount = childAmount
