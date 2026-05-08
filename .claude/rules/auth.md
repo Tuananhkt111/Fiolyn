@@ -24,4 +24,4 @@ Telegram ingest is a separate authentication path: `POST /api/telegram` → `Tel
 
 ## Tests
 
-`AuthServiceTests`, `JwtServiceTests`, `GoogleTokenVerifierTests`, `AllowedEmailServiceTests`, `UserServiceTests` in `Fiolyn.Tests/Unit/Services/`. `AuthControllerTests` in `Fiolyn.Tests/Unit/Controllers/`.
+`AuthServiceTests`, `JwtServiceTests`, `GoogleTokenVerifierTests`, `AllowedEmailServiceTests`, `UserServiceTests` in `Fiolyn.Tests/Unit/Services/`. `AuthControllerTests`, `UserControllerTests`, `AllowedEmailControllerTests` in `Fiolyn.Tests/Unit/Controllers/`.
