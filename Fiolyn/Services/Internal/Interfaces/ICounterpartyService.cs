@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 
 namespace Fiolyn.Services.Internal.Interfaces ;
@@ -9,7 +10,7 @@ namespace Fiolyn.Services.Internal.Interfaces ;
 /// </summary>
 public interface ICounterpartyService
 {
-  Task<List<Counterparty>> GetAllForUserAsync( long userId ) ;
+  Task<PagedResult<Counterparty>> GetAllForUserAsync( long userId, PaginationQuery pagination ) ;
   Task<Counterparty?> GetByIdForUserAsync( long id, long userId ) ;
   Task<Counterparty> CreateAsync( string name, long userId ) ;
   Task<Counterparty?> UpdateAsync( long id, long userId, string name ) ;

@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Extensions ;
 using Fiolyn.Services.Internal.Interfaces ;
 using Microsoft.AspNetCore.Authorization ;
@@ -17,9 +18,9 @@ public class ObligationController(
   IObligationService service ) : ControllerBase
 {
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var list = await service.GetAllForUserAsync( User.GetUserId() ) ;
-    return Ok( list ) ;
+    var page = await service.GetAllForUserAsync( User.GetUserId(), pagination ) ;
+    return Ok( page ) ;
   }
 }

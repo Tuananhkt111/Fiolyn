@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 
 namespace Fiolyn.Services.Internal.Interfaces ;
@@ -30,9 +31,11 @@ public interface IStockTransactionService
   ///   Gets active transactions on brokers the caller is a member of, optionally filtered by symbol.
   /// </summary>
   /// <param name="userId">The caller's primary key.</param>
+  /// <param name="pagination">Page / pageSize for offset-based slicing.</param>
   /// <param name="symbol">Optional ticker symbol filter.</param>
-  /// <returns>List of matching transactions.</returns>
-  Task<List<StockTransaction>> GetAllForUserAsync( long userId, string? symbol = null ) ;
+  /// <returns>Paged list of matching transactions, ordered by Date desc with an Id desc tiebreaker.</returns>
+  Task<PagedResult<StockTransaction>> GetAllForUserAsync(
+    long userId, PaginationQuery pagination, string? symbol = null ) ;
 
   /// <summary>
   ///   Gets a single transaction by ID, requiring the caller to be a member of its broker.
@@ -68,9 +71,11 @@ public interface IStockTransactionService
   /// <summary>
   ///   (Admin) Gets active transactions across all users. Optional filters by user membership and symbol.
   /// </summary>
+  /// <param name="pagination">Page / pageSize for offset-based slicing.</param>
   /// <param name="userId">Optional — when supplied, narrows to transactions on brokers that user is a member of.</param>
   /// <param name="symbol">Optional ticker symbol filter.</param>
-  Task<List<StockTransaction>> GetAllAsync( long? userId = null, string? symbol = null ) ;
+  Task<PagedResult<StockTransaction>> GetAllAsync(
+    PaginationQuery pagination, long? userId = null, string? symbol = null ) ;
 
   /// <summary>
   ///   (Admin) Gets any active transaction by ID without user-scoping.

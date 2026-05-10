@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 
@@ -33,9 +34,10 @@ public interface ITransactionCategoryService
   Task SoftDeleteAsync( long id ) ;
 
   /// <summary>
-  ///   Lists active categories, optionally filtered by kind. Ordered by name.
+  ///   Lists active categories, optionally filtered by kind. Ordered by name with an Id tiebreaker.
   /// </summary>
-  Task<List<TransactionCategory>> GetAllAsync( TransactionKind? kind = null ) ;
+  Task<PagedResult<TransactionCategory>> GetAllAsync(
+    PaginationQuery pagination, TransactionKind? kind = null ) ;
 
   /// <summary>
   ///   Gets a category by id. Returns null when not found.

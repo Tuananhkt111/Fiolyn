@@ -3,6 +3,7 @@ using Fiolyn.Controllers.DTOs.Requests.BrokerAccount ;
 using Fiolyn.Controllers.DTOs.Responses.BrokerAccount ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal.Interfaces ;
+using Fiolyn.Tests.Helpers ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Mvc ;
 using NSubstitute ;
@@ -59,34 +60,35 @@ public class AdminBrokerAccountControllerTests
   [Fact]
   public async Task GetAllAsync_NoFilter_ReturnsAdminResponseListWithMembers()
   {
-    _service.GetAllAsync().Returns( [
-      BuildEntity( 1, [7, 8] ),
-      BuildEntity( 2, [9] )
-    ] ) ;
+    _service.GetAllAsync( Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.SinglePage(
+        BuildEntity( 1, [7, 8] ),
+        BuildEntity( 2, [9] ) ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    await _service.Received( 1 ).GetAllAsync() ;
-    var list = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<AdminBrokerAccountResponse>>().Which ;
-    list.Should().HaveCount( 2 ) ;
-    list[ 0 ].Members.Should().HaveCount( 2 ) ;
-    list[ 0 ].Members.Select( m => m.AppUserId ).Should().BeEquivalentTo( [7L, 8L] ) ;
+    await _service.Received( 1 ).GetAllAsync( Arg.Any<PaginationQuery>() ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<AdminBrokerAccountResponse>>().Which ;
+    page.Items.Should().HaveCount( 2 ) ;
+    page.Items[ 0 ].Members.Should().HaveCount( 2 ) ;
+    page.Items[ 0 ].Members.Select( m => m.AppUserId ).Should().BeEquivalentTo( [7L, 8L] ) ;
   }
 
   [Fact]
   public async Task GetAllAsync_WithUserIdFilter_PassesFilter()
   {
-    _service.GetAllAsync( 42L ).Returns( [BuildEntity( 1, [42] )] ) ;
+    _service.GetAllAsync( Arg.Any<PaginationQuery>(), 42L )
+      .Returns( PagedResultHelpers.SinglePage( BuildEntity( 1, [42] ) ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync( 42 ) ;
+    var result = await sut.GetAllAsync( new PaginationQuery(), 42 ) ;
 
-    await _service.Received( 1 ).GetAllAsync( 42L ) ;
-    var list = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<AdminBrokerAccountResponse>>().Which ;
-    list.Should().ContainSingle()
+    await _service.Received( 1 ).GetAllAsync( Arg.Any<PaginationQuery>(), 42L ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<AdminBrokerAccountResponse>>().Which ;
+    page.Items.Should().ContainSingle()
       .Which.Members.Should().ContainSingle()
       .Which.AppUserId.Should().Be( 42 ) ;
   }

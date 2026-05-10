@@ -5,6 +5,7 @@ using Fiolyn.Controllers.DTOs.Requests.AllowedEmail ;
 using Fiolyn.Controllers.DTOs.Responses.AllowedEmail ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal.Interfaces ;
+using Fiolyn.Tests.Helpers ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Http ;
 using Microsoft.AspNetCore.Mvc ;
@@ -39,26 +40,26 @@ public class AllowedEmailControllerTests
   [Fact]
   public async Task GetAllAsync_Returns200WithMappedList()
   {
-    _service.GetAllAsync().Returns( [
-      new AllowedEmail
-      {
-        Id = 1,
-        Email = "a@x.com"
-      },
-      new AllowedEmail
-      {
-        Id = 2,
-        Email = "b@x.com"
-      }
-    ] ) ;
+    _service.GetAllAsync( Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.SinglePage(
+        new AllowedEmail
+        {
+          Id = 1,
+          Email = "a@x.com"
+        },
+        new AllowedEmail
+        {
+          Id = 2,
+          Email = "b@x.com"
+        } ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    var list = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<AllowedEmailResponse>>().Which ;
-    list.Should().HaveCount( 2 ) ;
-    list.Select( a => a.Email ).Should().ContainInOrder( "a@x.com", "b@x.com" ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<AllowedEmailResponse>>().Which ;
+    page.Items.Should().HaveCount( 2 ) ;
+    page.Items.Select( a => a.Email ).Should().ContainInOrder( "a@x.com", "b@x.com" ) ;
   }
 
   [Fact]

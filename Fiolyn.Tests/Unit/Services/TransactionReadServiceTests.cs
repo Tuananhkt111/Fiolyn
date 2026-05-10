@@ -86,11 +86,12 @@ public class TransactionReadServiceTests
     _repository.Query().Returns( rows.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllForUserAsync( 42 ) ;
+    var result = await sut.GetAllForUserAsync( 42, new PaginationQuery() ) ;
 
-    result.Should().HaveCount( 2 ) ;
-    result[ 0 ].Id.Should().Be( 2 ) ;
-    result[ 1 ].Id.Should().Be( 1 ) ;
+    result.Items.Should().HaveCount( 2 ) ;
+    result.TotalCount.Should().Be( 2L ) ;
+    result.Items[ 0 ].Id.Should().Be( 2 ) ;
+    result.Items[ 1 ].Id.Should().Be( 1 ) ;
   }
 
   [Fact]
@@ -117,9 +118,9 @@ public class TransactionReadServiceTests
     _repository.Query().Returns( rows.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllForUserAsync( 42 ) ;
+    var result = await sut.GetAllForUserAsync( 42, new PaginationQuery() ) ;
 
-    result.Should().ContainSingle().Which.Should().BeOfType<StockTransaction>() ;
+    result.Items.Should().ContainSingle().Which.Should().BeOfType<StockTransaction>() ;
   }
 
   [Fact]
@@ -143,9 +144,9 @@ public class TransactionReadServiceTests
     _repository.Query().Returns( rows.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllForUserAsync( 42 ) ;
+    var result = await sut.GetAllForUserAsync( 42, new PaginationQuery() ) ;
 
-    result.Should().ContainSingle().Which.Should().BeOfType<TransferTransaction>() ;
+    result.Items.Should().ContainSingle().Which.Should().BeOfType<TransferTransaction>() ;
   }
 
   [Fact]
@@ -169,8 +170,8 @@ public class TransactionReadServiceTests
     _repository.Query().Returns( rows.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync( 42 ) ;
+    var result = await sut.GetAllAsync( new PaginationQuery(), 42 ) ;
 
-    result.Should().ContainSingle().Which.Should().BeOfType<TransferTransaction>() ;
+    result.Items.Should().ContainSingle().Which.Should().BeOfType<TransferTransaction>() ;
   }
 }

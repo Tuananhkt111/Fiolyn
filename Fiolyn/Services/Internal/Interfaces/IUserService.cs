@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 using Fiolyn.Infrastructure.Exceptions ;
 
@@ -9,7 +10,7 @@ namespace Fiolyn.Services.Internal.Interfaces ;
 public interface IUserService
 {
   Task<AppUser> GetByIdAsync( long id ) ;
-  Task<List<AppUser>> GetAllAsync() ;
+  Task<PagedResult<AppUser>> GetAllAsync( PaginationQuery pagination ) ;
   Task<AppUser> UpdateDisplayNameAsync( long id, string? displayName ) ;
   Task<AppUser> SetAdminAsync( long id, bool isAdmin ) ;
 

@@ -58,6 +58,7 @@ Full key list: **`docs/ConfigurationSettingSetup.md`**.
 - **Income/Expense shares (auto-paired Lend/Borrow children):** see `.claude/rules/transactions-shares.md`.
 - **Counterparty / Lend / Borrow / Obligations:** see `.claude/rules/counterparty.md`.
 - **EF pitfalls (tracking, includes, projections, migrations):** see `.claude/rules/ef-pitfalls.md`.
+- **Pagination (offset query params, `PagedResult<T>`, stable ordering):** see `.claude/rules/pagination.md`.
 
 ---
 

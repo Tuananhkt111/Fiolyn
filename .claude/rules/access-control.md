@@ -4,7 +4,7 @@ Read this when touching ownership / membership filtering on resources, or adding
 
 ## Patterns
 
-- **User-owned resources (direct `AppUserId` FK):** enforce ownership in the *service*, not the controller. Service methods are user-scoped: `GetAllForUserAsync(userId)`, `GetByIdForUserAsync(id, userId)`, `SoftDeleteAsync(id, userId)`. Filter by `AppUserId`; treat "not owned by caller" as 404. Controllers pipe `User.GetUserId()` into every call.
+- **User-owned resources (direct `AppUserId` FK):** enforce ownership in the *service*, not the controller. Service methods are user-scoped: `GetAllForUserAsync(userId, pagination)`, `GetByIdForUserAsync(id, userId)`, `SoftDeleteAsync(id, userId)` (list methods take `PaginationQuery` and return `PagedResult<T>` — see `.claude/rules/pagination.md`). Filter by `AppUserId`; treat "not owned by caller" as 404. Controllers pipe `User.GetUserId()` into every call.
 
 - **Shared / multi-member resources (no `AppUserId`, joined via `Xxx`/`XxxMember`):** membership = access. User-scoped reads filter:
   ```csharp

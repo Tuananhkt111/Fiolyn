@@ -5,6 +5,7 @@ using Fiolyn.Controllers.DTOs.Requests.Counterparty ;
 using Fiolyn.Controllers.DTOs.Responses.Counterparty ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal.Interfaces ;
+using Fiolyn.Tests.Helpers ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Http ;
 using Microsoft.AspNetCore.Mvc ;
@@ -34,28 +35,28 @@ public class CounterpartyControllerTests
   [Fact]
   public async Task GetAllAsync_Returns200WithMappedList()
   {
-    _service.GetAllForUserAsync( 7L ).Returns( [
-      new Counterparty
-      {
-        Id = 1,
-        AppUserId = 7,
-        Name = "Alice"
-      },
-      new Counterparty
-      {
-        Id = 2,
-        AppUserId = 7,
-        Name = "Bob"
-      }
-    ] ) ;
+    _service.GetAllForUserAsync( 7L, Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.SinglePage(
+        new Counterparty
+        {
+          Id = 1,
+          AppUserId = 7,
+          Name = "Alice"
+        },
+        new Counterparty
+        {
+          Id = 2,
+          AppUserId = 7,
+          Name = "Bob"
+        } ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    var list = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<CounterpartyResponse>>().Which ;
-    list.Should().HaveCount( 2 ) ;
-    list.Select( c => c.Name ).Should().ContainInOrder( "Alice", "Bob" ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<CounterpartyResponse>>().Which ;
+    page.Items.Should().HaveCount( 2 ) ;
+    page.Items.Select( c => c.Name ).Should().ContainInOrder( "Alice", "Bob" ) ;
   }
 
   [Fact]

@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 
 namespace Fiolyn.Services.Internal.Interfaces ;
@@ -14,9 +15,9 @@ public interface ITransferTransactionService
   Task UpdateAsync( TransferTransaction transaction, long userId ) ;
   Task SoftDeleteAsync( long id, long userId ) ;
   Task SoftDeleteAsync( long id ) ;
-  Task<List<TransferTransaction>> GetAllForUserAsync( long userId ) ;
+  Task<PagedResult<TransferTransaction>> GetAllForUserAsync( long userId, PaginationQuery pagination ) ;
   Task<TransferTransaction?> GetByIdForUserAsync( long id, long userId ) ;
   Task<bool> ExistsForUserAsync( long id, long userId ) ;
-  Task<List<TransferTransaction>> GetAllAsync( long? userId = null ) ;
+  Task<PagedResult<TransferTransaction>> GetAllAsync( PaginationQuery pagination, long? userId = null ) ;
   Task<TransferTransaction?> GetByIdAsync( long id ) ;
 }

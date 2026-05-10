@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 
 namespace Fiolyn.Services.Internal.Interfaces ;
@@ -24,8 +25,9 @@ public interface IBrokerAccountService
   ///   Gets all active broker accounts the given user is a member of.
   /// </summary>
   /// <param name="userId">The member user's primary key.</param>
-  /// <returns>List of the user's active broker accounts, ordered by name.</returns>
-  Task<List<BrokerAccount>> GetAllForUserAsync( long userId ) ;
+  /// <param name="pagination">Page / pageSize for offset-based slicing.</param>
+  /// <returns>Paged list of the user's active broker accounts, ordered by name (Id tiebreaker).</returns>
+  Task<PagedResult<BrokerAccount>> GetAllForUserAsync( long userId, PaginationQuery pagination ) ;
 
   /// <summary>
   ///   Gets a single broker account by ID, requiring the caller to be a member.
@@ -71,8 +73,10 @@ public interface IBrokerAccountService
   /// </summary>
   /// <param name="accountId">The broker account primary key.</param>
   /// <param name="callerUserId">The caller's primary key.</param>
-  /// <returns>The account's active members, ordered by join time.</returns>
-  Task<List<BrokerAccountMember>> GetMembersAsync( long accountId, long callerUserId ) ;
+  /// <param name="pagination">Page / pageSize for offset-based slicing.</param>
+  /// <returns>Paged list of active members, ordered by join time (Id tiebreaker).</returns>
+  Task<PagedResult<BrokerAccountMember>> GetMembersAsync(
+    long accountId, long callerUserId, PaginationQuery pagination ) ;
 
   /// <summary>
   ///   Adds a user (identified by email) to the account. Caller must be a member.
@@ -98,10 +102,11 @@ public interface IBrokerAccountService
 
   /// <summary>
   ///   (Admin) Gets active broker accounts eager-loading all members. Optionally filter to a single
-  ///   user's memberships. Ordered by account name.
+  ///   user's memberships. Ordered by account name with an Id tiebreaker.
   /// </summary>
+  /// <param name="pagination">Page / pageSize for offset-based slicing.</param>
   /// <param name="userId">Optional — when supplied, returns only accounts that user is a member of.</param>
-  Task<List<BrokerAccount>> GetAllAsync( long? userId = null ) ;
+  Task<PagedResult<BrokerAccount>> GetAllAsync( PaginationQuery pagination, long? userId = null ) ;
 
   /// <summary>
   ///   (Admin) Gets any active broker account by ID without user-scoping, eager-loading all members.

@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Requests.IncomeTransaction ;
 using Fiolyn.Controllers.DTOs.Requests.Shared ;
 using Fiolyn.Controllers.DTOs.Responses.IncomeTransaction ;
@@ -41,10 +42,10 @@ public class IncomeTransactionController(
   }
 
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var list = await service.GetAllForUserAsync( User.GetUserId() ) ;
-    return Ok( list.Select( t => new IncomeTransactionResponse( t ) ).ToList() ) ;
+    var page = await service.GetAllForUserAsync( User.GetUserId(), pagination ) ;
+    return Ok( page.Map( t => new IncomeTransactionResponse( t ) ) ) ;
   }
 
   [HttpGet( "{id:long}", Name = "GetIncomeTransactionById" )]

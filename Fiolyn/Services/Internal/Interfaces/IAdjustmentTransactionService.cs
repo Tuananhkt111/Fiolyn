@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 
 namespace Fiolyn.Services.Internal.Interfaces ;
@@ -14,9 +15,9 @@ public interface IAdjustmentTransactionService
   Task UpdateAsync( AdjustmentTransaction transaction, long userId ) ;
   Task SoftDeleteAsync( long id, long userId ) ;
   Task SoftDeleteAsync( long id ) ;
-  Task<List<AdjustmentTransaction>> GetAllForUserAsync( long userId ) ;
+  Task<PagedResult<AdjustmentTransaction>> GetAllForUserAsync( long userId, PaginationQuery pagination ) ;
   Task<AdjustmentTransaction?> GetByIdForUserAsync( long id, long userId ) ;
   Task<bool> ExistsForUserAsync( long id, long userId ) ;
-  Task<List<AdjustmentTransaction>> GetAllAsync( long? userId = null ) ;
+  Task<PagedResult<AdjustmentTransaction>> GetAllAsync( PaginationQuery pagination, long? userId = null ) ;
   Task<AdjustmentTransaction?> GetByIdAsync( long id ) ;
 }

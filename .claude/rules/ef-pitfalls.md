@@ -4,7 +4,7 @@ Read this when writing or debugging EF queries, includes, or write paths.
 
 ## Tracking
 
-- **`.AsNoTracking()` on read-only list paths only.** Chain it before `.ToListAsync()` in `GetAllAsync` methods that project straight to DTOs. **Don't** add it to `GetByIdAsync` / `GetByIdForUserAsync` — callers fetch-then-mutate-then-update, and `SoftDeleteAsync` reuses the same fetch.
+- **`.AsNoTracking()` on read-only list paths only.** Chain it before `.ToPagedResultAsync(pagination)` in `GetAll*Async` methods (the helper itself runs `LongCountAsync()` + `Skip`/`Take`/`ToListAsync()`, neither of which interacts with tracking). **Don't** add it to `GetByIdAsync` / `GetByIdForUserAsync` — callers fetch-then-mutate-then-update, and `SoftDeleteAsync` reuses the same fetch.
 - A detached `Include`-bearing read forces `MarkIsDeletedModified` to call `Attach`, which walks the nav graph and tries to re-track the included entity — but a `FindAsync` from the write path has already tracked a *different* instance with the same key. EF throws `InvalidOperationException: another instance with the same key value is already being tracked`.
 - Same trap fires when a shared read helper (e.g. `BuildReadQuery` in `StandardTransactionServiceBase` / `TransferTransactionService`) bakes `.AsNoTracking()` into the query — every single-row consumer inherits it silently. Keep the helper tracking-on; chain `.AsNoTracking()` on the list call sites instead.
 

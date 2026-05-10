@@ -35,7 +35,7 @@ Service split:
 - Everything else gates on `SpendAccount` membership.
 - `Transfer` requires membership of **both** source and destination.
 
-The unified `GET /api/transactions` (`TransactionReadService.GetAllForUserAsync`) reads the union: member of the row's `SpendAccount` OR — for `TransferTransaction` rows — member of the `DestinationSpendAccount` OR — for `StockTransaction` rows — member of the `BrokerAccount`. The destination branch is required, otherwise a user who only co-owns the destination would never see incoming transfers.
+The unified `GET /api/transactions` (`TransactionReadService.GetAllForUserAsync`) reads the union: member of the row's `SpendAccount` OR — for `TransferTransaction` rows — member of the `DestinationSpendAccount` OR — for `StockTransaction` rows — member of the `BrokerAccount`. The destination branch is required, otherwise a user who only co-owns the destination would never see incoming transfers. Wrapped as `PagedResult<TransactionBase>` — see `.claude/rules/pagination.md`.
 
 ## Update path — never call `repository.Update(entity)`
 

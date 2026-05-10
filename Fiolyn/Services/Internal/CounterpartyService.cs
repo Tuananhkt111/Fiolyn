@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Infrastructure.Exceptions ;
@@ -14,12 +15,13 @@ public class CounterpartyService(
   IRepository<BorrowingTransaction> borrowingRepository ) : ICounterpartyService
 {
   /// <inheritdoc />
-  public async Task<List<Counterparty>> GetAllForUserAsync( long userId ) =>
+  public async Task<PagedResult<Counterparty>> GetAllForUserAsync( long userId, PaginationQuery pagination ) =>
     await repository.Query()
       .AsNoTracking()
       .Where( c => c.AppUserId == userId )
       .OrderBy( c => c.Name )
-      .ToListAsync() ;
+      .ThenBy( c => c.Id )
+      .ToPagedResultAsync( pagination ) ;
 
   /// <inheritdoc />
   public async Task<Counterparty?> GetByIdForUserAsync( long id, long userId ) =>

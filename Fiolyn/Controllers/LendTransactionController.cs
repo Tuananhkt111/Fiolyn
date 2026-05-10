@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Requests.LendTransaction ;
 using Fiolyn.Controllers.DTOs.Responses.LendTransaction ;
 using Fiolyn.Entities ;
@@ -41,10 +42,10 @@ public class LendTransactionController(
   }
 
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var list = await service.GetAllForUserAsync( User.GetUserId() ) ;
-    return Ok( list.Select( t => new LendTransactionResponse( t ) ).ToList() ) ;
+    var page = await service.GetAllForUserAsync( User.GetUserId(), pagination ) ;
+    return Ok( page.Map( t => new LendTransactionResponse( t ) ) ) ;
   }
 
   [HttpGet( "{id:long}", Name = "GetLendTransactionById" )]

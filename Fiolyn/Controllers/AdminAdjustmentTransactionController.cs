@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Constants ;
 using Fiolyn.Controllers.DTOs.Responses.AdjustmentTransaction ;
 using Fiolyn.Services.Internal.Interfaces ;
@@ -16,10 +17,11 @@ public class AdminAdjustmentTransactionController(
   IAdjustmentTransactionService service ) : ControllerBase
 {
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync( [FromQuery] long? userId = null )
+  public async Task<IActionResult> GetAllAsync(
+    [FromQuery] PaginationQuery pagination, [FromQuery] long? userId = null )
   {
-    var list = await service.GetAllAsync( userId ) ;
-    return Ok( list.Select( t => new AdjustmentTransactionResponse( t ) ).ToList() ) ;
+    var page = await service.GetAllAsync( pagination, userId ) ;
+    return Ok( page.Map( t => new AdjustmentTransactionResponse( t ) ) ) ;
   }
 
   [HttpGet( "{id:long}", Name = "GetAdminAdjustmentTransactionById" )]

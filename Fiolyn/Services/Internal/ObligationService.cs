@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Responses.Obligation ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
@@ -13,7 +14,8 @@ public class ObligationService(
   IRepository<BorrowingTransaction> borrowingRepository ) : IObligationService
 {
   /// <inheritdoc />
-  public async Task<List<ObligationResponse>> GetAllForUserAsync( long userId )
+  public async Task<PagedResult<ObligationResponse>> GetAllForUserAsync(
+    long userId, PaginationQuery pagination )
   {
     // Lend rows store negative Amount (money out, recoverable) — receivable is the unsigned
     // magnitude. Auto-created share children (ParentTransactionId set) live in this same
@@ -42,6 +44,7 @@ public class ObligationService(
     var counterparties = await counterpartyRepository.Query()
       .Where( c => c.AppUserId == userId )
       .OrderBy( c => c.Name )
+      .ThenBy( c => c.Id )
       .Select( c => new
       {
         c.Id,
@@ -65,6 +68,6 @@ public class ObligationService(
       result.Add( new ObligationResponse( c.Id, c.Name, receivable, payable, receivable - payable ) ) ;
     }
 
-    return result ;
+    return result.ToPagedResult( pagination ) ;
   }
 }

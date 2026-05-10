@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Requests.Counterparty ;
 using Fiolyn.Controllers.DTOs.Responses.Counterparty ;
 using Fiolyn.Extensions ;
@@ -20,10 +21,10 @@ public class CounterpartyController(
   ///   Lists counterparties owned by the caller, ordered by name.
   /// </summary>
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var list = await service.GetAllForUserAsync( User.GetUserId() ) ;
-    return Ok( list.Select( c => new CounterpartyResponse( c ) ).ToList() ) ;
+    var page = await service.GetAllForUserAsync( User.GetUserId(), pagination ) ;
+    return Ok( page.Map( c => new CounterpartyResponse( c ) ) ) ;
   }
 
   /// <summary>

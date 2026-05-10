@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Responses.Transaction ;
 using Fiolyn.Extensions ;
 using Fiolyn.Services.Internal.Interfaces ;
@@ -18,9 +19,9 @@ public class TransactionController(
   ITransactionReadService readService ) : ControllerBase
 {
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var list = await readService.GetAllForUserAsync( User.GetUserId() ) ;
-    return Ok( list.Select( TransactionResponse.FromEntity ).ToList() ) ;
+    var page = await readService.GetAllForUserAsync( User.GetUserId(), pagination ) ;
+    return Ok( page.Map( TransactionResponse.FromEntity ) ) ;
   }
 }

@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Requests.ExpenseTransaction ;
 using Fiolyn.Controllers.DTOs.Requests.Shared ;
 using Fiolyn.Controllers.DTOs.Responses.ExpenseTransaction ;
@@ -41,10 +42,10 @@ public class ExpenseTransactionController(
   }
 
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var list = await service.GetAllForUserAsync( User.GetUserId() ) ;
-    return Ok( list.Select( t => new ExpenseTransactionResponse( t ) ).ToList() ) ;
+    var page = await service.GetAllForUserAsync( User.GetUserId(), pagination ) ;
+    return Ok( page.Map( t => new ExpenseTransactionResponse( t ) ) ) ;
   }
 
   [HttpGet( "{id:long}", Name = "GetExpenseTransactionById" )]

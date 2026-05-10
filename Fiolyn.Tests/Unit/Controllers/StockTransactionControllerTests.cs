@@ -6,6 +6,7 @@ using Fiolyn.Controllers.DTOs.Responses.StockTransaction ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 using Fiolyn.Services.Internal.Interfaces ;
+using Fiolyn.Tests.Helpers ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Http ;
 using Microsoft.AspNetCore.Mvc ;
@@ -91,26 +92,28 @@ public class StockTransactionControllerTests
   [Fact]
   public async Task GetAllAsync_PassesUserIdAndSymbolToService()
   {
-    _service.GetAllForUserAsync( 42 ).Returns( [BuildEntity( 1 ), BuildEntity( 2 )] ) ;
+    _service.GetAllForUserAsync( 42, Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.SinglePage( BuildEntity( 1 ), BuildEntity( 2 ) ) ) ;
     var sut = CreateSut( 42 ) ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    await _service.Received( 1 ).GetAllForUserAsync( 42 ) ;
-    var list = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<StockTransactionResponse>>().Which ;
-    list.Should().HaveCount( 2 ) ;
+    await _service.Received( 1 ).GetAllForUserAsync( 42, Arg.Any<PaginationQuery>() ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<StockTransactionResponse>>().Which ;
+    page.Items.Should().HaveCount( 2 ) ;
   }
 
   [Fact]
   public async Task GetAllAsync_PassesSymbolFilter()
   {
-    _service.GetAllForUserAsync( 42, "VNM" ).Returns( [BuildEntity()] ) ;
+    _service.GetAllForUserAsync( 42, Arg.Any<PaginationQuery>(), "VNM" )
+      .Returns( PagedResultHelpers.SinglePage( BuildEntity() ) ) ;
     var sut = CreateSut( 42 ) ;
 
-    await sut.GetAllAsync( "VNM" ) ;
+    await sut.GetAllAsync( new PaginationQuery(), "VNM" ) ;
 
-    await _service.Received( 1 ).GetAllForUserAsync( 42, "VNM" ) ;
+    await _service.Received( 1 ).GetAllForUserAsync( 42, Arg.Any<PaginationQuery>(), "VNM" ) ;
   }
 
   [Fact]

@@ -55,10 +55,11 @@ public class CounterpartyServiceTests
       } ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllForUserAsync( 7 ) ;
+    var result = await sut.GetAllForUserAsync( 7, new PaginationQuery() ) ;
 
-    result.Should().HaveCount( 2 ) ;
-    result.Select( c => c.Name ).Should().ContainInOrder( "Alice", "Bob" ) ;
+    result.Items.Should().HaveCount( 2 ) ;
+    result.TotalCount.Should().Be( 2L ) ;
+    result.Items.Select( c => c.Name ).Should().ContainInOrder( "Alice", "Bob" ) ;
   }
 
   [Fact]

@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Constants ;
 using Fiolyn.Controllers.DTOs.Requests.SpendAccount ;
 using Fiolyn.Controllers.DTOs.Responses.SpendAccount ;
@@ -21,10 +22,11 @@ public class AdminSpendAccountController(
   ///   Lists all spend accounts across every user. Optionally filter to accounts a given user is a member of.
   /// </summary>
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync( [FromQuery] long? userId = null )
+  public async Task<IActionResult> GetAllAsync(
+    [FromQuery] PaginationQuery pagination, [FromQuery] long? userId = null )
   {
-    var list = await spendAccountService.GetAllAsync( userId ) ;
-    return Ok( list.Select( a => new AdminSpendAccountResponse( a ) ).ToList() ) ;
+    var page = await spendAccountService.GetAllAsync( pagination, userId ) ;
+    return Ok( page.Map( a => new AdminSpendAccountResponse( a ) ) ) ;
   }
 
   /// <summary>

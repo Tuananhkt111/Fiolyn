@@ -5,6 +5,7 @@ using Fiolyn.Controllers.DTOs.Requests.User ;
 using Fiolyn.Controllers.DTOs.Responses.User ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal.Interfaces ;
+using Fiolyn.Tests.Helpers ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Http ;
 using Microsoft.AspNetCore.Mvc ;
@@ -80,28 +81,28 @@ public class UserControllerTests
   [Fact]
   public async Task GetAllAsync_Returns200WithMappedList()
   {
-    _userService.GetAllAsync().Returns( [
-      new AppUser
-      {
-        Id = 1,
-        Email = "a@x.com",
-        GoogleSub = "s1"
-      },
-      new AppUser
-      {
-        Id = 2,
-        Email = "b@x.com",
-        GoogleSub = "s2"
-      }
-    ] ) ;
+    _userService.GetAllAsync( Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.SinglePage(
+        new AppUser
+        {
+          Id = 1,
+          Email = "a@x.com",
+          GoogleSub = "s1"
+        },
+        new AppUser
+        {
+          Id = 2,
+          Email = "b@x.com",
+          GoogleSub = "s2"
+        } ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    var list = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<UserResponse>>().Which ;
-    list.Should().HaveCount( 2 ) ;
-    list.Select( u => u.Id ).Should().ContainInOrder( 1, 2 ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<UserResponse>>().Which ;
+    page.Items.Should().HaveCount( 2 ) ;
+    page.Items.Select( u => u.Id ).Should().ContainInOrder( 1, 2 ) ;
   }
 
   [Fact]

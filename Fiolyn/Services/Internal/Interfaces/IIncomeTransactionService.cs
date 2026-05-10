@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal.BaseServices ;
 
@@ -21,9 +22,9 @@ public interface IIncomeTransactionService
 
   Task SoftDeleteAsync( long id, long userId ) ;
   Task SoftDeleteAsync( long id ) ;
-  Task<List<IncomeTransaction>> GetAllForUserAsync( long userId ) ;
+  Task<PagedResult<IncomeTransaction>> GetAllForUserAsync( long userId, PaginationQuery pagination ) ;
   Task<IncomeTransaction?> GetByIdForUserAsync( long id, long userId ) ;
   Task<bool> ExistsForUserAsync( long id, long userId ) ;
-  Task<List<IncomeTransaction>> GetAllAsync( long? userId = null ) ;
+  Task<PagedResult<IncomeTransaction>> GetAllAsync( PaginationQuery pagination, long? userId = null ) ;
   Task<IncomeTransaction?> GetByIdAsync( long id ) ;
 }

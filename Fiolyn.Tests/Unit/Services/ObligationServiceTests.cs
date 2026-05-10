@@ -86,21 +86,22 @@ public class ObligationServiceTests
     }.BuildMock() ) ;
 
     var sut = CreateSut() ;
-    var result = await sut.GetAllForUserAsync( 7 ) ;
+    var result = await sut.GetAllForUserAsync( 7, new PaginationQuery() ) ;
 
-    result.Should().HaveCount( 2 ) ;
+    result.Items.Should().HaveCount( 2 ) ;
+    result.TotalCount.Should().Be( 2L ) ;
 
-    var bobRow = result.Single( r => r.CounterpartyId == 11 ) ;
+    var bobRow = result.Items.Single( r => r.CounterpartyId == 11 ) ;
     bobRow.Receivable.Should().Be( 250_000L ) ;
     bobRow.Payable.Should().Be( 0L ) ;
     bobRow.Net.Should().Be( 250_000L ) ;
 
-    var aliceRow = result.Single( r => r.CounterpartyId == 12 ) ;
+    var aliceRow = result.Items.Single( r => r.CounterpartyId == 12 ) ;
     aliceRow.Receivable.Should().Be( 0L ) ;
     aliceRow.Payable.Should().Be( 80_000L ) ;
     aliceRow.Net.Should().Be( -80_000L ) ;
 
-    result.Should().NotContain( r => r.CounterpartyId == 13 ) ;
+    result.Items.Should().NotContain( r => r.CounterpartyId == 13 ) ;
   }
 
   [Fact]
@@ -120,8 +121,9 @@ public class ObligationServiceTests
     _borrowingRepo.Query().Returns( new List<BorrowingTransaction>().BuildMock() ) ;
 
     var sut = CreateSut() ;
-    var result = await sut.GetAllForUserAsync( 7 ) ;
+    var result = await sut.GetAllForUserAsync( 7, new PaginationQuery() ) ;
 
-    result.Should().BeEmpty() ;
+    result.Items.Should().BeEmpty() ;
+    result.TotalCount.Should().Be( 0L ) ;
   }
 }

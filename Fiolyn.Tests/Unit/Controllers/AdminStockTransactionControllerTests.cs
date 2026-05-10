@@ -3,6 +3,7 @@ using Fiolyn.Controllers.DTOs.Responses.StockTransaction ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 using Fiolyn.Services.Internal.Interfaces ;
+using Fiolyn.Tests.Helpers ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Mvc ;
 using NSubstitute ;
@@ -37,26 +38,28 @@ public class AdminStockTransactionControllerTests
   [Fact]
   public async Task GetAllAsync_NoFilter_ReturnsList()
   {
-    _service.GetAllAsync().Returns( [BuildEntity( 1 ), BuildEntity( 2 )] ) ;
+    _service.GetAllAsync( Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.SinglePage( BuildEntity( 1 ), BuildEntity( 2 ) ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    await _service.Received( 1 ).GetAllAsync() ;
-    var list = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<StockTransactionResponse>>().Which ;
-    list.Should().HaveCount( 2 ) ;
+    await _service.Received( 1 ).GetAllAsync( Arg.Any<PaginationQuery>() ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<StockTransactionResponse>>().Which ;
+    page.Items.Should().HaveCount( 2 ) ;
   }
 
   [Fact]
   public async Task GetAllAsync_WithUserIdAndSymbol_PassesFiltersToService()
   {
-    _service.GetAllAsync( 42L, "VNM" ).Returns( [BuildEntity( 1 )] ) ;
+    _service.GetAllAsync( Arg.Any<PaginationQuery>(), 42L, "VNM" )
+      .Returns( PagedResultHelpers.SinglePage( BuildEntity( 1 ) ) ) ;
     var sut = CreateSut() ;
 
-    await sut.GetAllAsync( 42, "VNM" ) ;
+    await sut.GetAllAsync( new PaginationQuery(), 42, "VNM" ) ;
 
-    await _service.Received( 1 ).GetAllAsync( 42L, "VNM" ) ;
+    await _service.Received( 1 ).GetAllAsync( Arg.Any<PaginationQuery>(), 42L, "VNM" ) ;
   }
 
   [Fact]

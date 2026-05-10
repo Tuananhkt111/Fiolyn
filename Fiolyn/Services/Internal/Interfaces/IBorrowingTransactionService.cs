@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 
 namespace Fiolyn.Services.Internal.Interfaces ;
@@ -14,9 +15,9 @@ public interface IBorrowingTransactionService
   Task UpdateAsync( BorrowingTransaction transaction, long userId, string counterpartyName ) ;
   Task SoftDeleteAsync( long id, long userId ) ;
   Task SoftDeleteAsync( long id ) ;
-  Task<List<BorrowingTransaction>> GetAllForUserAsync( long userId ) ;
+  Task<PagedResult<BorrowingTransaction>> GetAllForUserAsync( long userId, PaginationQuery pagination ) ;
   Task<BorrowingTransaction?> GetByIdForUserAsync( long id, long userId ) ;
   Task<bool> ExistsForUserAsync( long id, long userId ) ;
-  Task<List<BorrowingTransaction>> GetAllAsync( long? userId = null ) ;
+  Task<PagedResult<BorrowingTransaction>> GetAllAsync( PaginationQuery pagination, long? userId = null ) ;
   Task<BorrowingTransaction?> GetByIdAsync( long id ) ;
 }

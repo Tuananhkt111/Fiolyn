@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 
 namespace Fiolyn.Services.Internal.Interfaces ;
@@ -11,13 +12,14 @@ namespace Fiolyn.Services.Internal.Interfaces ;
 public interface ITransactionReadService
 {
   /// <summary>
-  ///   Lists every active transaction the user has access to, ordered by <c>Date</c> descending.
+  ///   Lists every active transaction the user has access to, ordered by <c>Date</c> descending
+  ///   with an <c>Id</c> descending tiebreaker.
   /// </summary>
-  Task<List<TransactionBase>> GetAllForUserAsync( long userId ) ;
+  Task<PagedResult<TransactionBase>> GetAllForUserAsync( long userId, PaginationQuery pagination ) ;
 
   /// <summary>
   ///   (Admin) Lists every active transaction without user-scoping. Optionally filter to a single
   ///   user's accessible rows.
   /// </summary>
-  Task<List<TransactionBase>> GetAllAsync( long? userId = null ) ;
+  Task<PagedResult<TransactionBase>> GetAllAsync( PaginationQuery pagination, long? userId = null ) ;
 }

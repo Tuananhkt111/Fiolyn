@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Constants ;
 using Fiolyn.Controllers.DTOs.Responses.IncomeTransaction ;
 using Fiolyn.Services.Internal.Interfaces ;
@@ -16,10 +17,11 @@ public class AdminIncomeTransactionController(
   IIncomeTransactionService service ) : ControllerBase
 {
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync( [FromQuery] long? userId = null )
+  public async Task<IActionResult> GetAllAsync(
+    [FromQuery] PaginationQuery pagination, [FromQuery] long? userId = null )
   {
-    var list = await service.GetAllAsync( userId ) ;
-    return Ok( list.Select( t => new IncomeTransactionResponse( t ) ).ToList() ) ;
+    var page = await service.GetAllAsync( pagination, userId ) ;
+    return Ok( page.Map( t => new IncomeTransactionResponse( t ) ) ) ;
   }
 
   [HttpGet( "{id:long}", Name = "GetAdminIncomeTransactionById" )]

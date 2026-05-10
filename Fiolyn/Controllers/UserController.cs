@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Constants ;
 using Fiolyn.Controllers.DTOs.Requests.User ;
 using Fiolyn.Controllers.DTOs.Responses.User ;
@@ -61,10 +62,10 @@ public class UserController( IUserService userService ) : ControllerBase
   /// </summary>
   [HttpGet]
   [Authorize( Policy = AuthConstants.AdminPolicyName )]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var users = await userService.GetAllAsync() ;
-    return Ok( users.Select( u => new UserResponse( u ) ).ToList() ) ;
+    var page = await userService.GetAllAsync( pagination ) ;
+    return Ok( page.Map( u => new UserResponse( u ) ) ) ;
   }
 
   /// <summary>

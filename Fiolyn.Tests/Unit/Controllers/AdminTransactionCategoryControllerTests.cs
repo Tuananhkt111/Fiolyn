@@ -4,6 +4,7 @@ using Fiolyn.Controllers.DTOs.Responses.TransactionCategory ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 using Fiolyn.Services.Internal.Interfaces ;
+using Fiolyn.Tests.Helpers ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Mvc ;
 using NSubstitute ;
@@ -51,20 +52,20 @@ public class AdminTransactionCategoryControllerTests
   [Fact]
   public async Task GetAllAsync_PassesKindFilter()
   {
-    _service.GetAllAsync( TransactionKind.Income ).Returns( [
-      new TransactionCategory
-      {
-        Id = 1,
-        Name = "Salary",
-        Kind = TransactionKind.Income
-      }
-    ] ) ;
+    _service.GetAllAsync( Arg.Any<PaginationQuery>(), TransactionKind.Income )
+      .Returns( PagedResultHelpers.SinglePage(
+        new TransactionCategory
+        {
+          Id = 1,
+          Name = "Salary",
+          Kind = TransactionKind.Income
+        } ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync( TransactionKind.Income ) ;
+    var result = await sut.GetAllAsync( new PaginationQuery(), TransactionKind.Income ) ;
 
     result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<TransactionCategoryResponse>>()
-      .Which.Should().ContainSingle().Which.Name.Should().Be( "Salary" ) ;
+      .Which.Value.Should().BeOfType<PagedResult<TransactionCategoryResponse>>()
+      .Which.Items.Should().ContainSingle().Which.Name.Should().Be( "Salary" ) ;
   }
 }

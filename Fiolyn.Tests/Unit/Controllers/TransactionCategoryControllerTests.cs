@@ -3,6 +3,7 @@ using Fiolyn.Controllers.DTOs.Responses.TransactionCategory ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 using Fiolyn.Services.Internal.Interfaces ;
+using Fiolyn.Tests.Helpers ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Mvc ;
 using NSubstitute ;
@@ -19,51 +20,65 @@ public class TransactionCategoryControllerTests
   [Fact]
   public async Task GetAllAsync_NoFilter_ReturnsAllCategories()
   {
-    _service.GetAllAsync( null ).Returns( [
-      new TransactionCategory { Id = 1, Name = "Salary",    Kind = TransactionKind.Income },
-      new TransactionCategory { Id = 2, Name = "Groceries", Kind = TransactionKind.Expense }
-    ] ) ;
+    _service.GetAllAsync( Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.SinglePage(
+        new TransactionCategory
+        {
+          Id = 1,
+          Name = "Salary",
+          Kind = TransactionKind.Income
+        },
+        new TransactionCategory
+        {
+          Id = 2,
+          Name = "Groceries",
+          Kind = TransactionKind.Expense
+        } ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    var body = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeAssignableTo<IEnumerable<TransactionCategoryResponse>>()
-      .Which.ToList() ;
-    body.Should().HaveCount( 2 ) ;
-    body[0].Name.Should().Be( "Salary" ) ;
-    body[0].Kind.Should().Be( TransactionKind.Income ) ;
-    body[1].Name.Should().Be( "Groceries" ) ;
-    body[1].Kind.Should().Be( TransactionKind.Expense ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<TransactionCategoryResponse>>().Which ;
+    page.Items.Should().HaveCount( 2 ) ;
+    page.Items[ 0 ].Name.Should().Be( "Salary" ) ;
+    page.Items[ 0 ].Kind.Should().Be( TransactionKind.Income ) ;
+    page.Items[ 1 ].Name.Should().Be( "Groceries" ) ;
+    page.Items[ 1 ].Kind.Should().Be( TransactionKind.Expense ) ;
   }
 
   [Fact]
   public async Task GetAllAsync_WithKindFilter_PassesKindToService()
   {
-    _service.GetAllAsync( TransactionKind.Expense ).Returns( [
-      new TransactionCategory { Id = 2, Name = "Groceries", Kind = TransactionKind.Expense }
-    ] ) ;
+    _service.GetAllAsync( Arg.Any<PaginationQuery>(), TransactionKind.Expense )
+      .Returns( PagedResultHelpers.SinglePage(
+        new TransactionCategory
+        {
+          Id = 2,
+          Name = "Groceries",
+          Kind = TransactionKind.Expense
+        } ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync( TransactionKind.Expense ) ;
+    var result = await sut.GetAllAsync( new PaginationQuery(), TransactionKind.Expense ) ;
 
-    var body = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeAssignableTo<IEnumerable<TransactionCategoryResponse>>()
-      .Which.ToList() ;
-    body.Should().ContainSingle().Which.Kind.Should().Be( TransactionKind.Expense ) ;
-    await _service.Received( 1 ).GetAllAsync( TransactionKind.Expense ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<TransactionCategoryResponse>>().Which ;
+    page.Items.Should().ContainSingle().Which.Kind.Should().Be( TransactionKind.Expense ) ;
+    await _service.Received( 1 ).GetAllAsync( Arg.Any<PaginationQuery>(), TransactionKind.Expense ) ;
   }
 
   [Fact]
   public async Task GetAllAsync_EmptyList_ReturnsEmptyArray()
   {
-    _service.GetAllAsync( null ).Returns( [] ) ;
+    _service.GetAllAsync( Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.EmptyPage<TransactionCategory>() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
     result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeAssignableTo<IEnumerable<TransactionCategoryResponse>>()
-      .Which.Should().BeEmpty() ;
+      .Which.Value.Should().BeOfType<PagedResult<TransactionCategoryResponse>>()
+      .Which.Items.Should().BeEmpty() ;
   }
 }

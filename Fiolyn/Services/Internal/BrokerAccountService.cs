@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Infrastructure.Exceptions ;
@@ -34,13 +35,14 @@ public class BrokerAccountService(
   }
 
   /// <inheritdoc />
-  public async Task<List<BrokerAccount>> GetAllForUserAsync( long userId ) =>
+  public async Task<PagedResult<BrokerAccount>> GetAllForUserAsync( long userId, PaginationQuery pagination ) =>
     await repository.Query()
       .AsNoTracking()
       .Include( b => b.SpendAccount )
       .Where( b => b.Members.Any( m => m.AppUserId == userId ) )
       .OrderBy( b => b.Name )
-      .ToListAsync() ;
+      .ThenBy( b => b.Id )
+      .ToPagedResultAsync( pagination ) ;
 
   /// <inheritdoc />
   public async Task<BrokerAccount?> GetByIdForUserAsync( long id, long userId ) =>
@@ -92,20 +94,24 @@ public class BrokerAccountService(
   }
 
   /// <inheritdoc />
-  public async Task<List<BrokerAccountMember>> GetMembersAsync( long accountId, long callerUserId )
+  public async Task<PagedResult<BrokerAccountMember>> GetMembersAsync(
+    long accountId, long callerUserId, PaginationQuery pagination )
   {
-    var account = await repository.Query()
-      .AsNoTracking()
-      .Include( b => b.Members )
-      .ThenInclude( m => m.AppUser )
-      .FirstOrDefaultAsync( b => b.Id == accountId ) ;
-
-    if ( account is null || account.Members.All( m => m.AppUserId != callerUserId ) )
+    var callerIsMember = await repository.Query()
+      .AnyAsync( b => b.Id == accountId
+                      && b.Members.Any( m => m.AppUserId == callerUserId ) ) ;
+    if ( ! callerIsMember )
     {
       throw new KeyNotFoundException( $"BrokerAccount {accountId} not found for user {callerUserId}." ) ;
     }
 
-    return account.Members.OrderBy( m => m.JoinedAt ).ToList() ;
+    return await memberRepository.Query()
+      .AsNoTracking()
+      .Include( m => m.AppUser )
+      .Where( m => m.BrokerAccountId == accountId )
+      .OrderBy( m => m.JoinedAt )
+      .ThenBy( m => m.AppUserId )
+      .ToPagedResultAsync( pagination ) ;
   }
 
   /// <inheritdoc />
@@ -176,7 +182,7 @@ public class BrokerAccountService(
   }
 
   /// <inheritdoc />
-  public async Task<List<BrokerAccount>> GetAllAsync( long? userId = null )
+  public async Task<PagedResult<BrokerAccount>> GetAllAsync( PaginationQuery pagination, long? userId = null )
   {
     IQueryable<BrokerAccount> query = repository.Query()
       .AsNoTracking()
@@ -191,7 +197,8 @@ public class BrokerAccountService(
 
     return await query
       .OrderBy( b => b.Name )
-      .ToListAsync() ;
+      .ThenBy( b => b.Id )
+      .ToPagedResultAsync( pagination ) ;
   }
 
   /// <inheritdoc />

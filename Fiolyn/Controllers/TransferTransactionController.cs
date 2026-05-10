@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Requests.TransferTransaction ;
 using Fiolyn.Controllers.DTOs.Responses.TransferTransaction ;
 using Fiolyn.Entities ;
@@ -41,10 +42,10 @@ public class TransferTransactionController(
   }
 
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var list = await service.GetAllForUserAsync( User.GetUserId() ) ;
-    return Ok( list.Select( t => new TransferTransactionResponse( t ) ).ToList() ) ;
+    var page = await service.GetAllForUserAsync( User.GetUserId(), pagination ) ;
+    return Ok( page.Map( t => new TransferTransactionResponse( t ) ) ) ;
   }
 
   [HttpGet( "{id:long}", Name = "GetTransferTransactionById" )]

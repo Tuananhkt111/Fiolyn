@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Infrastructure.Exceptions ;
@@ -16,8 +17,12 @@ public class UserService( IRepository<AppUser> repository, ILogger<UserService> 
   public Task<AppUser> GetByIdAsync( long id ) => repository.GetByIdOrThrowAsync( id ) ;
 
   /// <inheritdoc />
-  public async Task<List<AppUser>> GetAllAsync() =>
-    await repository.Query().AsNoTracking().OrderBy( u => u.Email ).ToListAsync() ;
+  public async Task<PagedResult<AppUser>> GetAllAsync( PaginationQuery pagination ) =>
+    await repository.Query()
+      .AsNoTracking()
+      .OrderBy( u => u.Email )
+      .ThenBy( u => u.Id )
+      .ToPagedResultAsync( pagination ) ;
 
   /// <inheritdoc />
   public async Task<AppUser> UpdateDisplayNameAsync( long id, string? displayName )

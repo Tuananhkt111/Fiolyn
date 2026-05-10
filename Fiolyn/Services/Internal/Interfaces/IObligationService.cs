@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Responses.Obligation ;
 
 namespace Fiolyn.Services.Internal.Interfaces ;
@@ -9,5 +10,5 @@ namespace Fiolyn.Services.Internal.Interfaces ;
 /// </summary>
 public interface IObligationService
 {
-  Task<List<ObligationResponse>> GetAllForUserAsync( long userId ) ;
+  Task<PagedResult<ObligationResponse>> GetAllForUserAsync( long userId, PaginationQuery pagination ) ;
 }

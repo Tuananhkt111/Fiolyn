@@ -293,9 +293,9 @@ public class StockTransactionServiceTests
     _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllForUserAsync( 42 ) ;
+    var result = await sut.GetAllForUserAsync( 42, new PaginationQuery() ) ;
 
-    result.Should().ContainSingle().Which.Id.Should().Be( 1 ) ;
+    result.Items.Should().ContainSingle().Which.Id.Should().Be( 1 ) ;
   }
 
   [Fact]
@@ -324,9 +324,9 @@ public class StockTransactionServiceTests
     _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllForUserAsync( 42, "vnm" ) ;
+    var result = await sut.GetAllForUserAsync( 42, new PaginationQuery(), "vnm" ) ;
 
-    result.Should().ContainSingle().Which.Symbol.Should().Be( "VNM" ) ;
+    result.Items.Should().ContainSingle().Which.Symbol.Should().Be( "VNM" ) ;
   }
 
   [Fact]
@@ -691,9 +691,10 @@ public class StockTransactionServiceTests
     _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    result.Should().HaveCount( 2 ) ;
+    result.Items.Should().HaveCount( 2 ) ;
+    result.TotalCount.Should().Be( 2L ) ;
   }
 
   [Fact]
@@ -721,9 +722,9 @@ public class StockTransactionServiceTests
     _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync( 42 ) ;
+    var result = await sut.GetAllAsync( new PaginationQuery(), 42 ) ;
 
-    result.Should().ContainSingle().Which.Id.Should().Be( 1 ) ;
+    result.Items.Should().ContainSingle().Which.Id.Should().Be( 1 ) ;
   }
 
   [Fact]
@@ -921,8 +922,8 @@ public class StockTransactionServiceTests
     _repository.Query().Returns( transactions.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync( symbol: "vnm" ) ;
+    var result = await sut.GetAllAsync( new PaginationQuery(), symbol: "vnm" ) ;
 
-    result.Should().ContainSingle().Which.Symbol.Should().Be( "VNM" ) ;
+    result.Items.Should().ContainSingle().Which.Symbol.Should().Be( "VNM" ) ;
   }
 }

@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
@@ -133,14 +134,15 @@ public abstract class StandardTransactionServiceBase<T>(
 
   /// <summary>
   ///   Lists rows the caller has access to via spend-account membership. Ordered by <c>Date</c>
-  ///   descending. Eager-loads <c>SpendAccount</c>, <c>Category</c>, <c>Payer</c> for response
+  ///   descending with an <c>Id</c> descending tiebreaker so paged slices stay stable across
+  ///   requests. Eager-loads <c>SpendAccount</c>, <c>Category</c>, <c>Payer</c> for response
   ///   mapping.
   /// </summary>
-  public async Task<List<T>> GetAllForUserAsync( long userId ) =>
+  public async Task<PagedResult<T>> GetAllForUserAsync( long userId, PaginationQuery pagination ) =>
     await BuildReadQuery( transactionRepository.Query()
         .Where( t => t.SpendAccount.Members.Any( m => m.AppUserId == userId ) ) )
       .AsNoTracking()
-      .ToListAsync() ;
+      .ToPagedResultAsync( pagination ) ;
 
   /// <summary>
   ///   Single-row read scoped to caller membership. Returns null if missing or not a member.
@@ -161,7 +163,7 @@ public abstract class StandardTransactionServiceBase<T>(
   ///   (Admin) Lists rows without user-scoping. Optionally filter to a single user's
   ///   spend-account memberships.
   /// </summary>
-  public async Task<List<T>> GetAllAsync( long? userId = null )
+  public async Task<PagedResult<T>> GetAllAsync( PaginationQuery pagination, long? userId = null )
   {
     var query = transactionRepository.Query() ;
     if ( userId is not null )
@@ -169,7 +171,7 @@ public abstract class StandardTransactionServiceBase<T>(
       query = query.Where( t => t.SpendAccount.Members.Any( m => m.AppUserId == userId.Value ) ) ;
     }
 
-    return await BuildReadQuery( query ).AsNoTracking().ToListAsync() ;
+    return await BuildReadQuery( query ).AsNoTracking().ToPagedResultAsync( pagination ) ;
   }
 
   /// <summary>
@@ -192,7 +194,8 @@ public abstract class StandardTransactionServiceBase<T>(
       .Include( t => t.SpendAccount )
       .Include( t => t.Category )
       .Include( t => t.Payer )
-      .OrderByDescending( t => t.Date ) ;
+      .OrderByDescending( t => t.Date )
+      .ThenByDescending( t => t.Id ) ;
 
   /// <summary>
   ///   Reverses the entity's signed <c>Amount</c> on its spend account balance, soft-deletes

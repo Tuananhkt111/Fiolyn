@@ -95,9 +95,9 @@ public class TransactionCategoryServiceTests
     _repo.Query().Returns( rows.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync( TransactionKind.Expense ) ;
+    var result = await sut.GetAllAsync( new PaginationQuery(), TransactionKind.Expense ) ;
 
-    result.Should().ContainSingle().Which.Name.Should().Be( "Groceries" ) ;
+    result.Items.Should().ContainSingle().Which.Name.Should().Be( "Groceries" ) ;
   }
 
   [Fact]

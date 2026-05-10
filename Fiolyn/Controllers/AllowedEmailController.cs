@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Constants ;
 using Fiolyn.Controllers.DTOs.Requests.AllowedEmail ;
 using Fiolyn.Controllers.DTOs.Responses.AllowedEmail ;
@@ -20,10 +21,10 @@ public class AllowedEmailController( IAllowedEmailService allowedEmailService ) 
   ///   Lists all active whitelisted emails.
   /// </summary>
   [HttpGet( Name = "GetAllAsync" )]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var list = await allowedEmailService.GetAllAsync() ;
-    return Ok( list.Select( a => new AllowedEmailResponse( a ) ).ToList() ) ;
+    var page = await allowedEmailService.GetAllAsync( pagination ) ;
+    return Ok( page.Map( a => new AllowedEmailResponse( a ) ) ) ;
   }
 
   /// <summary>

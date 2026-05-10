@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
@@ -110,12 +111,13 @@ public class TransferTransactionService(
   }
 
   /// <inheritdoc />
-  public async Task<List<TransferTransaction>> GetAllForUserAsync( long userId ) =>
+  public async Task<PagedResult<TransferTransaction>> GetAllForUserAsync(
+    long userId, PaginationQuery pagination ) =>
     await BuildReadQuery( transferRepository.Query()
         .Where( t => t.SpendAccount.Members.Any( m => m.AppUserId == userId )
                      || t.DestinationSpendAccount.Members.Any( m => m.AppUserId == userId ) ) )
       .AsNoTracking()
-      .ToListAsync() ;
+      .ToPagedResultAsync( pagination ) ;
 
   /// <inheritdoc />
   public async Task<TransferTransaction?> GetByIdForUserAsync( long id, long userId ) =>
@@ -133,7 +135,8 @@ public class TransferTransactionService(
                            || t.DestinationSpendAccount.Members.Any( m => m.AppUserId == userId ) ) ) ;
 
   /// <inheritdoc />
-  public async Task<List<TransferTransaction>> GetAllAsync( long? userId = null )
+  public async Task<PagedResult<TransferTransaction>> GetAllAsync(
+    PaginationQuery pagination, long? userId = null )
   {
     var query = transferRepository.Query() ;
     if ( userId is not null )
@@ -143,7 +146,7 @@ public class TransferTransactionService(
         || t.DestinationSpendAccount.Members.Any( m => m.AppUserId == userId.Value ) ) ;
     }
 
-    return await BuildReadQuery( query ).AsNoTracking().ToListAsync() ;
+    return await BuildReadQuery( query ).AsNoTracking().ToPagedResultAsync( pagination ) ;
   }
 
   /// <inheritdoc />
@@ -175,7 +178,8 @@ public class TransferTransactionService(
       .Include( t => t.DestinationSpendAccount )
       .Include( t => t.Category )
       .Include( t => t.Payer )
-      .OrderByDescending( t => t.Date ) ;
+      .OrderByDescending( t => t.Date )
+      .ThenByDescending( t => t.Id ) ;
 
   private static void EnsureSourceDifferentFromDestination( long sourceId, long destinationId )
   {

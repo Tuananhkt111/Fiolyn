@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Constants ;
 using Fiolyn.Controllers.DTOs.Responses.StockTransaction ;
 using Fiolyn.Services.Internal.Interfaces ;
@@ -19,11 +20,13 @@ public class AdminStockTransactionController(
   ///   Lists stock transactions across all users. Optionally filter by broker membership user and symbol.
   /// </summary>
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync( [FromQuery] long? userId = null,
+  public async Task<IActionResult> GetAllAsync(
+    [FromQuery] PaginationQuery pagination,
+    [FromQuery] long? userId = null,
     [FromQuery] string? symbol = null )
   {
-    var list = await stockTransactionService.GetAllAsync( userId, symbol ) ;
-    return Ok( list.Select( t => new StockTransactionResponse( t ) ).ToList() ) ;
+    var page = await stockTransactionService.GetAllAsync( pagination, userId, symbol ) ;
+    return Ok( page.Map( t => new StockTransactionResponse( t ) ) ) ;
   }
 
   /// <summary>

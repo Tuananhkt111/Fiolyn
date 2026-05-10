@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Constants ;
 using Fiolyn.Controllers.DTOs.Requests.BrokerAccount ;
 using Fiolyn.Controllers.DTOs.Responses.BrokerAccount ;
@@ -21,10 +22,11 @@ public class AdminBrokerAccountController(
   ///   Lists all broker accounts across every user. Optionally filter to accounts a given user is a member of.
   /// </summary>
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync( [FromQuery] long? userId = null )
+  public async Task<IActionResult> GetAllAsync(
+    [FromQuery] PaginationQuery pagination, [FromQuery] long? userId = null )
   {
-    var list = await brokerAccountService.GetAllAsync( userId ) ;
-    return Ok( list.Select( b => new AdminBrokerAccountResponse( b ) ).ToList() ) ;
+    var page = await brokerAccountService.GetAllAsync( pagination, userId ) ;
+    return Ok( page.Map( b => new AdminBrokerAccountResponse( b ) ) ) ;
   }
 
   /// <summary>

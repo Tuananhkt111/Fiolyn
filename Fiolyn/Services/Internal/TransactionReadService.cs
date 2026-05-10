@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal.Interfaces ;
@@ -10,7 +11,8 @@ public class TransactionReadService(
   IRepository<TransactionBase> transactionRepository ) : ITransactionReadService
 {
   /// <inheritdoc />
-  public async Task<List<TransactionBase>> GetAllForUserAsync( long userId ) =>
+  public async Task<PagedResult<TransactionBase>> GetAllForUserAsync(
+    long userId, PaginationQuery pagination ) =>
     await BuildQuery()
       .Where( t => t.SpendAccount.Members.Any( m => m.AppUserId == userId )
                    || ( t is TransferTransaction
@@ -18,10 +20,11 @@ public class TransactionReadService(
                           m.AppUserId == userId ) )
                    || ( t is StockTransaction
                         && ( ( StockTransaction )t ).BrokerAccount.Members.Any( m => m.AppUserId == userId ) ) )
-      .ToListAsync() ;
+      .ToPagedResultAsync( pagination ) ;
 
   /// <inheritdoc />
-  public async Task<List<TransactionBase>> GetAllAsync( long? userId = null )
+  public async Task<PagedResult<TransactionBase>> GetAllAsync(
+    PaginationQuery pagination, long? userId = null )
   {
     var query = BuildQuery() ;
     if ( userId is not null )
@@ -36,7 +39,7 @@ public class TransactionReadService(
                             m.AppUserId == userId.Value ) ) ) ;
     }
 
-    return await query.ToListAsync() ;
+    return await query.ToPagedResultAsync( pagination ) ;
   }
 
   private IQueryable<TransactionBase> BuildQuery() =>
@@ -56,5 +59,6 @@ public class TransactionReadService(
       // ThenInclude are not guaranteed), so chain a ThenInclude per concrete child type.
       .Include( t => t.Children ).ThenInclude( c => ( c as LendTransaction )!.Counterparty )
       .Include( t => t.Children ).ThenInclude( c => ( c as BorrowingTransaction )!.Counterparty )
-      .OrderByDescending( t => t.Date ) ;
+      .OrderByDescending( t => t.Date )
+      .ThenByDescending( t => t.Id ) ;
 }

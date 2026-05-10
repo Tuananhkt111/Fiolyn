@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 
 namespace Fiolyn.Services.Internal.Interfaces ;
@@ -7,7 +8,7 @@ namespace Fiolyn.Services.Internal.Interfaces ;
 /// </summary>
 public interface IAllowedEmailService
 {
-  Task<List<AllowedEmail>> GetAllAsync() ;
+  Task<PagedResult<AllowedEmail>> GetAllAsync( PaginationQuery pagination ) ;
   Task<AllowedEmail> CreateAsync( string email, string? note, long? invitedByUserId ) ;
   Task SoftDeleteAsync( long id ) ;
 }

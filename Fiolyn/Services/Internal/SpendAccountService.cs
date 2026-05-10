@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
@@ -34,12 +35,13 @@ public class SpendAccountService(
   }
 
   /// <inheritdoc />
-  public async Task<List<SpendAccount>> GetAllForUserAsync( long userId ) =>
+  public async Task<PagedResult<SpendAccount>> GetAllForUserAsync( long userId, PaginationQuery pagination ) =>
     await repository.Query()
       .AsNoTracking()
       .Where( a => a.Members.Any( m => m.AppUserId == userId ) )
       .OrderBy( a => a.Name )
-      .ToListAsync() ;
+      .ThenBy( a => a.Id )
+      .ToPagedResultAsync( pagination ) ;
 
   /// <inheritdoc />
   public async Task<SpendAccount?> GetByIdForUserAsync( long id, long userId ) =>
@@ -74,20 +76,24 @@ public class SpendAccountService(
   }
 
   /// <inheritdoc />
-  public async Task<List<SpendAccountMember>> GetMembersAsync( long accountId, long callerUserId )
+  public async Task<PagedResult<SpendAccountMember>> GetMembersAsync(
+    long accountId, long callerUserId, PaginationQuery pagination )
   {
-    var account = await repository.Query()
-      .AsNoTracking()
-      .Include( a => a.Members )
-      .ThenInclude( m => m.AppUser )
-      .FirstOrDefaultAsync( a => a.Id == accountId ) ;
-
-    if ( account is null || account.Members.All( m => m.AppUserId != callerUserId ) )
+    var callerIsMember = await repository.Query()
+      .AnyAsync( a => a.Id == accountId
+                      && a.Members.Any( m => m.AppUserId == callerUserId ) ) ;
+    if ( ! callerIsMember )
     {
       throw new KeyNotFoundException( $"SpendAccount {accountId} not found for user {callerUserId}." ) ;
     }
 
-    return account.Members.OrderBy( m => m.JoinedAt ).ToList() ;
+    return await memberRepository.Query()
+      .AsNoTracking()
+      .Include( m => m.AppUser )
+      .Where( m => m.SpendAccountId == accountId )
+      .OrderBy( m => m.JoinedAt )
+      .ThenBy( m => m.AppUserId )
+      .ToPagedResultAsync( pagination ) ;
   }
 
   /// <inheritdoc />
@@ -158,7 +164,7 @@ public class SpendAccountService(
   }
 
   /// <inheritdoc />
-  public async Task<List<SpendAccount>> GetAllAsync( long? userId = null )
+  public async Task<PagedResult<SpendAccount>> GetAllAsync( PaginationQuery pagination, long? userId = null )
   {
     IQueryable<SpendAccount> query = repository.Query()
       .AsNoTracking()
@@ -172,7 +178,8 @@ public class SpendAccountService(
 
     return await query
       .OrderBy( a => a.Name )
-      .ToListAsync() ;
+      .ThenBy( a => a.Id )
+      .ToPagedResultAsync( pagination ) ;
   }
 
   /// <inheritdoc />

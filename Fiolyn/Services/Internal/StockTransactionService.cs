@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions ;
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
@@ -82,7 +83,8 @@ public partial class StockTransactionService(
   }
 
   /// <inheritdoc />
-  public async Task<List<StockTransaction>> GetAllForUserAsync( long userId, string? symbol = null )
+  public async Task<PagedResult<StockTransaction>> GetAllForUserAsync(
+    long userId, PaginationQuery pagination, string? symbol = null )
   {
     var query = stockTransactionRepository.Query()
       .Where( t => t.BrokerAccount.Members.Any( m => m.AppUserId == userId ) ) ;
@@ -99,7 +101,8 @@ public partial class StockTransactionService(
       .Include( t => t.Category )
       .Include( t => t.Payer )
       .OrderByDescending( t => t.Date )
-      .ToListAsync() ;
+      .ThenByDescending( t => t.Id )
+      .ToPagedResultAsync( pagination ) ;
   }
 
   /// <inheritdoc />
@@ -190,7 +193,8 @@ public partial class StockTransactionService(
   }
 
   /// <inheritdoc />
-  public async Task<List<StockTransaction>> GetAllAsync( long? userId = null, string? symbol = null )
+  public async Task<PagedResult<StockTransaction>> GetAllAsync(
+    PaginationQuery pagination, long? userId = null, string? symbol = null )
   {
     var query = stockTransactionRepository.Query() ;
 
@@ -212,7 +216,8 @@ public partial class StockTransactionService(
       .Include( t => t.Category )
       .Include( t => t.Payer )
       .OrderByDescending( t => t.Date )
-      .ToListAsync() ;
+      .ThenByDescending( t => t.Id )
+      .ToPagedResultAsync( pagination ) ;
   }
 
   /// <inheritdoc />

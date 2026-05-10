@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 
@@ -22,8 +23,9 @@ public interface ISpendAccountService
   ///   Gets all active spend accounts the given user is a member of.
   /// </summary>
   /// <param name="userId">The member user's primary key.</param>
-  /// <returns>List of the user's active spend accounts, ordered by name.</returns>
-  Task<List<SpendAccount>> GetAllForUserAsync( long userId ) ;
+  /// <param name="pagination">Page / pageSize for offset-based slicing.</param>
+  /// <returns>Paged list of the user's active spend accounts, ordered by name (Id tiebreaker).</returns>
+  Task<PagedResult<SpendAccount>> GetAllForUserAsync( long userId, PaginationQuery pagination ) ;
 
   /// <summary>
   ///   Gets a single spend account by ID, requiring the caller to be a member.
@@ -60,8 +62,10 @@ public interface ISpendAccountService
   /// </summary>
   /// <param name="accountId">The spend account primary key.</param>
   /// <param name="callerUserId">The caller's primary key.</param>
-  /// <returns>The account's active members, ordered by join time.</returns>
-  Task<List<SpendAccountMember>> GetMembersAsync( long accountId, long callerUserId ) ;
+  /// <param name="pagination">Page / pageSize for offset-based slicing.</param>
+  /// <returns>Paged list of active members, ordered by join time (Id tiebreaker).</returns>
+  Task<PagedResult<SpendAccountMember>> GetMembersAsync(
+    long accountId, long callerUserId, PaginationQuery pagination ) ;
 
   /// <summary>
   ///   Adds a user (identified by email) to the account. Caller must be a member.
@@ -87,10 +91,11 @@ public interface ISpendAccountService
 
   /// <summary>
   ///   (Admin) Gets active spend accounts eager-loading all members. Optionally filter to a single
-  ///   user's memberships. Ordered by account name.
+  ///   user's memberships. Ordered by account name with an Id tiebreaker.
   /// </summary>
+  /// <param name="pagination">Page / pageSize for offset-based slicing.</param>
   /// <param name="userId">Optional — when supplied, returns only accounts that user is a member of.</param>
-  Task<List<SpendAccount>> GetAllAsync( long? userId = null ) ;
+  Task<PagedResult<SpendAccount>> GetAllAsync( PaginationQuery pagination, long? userId = null ) ;
 
   /// <summary>
   ///   (Admin) Gets any active spend account by ID without user-scoping, eager-loading all members.

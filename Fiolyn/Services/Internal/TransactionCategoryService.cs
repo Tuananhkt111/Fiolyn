@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
@@ -77,7 +78,8 @@ public class TransactionCategoryService(
   }
 
   /// <inheritdoc />
-  public async Task<List<TransactionCategory>> GetAllAsync( TransactionKind? kind = null )
+  public async Task<PagedResult<TransactionCategory>> GetAllAsync(
+    PaginationQuery pagination, TransactionKind? kind = null )
   {
     var query = repository.Query().AsNoTracking() ;
     if ( kind is not null )
@@ -85,7 +87,10 @@ public class TransactionCategoryService(
       query = query.Where( c => c.Kind == kind.Value ) ;
     }
 
-    return await query.OrderBy( c => c.Name ).ToListAsync() ;
+    return await query
+      .OrderBy( c => c.Name )
+      .ThenBy( c => c.Id )
+      .ToPagedResultAsync( pagination ) ;
   }
 
   /// <inheritdoc />

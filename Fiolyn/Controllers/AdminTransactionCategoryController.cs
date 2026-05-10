@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Constants ;
 using Fiolyn.Controllers.DTOs.Requests.TransactionCategory ;
 using Fiolyn.Controllers.DTOs.Responses.TransactionCategory ;
@@ -19,10 +20,11 @@ public class AdminTransactionCategoryController(
   ITransactionCategoryService service ) : ControllerBase
 {
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync( [FromQuery] TransactionKind? kind = null )
+  public async Task<IActionResult> GetAllAsync(
+    [FromQuery] PaginationQuery pagination, [FromQuery] TransactionKind? kind = null )
   {
-    var list = await service.GetAllAsync( kind ) ;
-    return Ok( list.Select( c => new TransactionCategoryResponse( c ) ).ToList() ) ;
+    var page = await service.GetAllAsync( pagination, kind ) ;
+    return Ok( page.Map( c => new TransactionCategoryResponse( c ) ) ) ;
   }
 
   [HttpGet( "{id:long}", Name = "GetTransactionCategoryById" )]

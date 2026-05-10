@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Data.Repositories ;
 using Fiolyn.Entities ;
 using Fiolyn.Infrastructure.Exceptions ;
@@ -15,8 +16,12 @@ public class AllowedEmailService(
   ILogger<AllowedEmailService> logger ) : IAllowedEmailService
 {
   /// <inheritdoc />
-  public async Task<List<AllowedEmail>> GetAllAsync() =>
-    await repository.Query().AsNoTracking().OrderBy( a => a.Email ).ToListAsync() ;
+  public async Task<PagedResult<AllowedEmail>> GetAllAsync( PaginationQuery pagination ) =>
+    await repository.Query()
+      .AsNoTracking()
+      .OrderBy( a => a.Email )
+      .ThenBy( a => a.Id )
+      .ToPagedResultAsync( pagination ) ;
 
   /// <inheritdoc />
   public async Task<AllowedEmail> CreateAsync( string email, string? note, long? invitedByUserId )

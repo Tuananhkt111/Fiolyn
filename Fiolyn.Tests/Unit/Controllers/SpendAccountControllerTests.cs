@@ -6,6 +6,7 @@ using Fiolyn.Controllers.DTOs.Responses.SpendAccount ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;
 using Fiolyn.Services.Internal.Interfaces ;
+using Fiolyn.Tests.Helpers ;
 using FluentAssertions ;
 using Microsoft.AspNetCore.Http ;
 using Microsoft.AspNetCore.Mvc ;
@@ -92,15 +93,17 @@ public class SpendAccountControllerTests
   [Fact]
   public async Task GetAllAsync_PassesUserIdToService()
   {
-    _service.GetAllForUserAsync( 42 ).Returns( [BuildEntity( 1 ), BuildEntity( 2 )] ) ;
+    _service.GetAllForUserAsync( 42, Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.SinglePage( BuildEntity( 1 ), BuildEntity( 2 ) ) ) ;
     var sut = CreateSut( 42 ) ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    await _service.Received( 1 ).GetAllForUserAsync( 42 ) ;
-    var list = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<SpendAccountResponse>>().Which ;
-    list.Should().HaveCount( 2 ) ;
+    await _service.Received( 1 ).GetAllForUserAsync( 42, Arg.Any<PaginationQuery>() ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<SpendAccountResponse>>().Which ;
+    page.Items.Should().HaveCount( 2 ) ;
+    page.TotalCount.Should().Be( 2L ) ;
   }
 
   [Fact]
@@ -170,17 +173,17 @@ public class SpendAccountControllerTests
   [Fact]
   public async Task GetMembersAsync_Returns200WithMemberList()
   {
-    _service.GetMembersAsync( 10, 7 ).Returns( [
-      BuildMember( 10, 7, "me@example.com", "Me" ),
-      BuildMember( 10, 8, "other@example.com", "Other" )
-    ] ) ;
+    _service.GetMembersAsync( 10, 7, Arg.Any<PaginationQuery>() )
+      .Returns( PagedResultHelpers.SinglePage(
+        BuildMember( 10, 7, "me@example.com", "Me" ),
+        BuildMember( 10, 8, "other@example.com", "Other" ) ) ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetMembersAsync( 10 ) ;
+    var result = await sut.GetMembersAsync( 10, new PaginationQuery() ) ;
 
-    var list = result.Should().BeOfType<OkObjectResult>()
-      .Which.Value.Should().BeOfType<List<SpendAccountMemberResponse>>().Which ;
-    list.Select( m => m.Email ).Should().ContainInOrder( "me@example.com", "other@example.com" ) ;
+    var page = result.Should().BeOfType<OkObjectResult>()
+      .Which.Value.Should().BeOfType<PagedResult<SpendAccountMemberResponse>>().Which ;
+    page.Items.Select( m => m.Email ).Should().ContainInOrder( "me@example.com", "other@example.com" ) ;
   }
 
   [Fact]

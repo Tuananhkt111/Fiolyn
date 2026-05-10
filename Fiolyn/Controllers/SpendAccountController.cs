@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Requests.SpendAccount ;
 using Fiolyn.Controllers.DTOs.Responses.SpendAccount ;
 using Fiolyn.Entities ;
@@ -42,11 +43,11 @@ public class SpendAccountController(
   ///   Lists spend accounts the caller is a member of.
   /// </summary>
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
     var userId = User.GetUserId() ;
-    var list = await spendAccountService.GetAllForUserAsync( userId ) ;
-    return Ok( list.Select( a => new SpendAccountResponse( a ) ).ToList() ) ;
+    var page = await spendAccountService.GetAllForUserAsync( userId, pagination ) ;
+    return Ok( page.Map( a => new SpendAccountResponse( a ) ) ) ;
   }
 
   /// <summary>
@@ -97,10 +98,10 @@ public class SpendAccountController(
   ///   Lists members of the account. 404 if the caller is not a member.
   /// </summary>
   [HttpGet( "{id:long}/members" )]
-  public async Task<IActionResult> GetMembersAsync( long id )
+  public async Task<IActionResult> GetMembersAsync( long id, [FromQuery] PaginationQuery pagination )
   {
-    var members = await spendAccountService.GetMembersAsync( id, User.GetUserId() ) ;
-    return Ok( members.Select( m => new SpendAccountMemberResponse( m ) ).ToList() ) ;
+    var page = await spendAccountService.GetMembersAsync( id, User.GetUserId(), pagination ) ;
+    return Ok( page.Map( m => new SpendAccountMemberResponse( m ) ) ) ;
   }
 
   /// <summary>

@@ -115,10 +115,11 @@ public class SpendAccountServiceTests
     _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllForUserAsync( 10 ) ;
+    var result = await sut.GetAllForUserAsync( 10, new PaginationQuery() ) ;
 
-    result.Should().HaveCount( 2 ) ;
-    result.Select( a => a.Id ).Should().BeEquivalentTo( [1L, 2L] ) ;
+    result.Items.Should().HaveCount( 2 ) ;
+    result.TotalCount.Should().Be( 2L ) ;
+    result.Items.Select( a => a.Id ).Should().BeEquivalentTo( [1L, 2L] ) ;
   }
 
   [Fact]
@@ -133,9 +134,9 @@ public class SpendAccountServiceTests
     _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllForUserAsync( 10 ) ;
+    var result = await sut.GetAllForUserAsync( 10, new PaginationQuery() ) ;
 
-    result.Select( a => a.Name ).Should().ContainInOrder( "Alpha", "Midway", "Zenith" ) ;
+    result.Items.Select( a => a.Name ).Should().ContainInOrder( "Alpha", "Midway", "Zenith" ) ;
   }
 
   [Fact]
@@ -321,11 +322,12 @@ public class SpendAccountServiceTests
     {
       account
     }.BuildMock() ) ;
+    _memberRepo.Query().Returns( members.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetMembersAsync( 5, 10 ) ;
+    var result = await sut.GetMembersAsync( 5, 10, new PaginationQuery() ) ;
 
-    result.Select( m => m.AppUserId ).Should().ContainInOrder( 20L, 10L ) ;
+    result.Items.Select( m => m.AppUserId ).Should().ContainInOrder( 20L, 10L ) ;
   }
 
   [Fact]
@@ -334,7 +336,7 @@ public class SpendAccountServiceTests
     _accountRepo.Query().Returns( new List<SpendAccount>().BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var act = async () => await sut.GetMembersAsync( 5, 10 ) ;
+    var act = async () => await sut.GetMembersAsync( 5, 10, new PaginationQuery() ) ;
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
   }
@@ -503,10 +505,11 @@ public class SpendAccountServiceTests
     _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync() ;
+    var result = await sut.GetAllAsync( new PaginationQuery() ) ;
 
-    result.Should().HaveCount( 3 ) ;
-    result.Select( a => a.Name ).Should().ContainInOrder( "Alpha", "Bravo", "Zebra" ) ;
+    result.Items.Should().HaveCount( 3 ) ;
+    result.TotalCount.Should().Be( 3L ) ;
+    result.Items.Select( a => a.Name ).Should().ContainInOrder( "Alpha", "Bravo", "Zebra" ) ;
   }
 
   [Fact]
@@ -521,9 +524,9 @@ public class SpendAccountServiceTests
     _accountRepo.Query().Returns( accounts.BuildMock() ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.GetAllAsync( 10 ) ;
+    var result = await sut.GetAllAsync( new PaginationQuery(), 10 ) ;
 
-    result.Select( a => a.Id ).Should().BeEquivalentTo( [2L, 3L] ) ;
+    result.Items.Select( a => a.Id ).Should().BeEquivalentTo( [2L, 3L] ) ;
   }
 
   [Fact]

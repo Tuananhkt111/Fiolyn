@@ -1,3 +1,4 @@
+using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Requests.BrokerAccount ;
 using Fiolyn.Controllers.DTOs.Responses.BrokerAccount ;
 using Fiolyn.Entities ;
@@ -42,10 +43,10 @@ public class BrokerAccountController(
   ///   Lists broker accounts the caller is a member of.
   /// </summary>
   [HttpGet]
-  public async Task<IActionResult> GetAllAsync()
+  public async Task<IActionResult> GetAllAsync( [FromQuery] PaginationQuery pagination )
   {
-    var list = await brokerAccountService.GetAllForUserAsync( User.GetUserId() ) ;
-    return Ok( list.Select( b => new BrokerAccountResponse( b ) ).ToList() ) ;
+    var page = await brokerAccountService.GetAllForUserAsync( User.GetUserId(), pagination ) ;
+    return Ok( page.Map( b => new BrokerAccountResponse( b ) ) ) ;
   }
 
   /// <summary>
@@ -103,10 +104,10 @@ public class BrokerAccountController(
   ///   Lists members of the account. 404 if the caller is not a member.
   /// </summary>
   [HttpGet( "{id:long}/members" )]
-  public async Task<IActionResult> GetMembersAsync( long id )
+  public async Task<IActionResult> GetMembersAsync( long id, [FromQuery] PaginationQuery pagination )
   {
-    var members = await brokerAccountService.GetMembersAsync( id, User.GetUserId() ) ;
-    return Ok( members.Select( m => new BrokerAccountMemberResponse( m ) ).ToList() ) ;
+    var page = await brokerAccountService.GetMembersAsync( id, User.GetUserId(), pagination ) ;
+    return Ok( page.Map( m => new BrokerAccountMemberResponse( m ) ) ) ;
   }
 
   /// <summary>
