@@ -30,7 +30,9 @@ public abstract class ShareableTransactionServiceBase<TParent, TChild>(
 {
   private const string SharedWithSuffixFormat = "Shared with {0}" ;
   private const string SharedWithDescriptionFormat = "Shared with {0}: {1}" ;
-  private const int PercentDivisor = 100 ;
+  // Percentages have 2-decimal precision; internally we scale to integer hundredths
+  // (1 unit = 0.01%) so split math and sum validation stay in exact integer arithmetic.
+  private const long HundredthsDivisor = 10_000 ;
 
   public async Task<TParent> CreateAsync(
     TParent parent, long userId, IReadOnlyList<TransactionShareInput> shares )
@@ -167,16 +169,16 @@ public abstract class ShareableTransactionServiceBase<TParent, TChild>(
       .Include( t => t.Children ).ThenInclude( c => ( c as BorrowingTransaction )!.Counterparty ) ;
 
   private List<TChild> SplitAndBuildChildren(
-    TParent parent, IReadOnlyList<(Counterparty Counterparty, int Percentage)> resolved, long totalAmount )
+    TParent parent, IReadOnlyList<(Counterparty Counterparty, long Hundredths)> resolved, long totalAmount )
   {
     var sign = Math.Sign( totalAmount ) ;
     var magnitude = Math.Abs( totalAmount ) ;
 
     var children = new List<TChild>( resolved.Count ) ;
     var childSum = 0L ;
-    foreach ( var (counterparty, percentage) in resolved )
+    foreach ( var (counterparty, hundredths) in resolved )
     {
-      var childAmount = sign * ( magnitude * percentage / PercentDivisor ) ;
+      var childAmount = sign * ( magnitude * hundredths / HundredthsDivisor ) ;
       childSum += childAmount ;
       var child = new TChild
       {
@@ -199,14 +201,14 @@ public abstract class ShareableTransactionServiceBase<TParent, TChild>(
     return children ;
   }
 
-  private async Task<List<(Counterparty Counterparty, int Percentage)>> ResolveSharesAsync(
+  private async Task<List<(Counterparty Counterparty, long Hundredths)>> ResolveSharesAsync(
     IReadOnlyList<TransactionShareInput> shares, long userId )
   {
-    var trimmedNames = ValidateAndTrim( shares ) ;
+    var (trimmedNames, hundredths) = ValidateAndTrim( shares ) ;
     var counterparties = await CounterpartyResolver.ResolveOrCreateManyAsync(
       counterpartyRepository, trimmedNames, userId ) ;
 
-    var resolved = new List<(Counterparty Counterparty, int Percentage)>( shares.Count ) ;
+    var resolved = new List<(Counterparty Counterparty, long Hundredths)>( shares.Count ) ;
     var seenIds = new HashSet<long>() ;
     var seenStagedNames = new HashSet<string>( StringComparer.OrdinalIgnoreCase ) ;
 
@@ -224,23 +226,29 @@ public abstract class ShareableTransactionServiceBase<TParent, TChild>(
           $"Counterparty '{counterparty.Name}' appears more than once in the share list." ) ;
       }
 
-      resolved.Add( ( counterparty, shares[ i ].Percentage ) ) ;
+      resolved.Add( ( counterparty, hundredths[ i ] ) ) ;
     }
 
     return resolved ;
   }
 
-  private static string[] ValidateAndTrim( IReadOnlyList<TransactionShareInput> shares )
+  private static (string[] TrimmedNames, long[] Hundredths) ValidateAndTrim(
+    IReadOnlyList<TransactionShareInput> shares )
   {
-    var totalPercentage = 0 ;
+    var totalHundredths = 0L ;
     var trimmedNames = new string[ shares.Count ] ;
+    var hundredths = new long[ shares.Count ] ;
     for ( var i = 0 ; i < shares.Count ; i++ )
     {
       var share = shares[ i ] ;
-      if ( share.Percentage is < 1 or > PercentDivisor )
+      // Snap to 2 decimals first so 0.005 rounds to 0.01, 33.336 → 33.34, etc., before we
+      // range-check. Scale to integer hundredths so the sum check below is drift-free.
+      var rounded = Math.Round( share.Percentage, 2, MidpointRounding.AwayFromZero ) ;
+      var scaled = ( long )Math.Round( rounded * 100, MidpointRounding.AwayFromZero ) ;
+      if ( scaled is < 1 or > HundredthsDivisor )
       {
         throw new BadRequestException(
-          $"Share percentage {share.Percentage} is out of range (1-{PercentDivisor})." ) ;
+          $"Share percentage {rounded:0.##} is out of range (0.01-100)." ) ;
       }
 
       if ( string.IsNullOrWhiteSpace( share.CounterpartyName ) )
@@ -249,15 +257,16 @@ public abstract class ShareableTransactionServiceBase<TParent, TChild>(
       }
 
       trimmedNames[ i ] = share.CounterpartyName.Trim() ;
-      totalPercentage += share.Percentage ;
+      hundredths[ i ] = scaled ;
+      totalHundredths += scaled ;
     }
 
-    if ( totalPercentage > PercentDivisor )
+    if ( totalHundredths > HundredthsDivisor )
     {
       throw new BadRequestException(
-        $"Share percentages sum to {totalPercentage}, which exceeds {PercentDivisor}." ) ;
+        $"Share percentages sum to {totalHundredths / 100.0:0.##}, which exceeds 100." ) ;
     }
 
-    return trimmedNames ;
+    return ( trimmedNames, hundredths ) ;
   }
 }

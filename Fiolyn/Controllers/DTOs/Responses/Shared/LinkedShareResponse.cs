@@ -8,8 +8,8 @@ namespace Fiolyn.Controllers.DTOs.Responses.Shared ;
 ///   <see cref="Entities.LendTransaction" /> (Expense parent → counterparty owes you) or
 ///   <see cref="Entities.BorrowingTransaction" /> (Income parent → you owe counterparty).
 ///   <see cref="Amount" /> is the child's signed amount (exact, the source of truth).
-///   <see cref="Percentage" /> is recovered from the stored amounts and is approximate when
-///   the original total wasn't a multiple of 100 — for display only.
+///   <see cref="Percentage" /> is recovered from the stored amounts, rounded to 2 decimals,
+///   and is approximate when the original total didn't divide evenly — for display only.
 /// </summary>
 public record LinkedShareResponse(
   long Id,
@@ -17,7 +17,7 @@ public record LinkedShareResponse(
   long CounterpartyId,
   string CounterpartyName,
   long Amount,
-  int Percentage )
+  double Percentage )
 {
   public static IReadOnlyList<LinkedShareResponse> FromParent( TransactionBase parent )
   {
@@ -37,7 +37,8 @@ public record LinkedShareResponse(
         _ => throw new InvalidOperationException(
           $"Unsupported share child type {child.GetType().Name}." )
       } ;
-      var percentage = ( int )( Math.Abs( child.Amount ) * 100L / totalMagnitude ) ;
+      var percentage = Math.Round(
+        Math.Abs( child.Amount ) * 100.0 / totalMagnitude, 2, MidpointRounding.AwayFromZero ) ;
       return new LinkedShareResponse(
         child.Id,
         kind,

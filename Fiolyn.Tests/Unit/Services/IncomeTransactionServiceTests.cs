@@ -189,6 +189,122 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  public async Task CreateAsync_WithFractionalShare_SplitsByHundredthsAndAbsorbsResidual()
+  {
+    var account = BuildAccount( 5, [42] ) ;
+    _spendRepo.Query().Returns( new List<SpendAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    _spendRepo.GetByIdOrThrowAsync( 5L ).Returns( account ) ;
+    _counterpartyRepo.Query().Returns( new List<Counterparty>().BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    // 33.33% × 3 on 10_000_000 → each child = 10_000_000 * 3333 / 10000 = 3_333_000;
+    // children sum 9_999_000; parent absorbs 1_000.
+    var tx = new IncomeTransaction
+    {
+      SpendAccountId = 5,
+      Amount = 10_000_000L,
+      Date = DateTime.UtcNow
+    } ;
+
+    await sut.CreateAsync( tx, 42, [
+      new TransactionShareInput( "Bob", 33.33 ),
+      new TransactionShareInput( "Alice", 33.33 ),
+      new TransactionShareInput( "Carol", 33.33 )
+    ] ) ;
+
+    tx.Children.Should().HaveCount( 3 ) ;
+    tx.Children.Sum( c => c.Amount ).Should().Be( 9_999_000L ) ;
+    tx.Amount.Should().Be( 1_000L ) ;
+    ( tx.Amount + tx.Children.Sum( c => c.Amount ) ).Should().Be( 10_000_000L ) ;
+    account.Balance.Should().Be( 10_000_000L ) ;
+  }
+
+  [Fact]
+  public async Task CreateAsync_SilentlyRoundsExcessPrecisionToTwoDecimals()
+  {
+    var account = BuildAccount( 5, [42] ) ;
+    _spendRepo.Query().Returns( new List<SpendAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    _spendRepo.GetByIdOrThrowAsync( 5L ).Returns( account ) ;
+    _counterpartyRepo.Query().Returns( new List<Counterparty>().BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    // 33.334 rounds *down* to 33.33 — three of them = 99.99 ≤ 100, accepted; behaves
+    // identically to the explicit 33.33 case above.
+    var tx = new IncomeTransaction
+    {
+      SpendAccountId = 5,
+      Amount = 10_000_000L,
+      Date = DateTime.UtcNow
+    } ;
+
+    await sut.CreateAsync( tx, 42, [
+      new TransactionShareInput( "Bob", 33.334 ),
+      new TransactionShareInput( "Alice", 33.334 ),
+      new TransactionShareInput( "Carol", 33.334 )
+    ] ) ;
+
+    tx.Children.Sum( c => c.Amount ).Should().Be( 9_999_000L ) ;
+    tx.Amount.Should().Be( 1_000L ) ;
+  }
+
+  [Fact]
+  public async Task CreateAsync_RejectsWhenRoundedSumExceeds100()
+  {
+    var account = BuildAccount( 5, [42] ) ;
+    _spendRepo.Query().Returns( new List<SpendAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    _counterpartyRepo.Query().Returns( new List<Counterparty>().BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    // 33.336 rounds *up* to 33.34 — three of them = 100.02 > 100, rejected.
+    var act = async () => await sut.CreateAsync(
+      new IncomeTransaction
+      {
+        SpendAccountId = 5,
+        Amount = 10_000_000L
+      }, 42, [
+        new TransactionShareInput( "Bob", 33.336 ),
+        new TransactionShareInput( "Alice", 33.336 ),
+        new TransactionShareInput( "Carol", 33.336 )
+      ] ) ;
+
+    await act.Should().ThrowAsync<BadRequestException>() ;
+    await _repository.DidNotReceive().AddAsync( Arg.Any<IncomeTransaction>() ) ;
+  }
+
+  [Fact]
+  public async Task CreateAsync_RejectsBelowMinimumPercentage()
+  {
+    var account = BuildAccount( 5, [42] ) ;
+    _spendRepo.Query().Returns( new List<SpendAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    _counterpartyRepo.Query().Returns( new List<Counterparty>().BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    // 0.004 rounds to 0.00 → 0 hundredths → below the minimum of 1 hundredth.
+    var act = async () => await sut.CreateAsync(
+      new IncomeTransaction
+      {
+        SpendAccountId = 5,
+        Amount = 10_000_000L
+      }, 42, [
+        new TransactionShareInput( "Bob", 0.004 )
+      ] ) ;
+
+    await act.Should().ThrowAsync<BadRequestException>() ;
+  }
+
+  [Fact]
   public async Task CreateAsync_RoundingAbsorbedByParent_TotalsReconcile()
   {
     var account = BuildAccount( 5, [42] ) ;

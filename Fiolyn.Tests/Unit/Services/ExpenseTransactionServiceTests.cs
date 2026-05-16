@@ -102,4 +102,35 @@ public class ExpenseTransactionServiceTests
 
     await _lendRepo.Received( 1 ).AddAsync( Arg.Any<LendTransaction>() ) ;
   }
+
+  [Fact]
+  public async Task CreateAsync_WithFractionalShare_SplitsByHundredths_NegativeChild()
+  {
+    var account = BuildAccount( 5, [42] ) ;
+    _spendRepo.Query().Returns( new List<SpendAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    _spendRepo.GetByIdOrThrowAsync( 5L ).Returns( account ) ;
+    _counterpartyRepo.Query().Returns( new List<Counterparty>().BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    // 12.5% of -1_000_000 → -125_000 child slice (12.5 → 1250 hundredths → 1_000_000 * 1250 / 10000 = 125_000).
+    var tx = new ExpenseTransaction
+    {
+      SpendAccountId = 5,
+      Amount = -1_000_000L,
+      Description = "Dinner",
+      Date = DateTime.UtcNow
+    } ;
+
+    await sut.CreateAsync( tx, 42, [
+      new TransactionShareInput( "Bob", 12.5 )
+    ] ) ;
+
+    var child = tx.Children.Single() ;
+    child.Amount.Should().Be( -125_000L ) ;
+    tx.Amount.Should().Be( -875_000L ) ;
+    account.Balance.Should().Be( -1_000_000L ) ;
+  }
 }

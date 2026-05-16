@@ -25,13 +25,15 @@ The leaf services (`IncomeTransactionService`, `ExpenseTransactionService`) deri
 childAmount = sign(total) * Math.Abs(total) * percentage / 100
 ```
 
-The parent absorbs rounding loss so `parent.Amount + sum(children.Amount) == originalTotal` exactly. `SpendAccount.Balance` still moves by the full original total — once.
+Percentage carries up to 2 decimal places. Internally `ValidateAndTrim` rounds each input to 2 decimals (half-away-from-zero) and scales to integer hundredths (`scaled = Math.Round(rounded * 100)`); the split is then `sign * (magnitude * hundredths / 10000)` so the split math and the sum check stay in exact integer arithmetic. The parent absorbs rounding loss so `parent.Amount + sum(children.Amount) == originalTotal` exactly. `SpendAccount.Balance` still moves by the full original total — once.
 
 ## Validation
 
-- Each `percentage ∈ [1, 100]`.
-- Sum ≤ 100.
+- Each `percentage ∈ [0.01, 100]` after rounding to 2 decimals (`[Range(0.01, 100)]` on the request DTO + hundredths re-check in the service). Values with more precision than 2 decimals are silently rounded server-side.
+- Sum (in hundredths) ≤ 10000.
 - No duplicate counterparty (post-resolve by Id; for newly-staged rows whose Id is still 0, dedupe by trimmed name to catch "Bob" + "BOB" within one request).
+
+`LinkedShareResponse.Percentage` is reconstructed from the stored child / total magnitudes and rounded to 2 decimals (`double`); approximate when the original total didn't divide evenly.
 
 ## Update is replace-all
 
