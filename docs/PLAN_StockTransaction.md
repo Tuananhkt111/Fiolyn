@@ -32,8 +32,8 @@ Implements `IAuditable` + `ISoftDelete`.
 | `Id`              | `long`                    | PK, auto-increment                |
 | `Symbol`          | `string` (MaxLength 20)   | Ticker, e.g. `VNM`, `AAPL`        |
 | `TransactionType` | `TransactionType` enum    | Buy / Sell / Dividend             |
-| `Quantity`        | `decimal`                 | Shares traded; `0` for Dividend   |
-| `Price`           | `decimal`                 | Price per share; `0` for Dividend |
+| `Quantity`        | `decimal`                 | Shares traded; shares the dividend is paid on (per-share dividend), else `0` |
+| `Price`           | `decimal`                 | Price per share; per-share dividend rate (per-share dividend), else `0` |
 | `TotalAmount`     | `decimal`                 | Actual cash out/in including fees |
 | `TransactionDate` | `DateTime`                | UTC; date of the trade            |
 | `Broker`          | `string` (MaxLength 100)  | Broker/account name               |
@@ -118,13 +118,17 @@ stock sell AAPL 10 150.5 1500 [broker:Fidelity] [notes:profit taking]
 
 Positional: `stock {type} {symbol} {qty} {price} {total}` — optional named params follow.
 
-**Dividend:**
+**Dividend:** two forms.
 
 ```
-stock div VNM 500000 [date:2026-04-14] [notes:Q2 dividend]
+stock div VNM 500000 [date:2026-04-14] [notes:Q2 dividend]      # lump sum
+stock div VNM 100 5000 [date:2026-04-14] [notes:Q2 dividend]    # per-share: 100 × 5000 = 500000
 ```
 
-Positional: `stock div {symbol} {total}` — quantity and price default to `0`.
+- Lump sum — `stock div {symbol} {total}` — one positional number; quantity and price default to `0`.
+- Per-share — `stock div {symbol} {qty} {price}` — two positional numbers; total is computed as `qty × price`.
+
+The form is chosen by the count of leading positional numbers after the symbol (named params like `broker:` stop the scan).
 
 If `date:` is omitted, `TransactionDate` defaults to UTC now.
 

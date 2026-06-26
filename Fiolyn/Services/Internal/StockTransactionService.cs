@@ -288,15 +288,32 @@ public partial class StockTransactionService(
 
   private async Task<StockTransaction?> ParseDividendAsync( string text, string[] parts )
   {
-    // stock div {symbol} {total} [named params...]
+    // stock div {symbol} {total} [named params...]          → lump-sum dividend
+    // stock div {symbol} {qty} {price} [named params...]    → per-share dividend (total = qty × price)
     if ( parts.Length < 4 )
     {
       return null ;
     }
 
-    if ( ! long.TryParse( parts[ 3 ], out var total ) )
+    // Leading positional numbers after the symbol pick the form; named params (e.g. broker:VPS)
+    // contain ':' and are not numeric, so they end the positional scan. One number → lump-sum total;
+    // two → per-share (qty, price); a third is malformed.
+    if ( ! long.TryParse( parts[ 3 ], out var firstNumber ) )
     {
       return null ;
+    }
+
+    long quantity = 0, price = 0, total = firstNumber ;
+    if ( parts.Length > 4 && long.TryParse( parts[ 4 ], out var secondNumber ) )
+    {
+      if ( parts.Length > 5 && long.TryParse( parts[ 5 ], out _ ) )
+      {
+        return null ;
+      }
+
+      quantity = firstNumber ;
+      price = secondNumber ;
+      total = quantity * price ;
     }
 
     var resolved = await ExtractParamsAndResolveBrokerAsync( text ) ;
@@ -311,8 +328,8 @@ public partial class StockTransactionService(
     {
       Symbol = parts[ 2 ],
       StockTransactionType = StockTransactionType.Dividend,
-      Quantity = 0,
-      Price = 0,
+      Quantity = quantity,
+      Price = price,
       Amount = StockTransaction.ComputeAmount( StockTransactionType.Dividend, total ),
       Date = DateTimeUtils.ParseDateOrUtcNow( named.GetValueOrDefault( "date" ) ),
       BrokerAccountId = brokerAccountId,

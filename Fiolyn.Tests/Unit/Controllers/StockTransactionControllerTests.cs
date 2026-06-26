@@ -90,6 +90,47 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  public async Task CreateAsync_PerShareDividend_ComputesAmountFromQuantityTimesPrice()
+  {
+    StockTransaction? captured = null ;
+    _service.CreateAsync( Arg.Do<StockTransaction>( t => captured = t ), Arg.Any<long>() )
+      .Returns( ci => ci.Arg<StockTransaction>() ) ;
+    _service.GetByIdForUserAsync( Arg.Any<long>(), Arg.Any<long>() )
+      .Returns( ci => BuildEntity( ci.ArgAt<long>( 0 ) ) ) ;
+
+    // qty 100 × 5000/share, TotalAmount supplied as 0 — must be ignored in favour of qty × price.
+    var request = new StockTransactionRequest( "vnm", StockTransactionType.Dividend, 100L, 5000L, 0L,
+      new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ), 3 ) ;
+    var sut = CreateSut( 42 ) ;
+
+    await sut.CreateAsync( request ) ;
+
+    captured.Should().NotBeNull() ;
+    captured!.Quantity.Should().Be( 100L ) ;
+    captured.Price.Should().Be( 5000L ) ;
+    captured.Amount.Should().Be( 500_000L ) ;
+  }
+
+  [Fact]
+  public async Task CreateAsync_LumpSumDividend_UsesSuppliedTotalAmount()
+  {
+    StockTransaction? captured = null ;
+    _service.CreateAsync( Arg.Do<StockTransaction>( t => captured = t ), Arg.Any<long>() )
+      .Returns( ci => ci.Arg<StockTransaction>() ) ;
+    _service.GetByIdForUserAsync( Arg.Any<long>(), Arg.Any<long>() )
+      .Returns( ci => BuildEntity( ci.ArgAt<long>( 0 ) ) ) ;
+
+    var request = new StockTransactionRequest( "vnm", StockTransactionType.Dividend, 0L, 0L, 500_000L,
+      new DateTime( 2026, 4, 22, 0, 0, 0, DateTimeKind.Utc ), 3 ) ;
+    var sut = CreateSut( 42 ) ;
+
+    await sut.CreateAsync( request ) ;
+
+    captured.Should().NotBeNull() ;
+    captured!.Amount.Should().Be( 500_000L ) ;
+  }
+
+  [Fact]
   public async Task GetAllAsync_PassesUserIdAndSymbolToService()
   {
     _service.GetAllForUserAsync( 42, Arg.Any<PaginationQuery>() )

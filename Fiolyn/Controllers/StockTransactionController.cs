@@ -20,6 +20,8 @@ public class StockTransactionController(
 {
   /// <summary>
   ///   Creates a new stock transaction. 404 if the caller is not a member of the target broker account.
+  ///   For a Dividend with a positive <c>Quantity</c> and <c>Price</c> the total is computed as
+  ///   quantity × price (per-share dividend) and the supplied <c>TotalAmount</c> is ignored.
   /// </summary>
   [HttpPost]
   public async Task<IActionResult> CreateAsync( [FromBody] StockTransactionRequest request )
@@ -31,7 +33,8 @@ public class StockTransactionController(
       StockTransactionType = request.StockTransactionType,
       Quantity = request.Quantity,
       Price = request.Price,
-      Amount = StockTransaction.ComputeAmount( request.StockTransactionType, request.TotalAmount ),
+      Amount = StockTransaction.ComputeSignedAmount(
+        request.StockTransactionType, request.Quantity, request.Price, request.TotalAmount ),
       Date = request.Date,
       BrokerAccountId = request.BrokerAccountId,
       Description = request.Description,
@@ -85,7 +88,9 @@ public class StockTransactionController(
 
   /// <summary>
   ///   Updates a stock transaction. 404 if the caller is not a member of its current broker or the
-  ///   reassigned broker (if any).
+  ///   reassigned broker (if any). For a Dividend with a positive <c>Quantity</c> and <c>Price</c>
+  ///   the total is computed as quantity × price (per-share dividend) and the supplied
+  ///   <c>TotalAmount</c> is ignored.
   /// </summary>
   [HttpPut( "{id:long}" )]
   public async Task<IActionResult> UpdateAsync( long id, [FromBody] StockTransactionRequest request )
@@ -102,7 +107,8 @@ public class StockTransactionController(
     existing.StockTransactionType = request.StockTransactionType ;
     existing.Quantity = request.Quantity ;
     existing.Price = request.Price ;
-    existing.Amount = StockTransaction.ComputeAmount( request.StockTransactionType, request.TotalAmount ) ;
+    existing.Amount = StockTransaction.ComputeSignedAmount(
+      request.StockTransactionType, request.Quantity, request.Price, request.TotalAmount ) ;
     existing.Date = request.Date ;
     existing.BrokerAccountId = request.BrokerAccountId ;
     existing.Description = request.Description ;

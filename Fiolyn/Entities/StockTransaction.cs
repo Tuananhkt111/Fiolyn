@@ -31,13 +31,15 @@ public class StockTransaction : TransactionBase
   public StockTransactionType StockTransactionType { get ; set ; }
 
   /// <summary>
-  ///   Gets or sets the quantity of shares traded. Zero for dividends.
+  ///   Gets or sets the quantity of shares. For Buy/Sell this is the shares traded; for a per-share
+  ///   dividend it is the shares the dividend is paid on. Zero for a lump-sum dividend.
   /// </summary>
   [Required]
   public long Quantity { get ; set ; }
 
   /// <summary>
-  ///   Gets or sets the price per share in whole VND. Zero for dividends.
+  ///   Gets or sets the price per share in whole VND. For Buy/Sell this is the trade price; for a
+  ///   per-share dividend it is the per-share dividend rate. Zero for a lump-sum dividend.
   /// </summary>
   [Required]
   public long Price { get ; set ; }
@@ -70,4 +72,26 @@ public class StockTransaction : TransactionBase
       StockTransactionType.Dividend => totalAmount,
       _ => 0L
     } ;
+
+  /// <summary>
+  ///   Resolves the unsigned cash total for a trade. A Dividend with a positive
+  ///   <paramref name="quantity" /> and <paramref name="price" /> is a per-share dividend
+  ///   (total = quantity × price); otherwise the supplied lump <paramref name="totalAmount" /> is
+  ///   used. Buy/Sell always use the supplied total (it may include fees, so it is not re-derived
+  ///   from quantity × price).
+  /// </summary>
+  public static long ResolveTradeTotal(
+    StockTransactionType type, long quantity, long price, long totalAmount ) =>
+    type == StockTransactionType.Dividend && quantity > 0 && price > 0
+      ? quantity * price
+      : totalAmount ;
+
+  /// <summary>
+  ///   Computes the signed <see cref="TransactionBase.Amount" /> from a request's raw fields: resolves
+  ///   the unsigned trade total via <see cref="ResolveTradeTotal" /> (per-share vs lump) then signs it
+  ///   via <see cref="ComputeAmount" />. The single boundary entry point so callers don't chain the two.
+  /// </summary>
+  public static long ComputeSignedAmount(
+    StockTransactionType type, long quantity, long price, long totalAmount ) =>
+    ComputeAmount( type, ResolveTradeTotal( type, quantity, price, totalAmount ) ) ;
 }

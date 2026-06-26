@@ -133,6 +133,24 @@ public class StockTransactionServiceTests
     result.Date.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
   }
 
+  [Fact]
+  public async Task ParseMessageAsync_PerShareDividend_ComputesTotalFromQuantityTimesPrice()
+  {
+    SetupBroker( "VPS", 1L ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ParseMessageAsync( "stock div VNM 100 5000 broker:VPS date:2026-04-14 notes:Q2 dividend" ) ;
+
+    result.Should().NotBeNull() ;
+    result!.Symbol.Should().Be( "VNM" ) ;
+    result.StockTransactionType.Should().Be( StockTransactionType.Dividend ) ;
+    result.Quantity.Should().Be( 100L ) ;
+    result.Price.Should().Be( 5000L ) ;
+    result.Amount.Should().Be( 500_000L ) ;
+    result.Description.Should().Be( "Q2 dividend" ) ;
+    result.Date.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
+  }
+
   [Theory]
   [InlineData( "" )]
   [InlineData( "not a stock message" )]

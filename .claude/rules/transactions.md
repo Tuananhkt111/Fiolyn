@@ -8,17 +8,17 @@ Abstract base + seven TPT children: `IncomeTransaction`, `ExpenseTransaction`, `
 
 The signed `Amount` on the base is what gets applied to `SpendAccount.Balance` (negative = money out, positive = money in). Sign is enforced server-side per leaf:
 
-| Leaf | Sign |
-|---|---|
-| Income | + |
-| Expense | − |
-| Lend | − |
-| Borrowing | + |
-| Transfer | source − / destination + |
-| Adjustment | as-supplied (signed, skips `[Range(1, …)]`) |
-| Stock | via `StockTransaction.ComputeAmount` — Buy −, Sell/Dividend + |
+| Leaf       | Sign                                                          |
+|------------|---------------------------------------------------------------|
+| Income     | +                                                             |
+| Expense    | −                                                             |
+| Lend       | −                                                             |
+| Borrowing  | +                                                             |
+| Transfer   | source − / destination +                                      |
+| Adjustment | as-supplied (signed, skips `[Range(1, …)]`)                   |
+| Stock      | via `StockTransaction.ComputeAmount` — Buy −, Sell/Dividend + |
 
-The unsigned stock trade total is not a stored column — it's `Math.Abs(Amount)` on the way out.
+The unsigned stock trade total is not a stored column — it's `Math.Abs(Amount)` on the way out. `ResolveTradeTotal` decides it: a Dividend with positive `Quantity` *and* `Price` is a per-share dividend (total = `Quantity × Price`); otherwise the supplied lump total is used. Buy/Sell always use the supplied total (it may include fees, so it's never re-derived from qty × price). The controller computes the signed `Amount` at the boundary via `StockTransaction.ComputeSignedAmount` (one call = `ResolveTradeTotal` + `ComputeAmount`); the Telegram parser resolves the total while parsing (lump vs per-share by token count) and calls `ComputeAmount` directly.
 
 ## Atomic writes
 
