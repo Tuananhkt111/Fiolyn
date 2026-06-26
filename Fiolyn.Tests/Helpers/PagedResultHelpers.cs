@@ -20,6 +20,5 @@ public static class PagedResultHelpers
   /// </summary>
   public static PagedResult<T> SinglePage<T>( params T[] items ) => new(items, 1, 20, items.Length) ;
 
-  public static PagedResult<T> EmptyPage<T>( int page = 1, int pageSize = 20 ) =>
-    new([], page, pageSize, 0) ;
+  public static PagedResult<T> EmptyPage<T>( int page = 1, int pageSize = 20 ) => new([], page, pageSize, 0) ;
 }
