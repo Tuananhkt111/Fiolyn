@@ -2,6 +2,8 @@
 name: utf8-encode
 description: Re-encode clipboard content to UTF-8 (fixes garbled Japanese/Unicode). Run after /copy.
 allowed-tools: Bash
+model: haiku
+effort: low
 ---
 
 # UTF-8 Encode

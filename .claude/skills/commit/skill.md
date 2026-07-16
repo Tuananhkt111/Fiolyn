@@ -2,6 +2,8 @@
 name: commit
 description: Stage and commit changes following the project's conventional commit message rules. Use when asked to commit changes, create a commit, or stage and commit.
 allowed-tools: Bash
+model: haiku
+effort: low
 ---
 
 # Commit

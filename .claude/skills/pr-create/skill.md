@@ -2,6 +2,8 @@
 name: pr-create
 description: Create a pull request with a structured description following the project PR template. Use when asked to create a PR, open a pull request, or push and create a PR.
 allowed-tools: Bash, Read, Glob, Grep
+model: sonnet
+effort: low
 ---
 
 # Pull Request Create

@@ -2,6 +2,8 @@
 name: model-create
 description: Create a new entity model, update AppDbContext, and generate migration. Provide model name and properties as input.
 allowed-tools: Read, Write, Edit, Bash, AskUserQuestion
+model: sonnet
+effort: medium
 ---
 
 # Model Create

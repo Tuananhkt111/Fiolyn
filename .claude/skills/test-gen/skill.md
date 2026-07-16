@@ -3,6 +3,8 @@ name: test-gen
 description: Generate xUnit test cases for a service or controller. Reads the target file, identifies all methods and dependencies, and writes a test class following project conventions. Use when asked to generate tests, write tests for, or add tests to a file.
 argument-hint: "<path-to-source-file>"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, mcp__ide__getDiagnostics
+model: sonnet
+effort: high
 ---
 
 # Test Generator

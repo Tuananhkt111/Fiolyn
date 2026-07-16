@@ -3,6 +3,8 @@ name: impact-analysis
 description: Analyze the impact scope of a PR and post a checklist as a PR comment. PR number is required.
 argument-hint: "<PR number> [--no-post] [--depth 1|2|3|auto] [--output <output path>] [--format md|json]"
 allowed-tools: Read, Glob, Grep, Bash, Write, Agent, Edit
+model: opus
+effort: high
 ---
 
 # Impact Analysis Skill
