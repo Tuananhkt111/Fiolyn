@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt ;
 using System.Security.Claims ;
 using Fiolyn.Controllers ;
 using Fiolyn.Controllers.DTOs.Requests.BrokerAccount ;
+using Fiolyn.Controllers.DTOs.Requests.Shared ;
 using Fiolyn.Controllers.DTOs.Responses.BrokerAccount ;
 using Fiolyn.Entities ;
 using Fiolyn.Services.Internal.Interfaces ;

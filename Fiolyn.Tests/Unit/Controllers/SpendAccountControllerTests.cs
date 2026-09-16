@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt ;
 using System.Security.Claims ;
 using Fiolyn.Controllers ;
 using Fiolyn.Controllers.DTOs.Requests.SpendAccount ;
+using Fiolyn.Controllers.DTOs.Requests.Shared ;
 using Fiolyn.Controllers.DTOs.Responses.SpendAccount ;
 using Fiolyn.Entities ;
 using Fiolyn.Enums ;

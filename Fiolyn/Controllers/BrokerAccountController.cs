@@ -1,5 +1,6 @@
 using Fiolyn.Common.Pagination ;
 using Fiolyn.Controllers.DTOs.Requests.BrokerAccount ;
+using Fiolyn.Controllers.DTOs.Requests.Shared ;
 using Fiolyn.Controllers.DTOs.Responses.BrokerAccount ;
 using Fiolyn.Entities ;
 using Fiolyn.Extensions ;
