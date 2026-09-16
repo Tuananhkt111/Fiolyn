@@ -1,0 +1,46 @@
+# Architecture decisions
+
+Why Fiolyn is built the way it is. Each record states the context, the decision, and what it costs.
+
+**These records are historical.** An ADR describes what was decided as of its date. It is never
+authoritative on current behaviour — for that, see [`../reference/`](../reference/) and
+[`rules/`](../rules/). If an ADR disagrees with those, the ADR is the stale one.
+
+**They are also immutable.** Don't edit a merged ADR to reflect new thinking. Write a new one and
+mark the old one superseded.
+
+| # | Decision | Date |
+|---|---|---|
+| [0001](0001-money-as-long-not-decimal.md) | Money and quantities are `long`, not `decimal` | 2026-04-23 |
+| [0002](0002-neon-and-northflank-hosting.md) | Neon over Supabase, Northflank over Render | 2026-04-01 |
+| [0003](0003-no-https-redirection.md) | No `UseHttpsRedirection` behind the Northflank proxy | 2026-04-01 |
+| [0004](0004-migrations-never-run-on-startup.md) | Migrations never run on application startup | 2026-05-03 |
+| [0005](0005-squashed-migration-history.md) | Migration history squashed to a single `InitialCreate` | 2026-05-10 |
+| [0006](0006-tpt-transaction-hierarchy.md) | One ledger: TPT hierarchy with seven leaves | 2026-05-03 |
+| [0007](0007-shares-as-paired-lend-borrow-rows.md) | Income/expense shares are auto-paired Lend/Borrow rows | 2026-05-07 |
+| [0008](0008-counterparty-entity-over-free-text.md) | `Counterparty` entity replaces the free-text name | 2026-05-07 |
+| [0009](0009-offset-pagination.md) | Offset pagination, uniform across every list endpoint | 2026-05-10 |
+| [0010](0010-broker-spend-account-fk-restrict.md) | `BrokerAccount → SpendAccount` FK is `Restrict` | 2026-04-26 |
+| [0011](0011-membership-is-access.md) | Membership is access; no owner/editor/viewer roles | 2026-04-23 |
+| [0012](0012-rest-conventions-and-non-goals.md) | RFC 7807 errors — and the REST features deliberately skipped | 2026-04-16 |
+
+## Writing a new one
+
+Copy the shape of any existing record:
+
+```markdown
+# NNNN — Short imperative title
+
+**Date:** YYYY-MM-DD · **Status:** Accepted
+
+## Context
+What was true that forced a choice.
+
+## Decision
+What was chosen, stated plainly.
+
+## Consequences
+What this costs, and what it rules out.
+```
+
+Dates come from the commit that made the decision, not the day the record was written.
