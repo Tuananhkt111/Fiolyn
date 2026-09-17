@@ -105,3 +105,16 @@ Requires `Fiolyn/appsettings.Development.json` (see [`guides/configuration.md`](
 
 Regenerate whenever a change adds, removes or renames an endpoint, or alters a request/response
 record.
+
+## Checking conformance
+
+```bash
+bash scripts/docs-lint.sh
+```
+
+Verifies what this contract promises structurally: every file on the [map](#map), every ADR in the
+decisions index, every cross-layer pointer present, every relative link and `#anchor` resolving,
+and no frozen counts. Run it before committing a documentation change.
+
+It does not judge content — whether a reference doc actually describes current behaviour is a
+review question, not a lint one.

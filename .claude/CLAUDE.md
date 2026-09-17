@@ -91,21 +91,37 @@ Four layers under `docs/`: **rules** (how to build) · **reference** (what it do
 
 ---
 
-## Workflow
+## Implementing a spec
 
-- **After every code change:** call `mcp__ide__getDiagnostics` if available (else `dotnet build`), then run **only the test classes covering the files you touched** via `--filter`:
+Turning a requirement — an FRS extract, a feature request, a bug report — into merged code whose docs still tell the truth. Phases run in order; each one's output is the next one's input.
+
+**This applies in every mode.** Plan mode makes phases 1–3 explicit and reviewable before any edit; outside it they still happen, stated briefly in the reply instead of written up. What never changes is the order: no code before the rules are loaded, no commit before the docs are synced.
+
+Working material from phases 1–3 is transient wherever it is written and never lands in the repo. The durable outputs are the code, the reference update and the ADR. (`docs/` once held ten `PLAN_*.md` files that outlived their moment and rotted into contradictory pseudo-specs.)
+
+**1 · Scope.** Map the requirement onto the [routing table](#read-the-matching-rule-before-your-first-edit-in-an-area). Name every area it touches, including ones it only reads from.
+
+**2 · Load — before proposing any steps.** Read `docs/rules/*` for each area in scope, plus `docs/reference/*.md` for behaviour that already exists. This is the phase that produces consistent code, and it only works before the design is fixed: the rules constrain what can be built, they are not a style pass applied afterwards. Finish able to state the invariants the change must not break — and if a rule forbids the obvious approach, raise it now rather than after the code is written.
+
+**3 · Steps.** Write the implementation sequence — as a plan document in plan mode, as a short list in the reply otherwise. Each step names the files it touches and the rule it follows. Mark every step that carries a **decision** — a trade-off, a rejected alternative, a constraint imposed from outside the code, or something deliberately *not* built. These become ADRs in phase 6; flag them here because the reasoning is only recoverable now, while the alternatives are still in mind.
+
+**4 · Build.** Implement against the rules loaded in phase 2. Add tests per `docs/rules/testing.md`.
+
+**5 · Verify.** `mcp__ide__getDiagnostics` if available, else `dotnet build`. Then run **only the test classes covering the files you touched**:
   ```
   dotnet test Fiolyn.Tests/Fiolyn.Tests.csproj --filter "FullyQualifiedName~AuthServiceTests|FullyQualifiedName~AuthControllerTests"
   ```
   Fall back to the full suite when the change is cross-cutting (`IRepository<T>`, `AppDbContext`, `ServiceRegisters/*`, shared base classes) **or** as the pre-commit gate — all tests must pass before committing.
 
-- **Update the doc layer that matches the change:**
+**6 · Sync docs, in the same commit as the code.** A follow-up "docs later" commit is precisely how the previous `docs/` drifted.
 
   | Changed | Update |
   |---|---|
-  | Endpoint added / removed / renamed, or a request record | regenerate `docs/reference/openapi.json` |
+  | Endpoint added / removed / renamed, or a request record | regenerate `docs/reference/openapi.json` (command in `docs/README.md`) |
   | Behaviour | the matching `docs/reference/*.md` |
   | A project-wide pattern | `docs/rules/*` **and** this file (per `feedback_update_claude_md`) |
-  | A decision made or reversed | a **new** `docs/decisions/NNNN-*.md` — never edit a merged ADR, supersede it |
+  | A decision flagged in phase 3 | a **new** `docs/decisions/NNNN-*.md` — never edit a merged ADR, supersede it |
 
   Nothing else needs touching. Adding a leaf service, a DTO or a test changes no doc.
+
+  Then run `bash scripts/docs-lint.sh` — map completeness, ADR index, cross-layer pointers, every link and `#anchor`, frozen counts. It must pass before committing.
