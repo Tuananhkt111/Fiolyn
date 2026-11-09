@@ -104,7 +104,8 @@ Requires `Fiolyn/appsettings.Development.json` (see [`guides/configuration.md`](
 `Jwt:SigningKey` is mandatory and the app fails fast at startup without it.
 
 Regenerate whenever a change adds, removes or renames an endpoint, or alters a request/response
-record.
+record. In a Claude Code session, the `Edit` and `Write` tools are denied on this file
+([0015](decisions/0015-claude-code-guards.md)); the `curl` above is the way to change it.
 
 ## Checking conformance
 

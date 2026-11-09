@@ -30,6 +30,8 @@ dotnet test Fiolyn.Tests/Fiolyn.Tests.csproj                  # from repo root
 
 Details: `docs/guides/local-development.md`. Build/publish is handled by `Fiolyn/Dockerfile`.
 
+**Guards** (`docs/guides/local-development.md#guards`): CI `verify` gates every deploy; the pre-commit hook refuses merged-ADR edits and runs docs-lint and a `-warnaserror` build; `.claude/hooks/fiolyn_hooks.py` denies hand edits to `openapi.json`, reports `decimal` money, asks before a push from the wrong gh account and runs docs-lint at turn end. A guard firing is the rule speaking: fix the cause, never bypass it.
+
 ## Configuration
 
 Secrets in `Fiolyn/appsettings.Development.json` (gitignored) locally, Northflank env vars (`__` for nested keys) in prod. Each section binds to a class in `ServiceRegisters/Settings/` via `IOptions<T>`.

@@ -26,6 +26,7 @@ mark the old one superseded. The pre-commit hook enforces this: in a merged ADR,
 | [0012](0012-rest-conventions-and-non-goals.md) | RFC 7807 errors — and the REST features deliberately skipped | 2026-04-16 |
 | [0013](0013-deploy-gated-on-tests-and-docs-lint.md) | Deploy only after tests and docs-lint pass | 2026-11-09 |
 | [0014](0014-versioned-git-hooks.md) | Git hooks live in the repo, under `scripts/hooks/` | 2026-11-09 |
+| [0015](0015-claude-code-guards.md) | Claude Code guards in one Python dispatcher, failing open | 2026-11-09 |
 
 ## Writing a new one
 
