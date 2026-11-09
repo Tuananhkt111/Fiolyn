@@ -5,11 +5,19 @@
 ```
 push to master
   → GitHub Actions (.github/workflows/deploy.yml)
+  → verify: dotnet test Fiolyn.sln -c Release, then bash scripts/docs-lint.sh
   → docker build (context = repo root, dockerfile = Fiolyn/Dockerfile)
   → push ghcr.io/tuananhkt111/fiolyn:latest
   → POST api.northflank.com/v1/projects/fiolyn/services/fiolyn/restart
   → Northflank pulls the new image and restarts
 ```
+
+`build-and-deploy` runs only after `verify` passes, so a failing test or a docs-lint failure stops
+the release before an image is built. A pull request into `master` runs `verify` alone, without
+deploying. Why: [0013](../decisions/0013-deploy-gated-on-tests-and-docs-lint.md).
+
+The SDK comes from `global.json`. `actions/setup-dotnet` needs a full SDK version there (`10.0.100`,
+not `10.0.0`) whenever `rollForward` is set.
 
 The build context is the **repo root**, not `Fiolyn/` — the Dockerfile reaches outside its own
 directory, so building from `Fiolyn/` will fail.
@@ -78,7 +86,7 @@ Only needed once, and already done for the current deployment:
 
 ## Diagnosing a failed deploy
 
-1. GitHub Actions tab — did build and push succeed?
+1. GitHub Actions tab — did `verify` pass? Did build and push succeed?
 2. Northflank dashboard → service → **Logs**.
 3. If the app starts and then fails on every request, suspect the missing migration step.
 4. If startup throws about the signing key, `JWT__SIGNINGKEY` is missing or too short.

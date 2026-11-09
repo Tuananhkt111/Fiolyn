@@ -3,7 +3,7 @@
 Read this when touching `Program.cs`'s middleware pipeline, the `Dockerfile`, `.github/workflows/`, or anything about how the app is hosted.
 
 > **How to actually deploy** (pipeline, secrets, first-time setup): [guides/deployment.md](../guides/deployment.md) ·
-> **Why:** [ADR 0002 — Neon and Northflank](../decisions/0002-neon-and-northflank-hosting.md) · [0003 — no HTTPS redirection](../decisions/0003-no-https-redirection.md) · [0004 — no startup migrations](../decisions/0004-migrations-never-run-on-startup.md)
+> **Why:** [ADR 0002 — Neon and Northflank](../decisions/0002-neon-and-northflank-hosting.md) · [0003 — no HTTPS redirection](../decisions/0003-no-https-redirection.md) · [0004 — no startup migrations](../decisions/0004-migrations-never-run-on-startup.md) · [0013 — deploy gated on verify](../decisions/0013-deploy-gated-on-tests-and-docs-lint.md)
 
 ## Never add `UseHttpsRedirection`
 
@@ -35,6 +35,12 @@ Forgetting this is the most likely way to break a release: the new code meets th
 - **The Docker build context is the repo root**, not `Fiolyn/`. The Dockerfile reaches outside its own directory.
 
 The pipeline, secrets and first-time setup are operator concerns, not code rules — see [guides/deployment.md](../guides/deployment.md) and [guides/configuration.md](../guides/configuration.md).
+
+## Deploy stays behind `verify`
+
+In `.github/workflows/deploy.yml`, `build-and-deploy` keeps `needs: verify` and runs only on a push.
+Don't add a job that pushes an image or restarts Northflank without depending on `verify`. Don't drop
+a step from `verify` to get a release through: fix the failure.
 
 ## Never commit a secret
 
