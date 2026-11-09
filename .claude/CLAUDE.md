@@ -21,6 +21,7 @@ Fiolyn is a .NET 10 web API with two front doors, both writing to one ledger:
 ## Commands
 
 ```bash
+bash scripts/setup.sh                                         # once per clone: git hooks (ADR 0014)
 cd Fiolyn && dotnet run                                       # run locally (:5027)
 cd Fiolyn && dotnet ef database update                        # apply migrations
 cd Fiolyn && dotnet ef migrations add <Name> --output-dir Data/Migrations
