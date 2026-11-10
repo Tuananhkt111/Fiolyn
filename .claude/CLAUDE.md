@@ -116,6 +116,8 @@ Working material from phases 1–3 is transient wherever it is written and never
   ```
   Fall back to the full suite when the change is cross-cutting (`IRepository<T>`, `AppDbContext`, `ServiceRegisters/*`, shared base classes) **or** as the pre-commit gate — all tests must pass before committing.
 
+  Before a PR, `python scripts/coverage-changed.py` lists the changed `Fiolyn/` lines no test runs: test each, or say in the PR why not (report only, ADR 0016).
+
 **6 · Sync docs, in the same commit as the code.** A follow-up "docs later" commit is precisely how the previous `docs/` drifted.
 
   | Changed | Update |
