@@ -15,6 +15,7 @@ public class AuthControllerTests
   private AuthController CreateSut() => new(_authService) ;
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task LoginWithGoogleAsync_Returns200WithTokens()
   {
     var response = new AuthResponse( "access", "refresh", DateTime.UtcNow.AddMinutes( 15 ) ) ;
@@ -28,6 +29,7 @@ public class AuthControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_Returns200WithTokens()
   {
     var response = new AuthResponse( "access", "refresh", DateTime.UtcNow.AddMinutes( 15 ) ) ;

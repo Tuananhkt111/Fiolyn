@@ -27,6 +27,8 @@ POST /api/auth/logout      revoke
 
 ## US-01 — Register a new account
 
+**Code:** `AuthService` · `AllowedEmail` · `AllowedEmailService` · `AppUser` · tests tagged `[Trait( "Story", "US-01" )]`
+
 **Verdict: Conflict.** There is no registration. An `AppUser` row appears as a side effect of the
 first successful Google login, and only for an address an administrator has already whitelisted.
 
@@ -88,6 +90,8 @@ first successful Google login, and only for an address an administrator has alre
 
 ## US-02 — Log in to an existing account
 
+**Code:** `AuthService` · `AuthController` · `GoogleTokenVerifier` · `JwtService` · `RefreshToken` · tests tagged `[Trait( "Story", "US-02" )]`
+
 **Verdict: Conflict.** Login exists and works; it takes a different credential, returns a different
 kind of session, and has no notion of onboarding completeness.
 
@@ -130,6 +134,8 @@ exists.
 ---
 
 ## US-03 — Mandatory wallet creation before accessing the app
+
+**Code:** `SpendAccountService` · `SpendAccountRequest` · `SpendAccountType` · tests tagged `[Trait( "Story", "US-03" )]`
 
 **Verdict: Absent.** No gate, no onboarding state, no redirect. A user with no accounts simply gets
 empty lists from every endpoint.
@@ -197,6 +203,8 @@ global gate would break the Telegram ingest path, which has no browser and no on
 
 ## US-04 — Admin invites a member to a shared workspace
 
+**Code:** `SpendAccountService` · `SpendAccountMember` · `AllowedEmail` · tests tagged `[Trait( "Story", "US-04" )]`
+
 **Verdict: Absent.** The largest single gap in Module 1. No invite entity, no accept, no decline, no
 expiry, no cancellation, no status, no notification.
 
@@ -255,6 +263,8 @@ New `Invite` entity — v1.1 §4.1 already sketches it correctly:
 ---
 
 ## US-05 — Manage Admin and Member permissions within a workspace
+
+**Code:** `SpendAccountService` · `BrokerAccountService` · `SpendAccountMember` · `BrokerAccountMember` · tests tagged `[Trait( "Story", "US-05" )]`
 
 **Verdict: Conflict.** This story asks for the exact model
 [ADR 0011](../docs/decisions/0011-membership-is-access.md) considered and rejected. It is the

@@ -14,6 +14,11 @@ This is a dated snapshot, true at `6c3c953` (2026-09-17) and committed as one
 ([ADR 0019](../docs/decisions/0019-frs-analysis-committed-as-a-snapshot.md)). It is not updated as the
 code moves on: counts and endpoint inventories below are true at that commit and nowhere else.
 
+**The exception:** the `**Code:**` line under each story is kept current. It names the classes that
+implement the story today; tests for it carry `[Trait( "Story", "US-nn" )]`, and docs-lint fails when
+a listed class is gone or a story has no tagged test
+([ADR 0020](../docs/decisions/0020-story-to-code-links-checked-by-docs-lint.md)).
+
 ---
 
 ## Read this first — what v1.1 actually contains

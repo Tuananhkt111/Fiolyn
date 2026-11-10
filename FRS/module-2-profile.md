@@ -52,6 +52,8 @@ live data with a natural place in the UI that v1.1 simply does not mention.
 
 ## US-06 — View personal profile information
 
+**Code:** `UserController` · `UserService` · `UserResponse` · `ClaimsPrincipalExtensions` · tests tagged `[Trait( "Story", "US-06" )]`
+
 **Verdict: Partial.** The endpoint exists and is correctly scoped. The field set differs.
 
 ### What exists
@@ -108,6 +110,8 @@ server-side state. v1.1 does not say which, and Module 2 is where the question f
 ---
 
 ## US-07 — Edit personal profile information
+
+**Code:** `UserController` · `UserService` · `UpdateMeRequest` · `AppUser` · tests tagged `[Trait( "Story", "US-07" )]`
 
 **Verdict: Partial.** One of the four editable fields is editable as specified, one is editable
 through different endpoints, one does not exist, and one is blocked on the authentication decision.
