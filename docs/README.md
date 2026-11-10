@@ -93,6 +93,13 @@ requirements analysis. It is deliberately outside the four layers and outside `d
 input to decisions, not a record of them. Nothing in `docs/` should link to it as a source of
 truth.
 
+`FRS/` at the repo root checks FRS v1.0, the spec of the system as built, against the code: one
+file per backend module, with `FRS/README.md` as the index. Its findings are dated. The exception
+is each story's `**Code:**` and `**Tests:**` lines, which are kept current and checked by docs-lint.
+Stories and acceptance criteria live there; the technical detail of the same behaviour lives in
+`reference/`, and a change to a story's behaviour updates both
+([0026](decisions/0026-frs-stories-linked-to-code-and-tests.md)).
+
 ## Regenerating `openapi.json`
 
 `python .claude/skills/fiolyn-run/fiolyn_run.py --stop-after` builds, starts the app, writes the
@@ -118,7 +125,10 @@ bash scripts/docs-lint.sh
 
 Verifies what this contract promises structurally: every file on the [map](#map), every ADR in the
 decisions index, every cross-layer pointer present, every relative link and `#anchor` resolving,
-and no frozen counts. Run it before committing a documentation change.
+no frozen counts, and the FRS links: every class on a story's `**Code:**` line still declared, and
+each story's `**Tests:**` line matching the tests tagged for it
+([0026](decisions/0026-frs-stories-linked-to-code-and-tests.md)). Run it before committing a
+documentation change.
 
 It does not judge content — whether a reference doc actually describes current behaviour is a
 review question, not a lint one.

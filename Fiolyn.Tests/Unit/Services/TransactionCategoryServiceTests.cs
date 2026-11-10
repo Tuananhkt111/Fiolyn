@@ -17,6 +17,7 @@ public class TransactionCategoryServiceTests
   private TransactionCategoryService CreateSut() => new(_repo) ;
 
   [Fact]
+  [Trait( "Story", "US-16" )]
   public async Task CreateAsync_ThrowsConflict_WhenSameKindNameExists()
   {
     _repo.Query().Returns( new List<TransactionCategory>
@@ -36,6 +37,7 @@ public class TransactionCategoryServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-16" )]
   public async Task CreateAsync_AllowsSameNameDifferentKind()
   {
     _repo.Query().Returns( new List<TransactionCategory>
@@ -57,6 +59,7 @@ public class TransactionCategoryServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-16" )]
   public async Task UpdateAsync_RenamesButKeepsKind()
   {
     var existing = new TransactionCategory
@@ -75,6 +78,7 @@ public class TransactionCategoryServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-15" )]
   public async Task GetAllAsync_FiltersByKind_WhenSpecified()
   {
     var rows = new List<TransactionCategory>
@@ -101,6 +105,7 @@ public class TransactionCategoryServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-16" )]
   public async Task SoftDeleteAsync_ProcessesAndSaves()
   {
     var entry = new TransactionCategory
@@ -121,6 +126,7 @@ public class TransactionCategoryServiceTests
   // The (Kind, Name) unique index also covers soft-deleted categories, so re-creating a deleted name
   // must restore the old row instead of inserting one the index refuses.
   [Fact]
+  [Trait( "Story", "US-16" )]
   public async Task CreateAsync_NameOfADeletedCategory_RestoresItInsteadOfInserting()
   {
     var deleted = new TransactionCategory

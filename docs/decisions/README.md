@@ -34,6 +34,7 @@ mark the old one superseded. The pre-commit hook enforces this: in a merged ADR,
 | [0023](0023-sessions-follow-the-whitelist.md) | Sessions end when the whitelist says so; logout is the caller's own | 2026-11-10 |
 | [0024](0024-recreating-a-deleted-row-restores-it.md) | Re-creating a soft-deleted row restores it; a deleted user stays out | 2026-11-10 |
 | [0025](0025-api-level-tests-on-the-real-pipeline.md) | API-level tests run the real pipeline on an in-memory database | 2026-11-10 |
+| [0026](0026-frs-stories-linked-to-code-and-tests.md) | FRS v1.0 stories are linked to code and tests, and docs-lint keeps the links true | 2026-11-10 |
 
 ## Writing a new one
 

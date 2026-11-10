@@ -49,6 +49,7 @@ public class LendTransactionServiceTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_ReusesExistingCounterparty_CaseInsensitive()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -83,6 +84,7 @@ public class LendTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_StagesNewCounterparty_WhenNoMatch()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -112,6 +114,7 @@ public class LendTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_OtherUsersCounterpartyName_StagesNewForCaller()
   {
     // Same name "Bob" exists for user 99, but the resolver scopes by AppUserId — user 42 gets
@@ -149,6 +152,7 @@ public class LendTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_EmptyName_Throws()
   {
     var sut = CreateSut() ;

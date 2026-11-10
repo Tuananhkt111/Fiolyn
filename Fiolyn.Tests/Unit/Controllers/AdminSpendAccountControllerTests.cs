@@ -55,6 +55,7 @@ public class AdminSpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-11" )]
   public async Task GetAllAsync_NoFilter_ReturnsAdminResponseListWithMembers()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>() )
@@ -74,6 +75,7 @@ public class AdminSpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-11" )]
   public async Task GetAllAsync_WithUserIdFilter_PassesFilter()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>(), 42L )
@@ -91,6 +93,7 @@ public class AdminSpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-11" )]
   public async Task GetByIdAsync_Missing_Returns404()
   {
     _service.GetByIdAsync( 99 ).Returns( ( SpendAccount? )null ) ;
@@ -102,6 +105,7 @@ public class AdminSpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-11" )]
   public async Task GetByIdAsync_Existing_Returns200WithAdminResponse()
   {
     var account = BuildEntity( 10, [7, 8] ) ;
@@ -120,6 +124,7 @@ public class AdminSpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-11" )]
   public async Task CreateAsync_UsesAppUserIdFromRequest_AndReturns201()
   {
     SpendAccount? captured = null ;
@@ -151,6 +156,7 @@ public class AdminSpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-11" )]
   public async Task UpdateAsync_Missing_Returns404()
   {
     _service.UpdateAsync( 99, Arg.Any<string>(), Arg.Any<SpendAccountType>() )
@@ -163,6 +169,7 @@ public class AdminSpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-11" )]
   public async Task UpdateAsync_Existing_PassesScalarsToService_AndReturns200()
   {
     var updated = BuildEntity( 10, [7], "Renamed", SpendAccountType.Credit, 1_000_000L ) ;
@@ -181,6 +188,7 @@ public class AdminSpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-11" )]
   public async Task DeleteAsync_Returns204_AndCallsUnscopedSoftDelete()
   {
     var sut = CreateSut() ;

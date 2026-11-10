@@ -19,6 +19,7 @@ public class AdminTransactionCategoryControllerTests
   private AdminTransactionCategoryController CreateSut() => new(_service) ;
 
   [Fact]
+  [Trait( "Story", "US-16" )]
   public async Task CreateAsync_Returns201_WithBody()
   {
     _service.CreateAsync( "Groceries", TransactionKind.Expense ).Returns( new TransactionCategory
@@ -39,6 +40,7 @@ public class AdminTransactionCategoryControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-16" )]
   public async Task GetByIdAsync_Returns404_WhenMissing()
   {
     _service.GetByIdAsync( 9L ).Returns( ( TransactionCategory? )null ) ;
@@ -50,6 +52,7 @@ public class AdminTransactionCategoryControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-16" )]
   public async Task GetAllAsync_PassesKindFilter()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>(), TransactionKind.Income )

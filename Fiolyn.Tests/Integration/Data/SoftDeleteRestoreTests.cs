@@ -36,6 +36,7 @@ public class SoftDeleteRestoreTests : IDisposable
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task AllowedEmail_ReAddingARemovedAddress_RestoresTheSameRow()
   {
     var removed = await SeedAsync( new AllowedEmail
@@ -53,6 +54,7 @@ public class SoftDeleteRestoreTests : IDisposable
   }
 
   [Fact]
+  [Trait( "Story", "US-16" )]
   public async Task TransactionCategory_ReCreatingADeletedName_RestoresTheSameRow()
   {
     var deleted = await SeedAsync( new TransactionCategory
@@ -70,6 +72,7 @@ public class SoftDeleteRestoreTests : IDisposable
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task Counterparty_ReCreatingADeletedContact_RestoresTheSameRow()
   {
     await SeedAsync( new AppUser
@@ -94,6 +97,7 @@ public class SoftDeleteRestoreTests : IDisposable
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task Lend_NamingADeletedContact_RestoresItInTheSameSave()
   {
     await SeedAsync( new AppUser
@@ -130,6 +134,7 @@ public class SoftDeleteRestoreTests : IDisposable
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task Login_DeletedUserWithAWhitelistedEmail_IsRefusedAndNoUserIsCreated()
   {
     await SeedAsync( new AllowedEmail

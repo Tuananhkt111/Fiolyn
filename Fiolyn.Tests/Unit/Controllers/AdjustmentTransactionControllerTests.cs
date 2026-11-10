@@ -33,6 +33,7 @@ public class AdjustmentTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task CreateAsync_PassesSignedDeltaThrough()
   {
     AdjustmentTransaction? captured = null ;

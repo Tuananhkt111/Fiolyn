@@ -21,6 +21,8 @@ public class JwtServiceTests
   private JwtService CreateSut() => new(Options.Create( _settings )) ;
 
   [Fact]
+  [Trait( "Story", "US-01" )]
+  [Trait( "Story", "US-08" )]
   public void CreateAccessToken_IncludesExpectedClaims()
   {
     var sut = CreateSut() ;
@@ -48,6 +50,7 @@ public class JwtServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-08" )]
   public void CreateAccessToken_NonAdmin_SetsIsAdminFalse()
   {
     var sut = CreateSut() ;
@@ -66,6 +69,7 @@ public class JwtServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public void Ctor_MissingSigningKey_Throws()
   {
     Action act = () => _ = new JwtService( Options.Create( new JwtSettings
@@ -77,6 +81,7 @@ public class JwtServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public void Ctor_ShortSigningKey_Throws()
   {
     Action act = () => _ = new JwtService( Options.Create( new JwtSettings
@@ -88,6 +93,7 @@ public class JwtServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public void CreateRefreshToken_RawAndHashAreConsistent()
   {
     var sut = CreateSut() ;

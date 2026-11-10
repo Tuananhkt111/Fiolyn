@@ -127,7 +127,8 @@ Working material from phases 1–3 is transient wherever it is written and never
   | Behaviour | the matching `docs/reference/*.md` |
   | A project-wide pattern | `docs/rules/*` **and** this file (per `feedback_update_claude_md`) |
   | A decision flagged in phase 3 | a **new** `docs/decisions/NNNN-*.md` — never edit a merged ADR, supersede it |
+  | Behaviour of an FRS v1.0 story (US-nn) | its row in `FRS/module-*.md` as well as the reference doc; a class that starts or stops implementing it goes on or off its `**Code:**` line; a test for it gets `[Trait( "Story", "US-nn" )]` and goes on its `**Tests:**` line (ADR 0026) |
 
-  Nothing else needs touching. Adding a leaf service, a DTO or a test changes no doc.
+  Nothing else needs touching. Adding a leaf service or a DTO changes no doc; a test changes one only when it covers a story.
 
-  Then run `bash scripts/docs-lint.sh` — map completeness, ADR index, cross-layer pointers, every link and `#anchor`, frozen counts. It must pass before committing.
+  Then run `bash scripts/docs-lint.sh` — map completeness, ADR index, cross-layer pointers, every link and `#anchor`, frozen counts, FRS story code and test links. It must pass before committing.

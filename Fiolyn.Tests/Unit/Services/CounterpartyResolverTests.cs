@@ -115,6 +115,7 @@ public class CounterpartyResolverTests
   // ---------------------------------------------------------------- create: match, then stage
 
   [Theory]
+  [Trait( "Story", "US-22" )]
   [InlineData( " Bob" )]
   [InlineData( "bob " )]
   [InlineData( "  BOB  " )]
@@ -138,6 +139,7 @@ public class CounterpartyResolverTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_NameOnlyAnotherUserHas_StagesANewContactForTheCaller()
   {
     // The contact list is private per user: someone else's "Bob" is not a match.
@@ -161,6 +163,7 @@ public class CounterpartyResolverTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_NewName_StagesContactWithoutSavingItOnItsOwn()
   {
     SetupContacts() ;
@@ -184,6 +187,7 @@ public class CounterpartyResolverTests
   // ---------------------------------------------------------------- update: skip, repoint, never rename
 
   [Theory]
+  [Trait( "Story", "US-22" )]
   [InlineData( "Bob" )]
   [InlineData( "bob" )]
   [InlineData( "  BOB  " )]
@@ -203,6 +207,7 @@ public class CounterpartyResolverTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task UpdateAsync_DifferentExistingName_RepointsAndRenamesNeitherContact()
   {
     var bob = Contact( 11, "Bob" ) ;
@@ -219,6 +224,7 @@ public class CounterpartyResolverTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task UpdateAsync_DifferentNewName_StagesContactAndAssignsTheNavNotTheScalarFk()
   {
     var bob = Contact( 11, "Bob" ) ;
@@ -239,6 +245,7 @@ public class CounterpartyResolverTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task UpdateAsync_BlankName_ThrowsBadRequestAndDoesNotSave()
   {
     var bob = Contact( 11, "Bob" ) ;
@@ -256,6 +263,7 @@ public class CounterpartyResolverTests
   // ---------------------------------------------------------------- batch: one round trip
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_SeveralShareNames_ResolvesThemInOneQuery()
   {
     SetupContacts( Contact( 11, "Bob" ), Contact( 12, "Carol" ) ) ;
@@ -278,6 +286,7 @@ public class CounterpartyResolverTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_MixedExistingAndNewShareNames_ReusesHitsAndStagesOnlyTheMisses()
   {
     var bob = Contact( 11, "Bob" ) ;
@@ -310,6 +319,7 @@ public class CounterpartyResolverTests
   // A deleted contact stays as a soft-deleted row under the unique (AppUserId, LOWER(Name)) index, so
   // naming it on a loan must restore that row rather than stage an insert the index refuses.
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_NameOfADeletedContact_RestoresItInsteadOfStagingANewOne()
   {
     var deletedBob = Contact( 11, "Bob" ) ;
@@ -335,6 +345,7 @@ public class CounterpartyResolverTests
   // Two requests that stage the same new contact at once: the loser's save hits the unique index.
   // That must surface as 409, like every other unique violation, not as a 500.
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_ContactInsertRaceLost_Returns409NotServerError()
   {
     SetupContacts() ;
@@ -356,6 +367,7 @@ public class CounterpartyResolverTests
 
   // The batch path (shares) restores the same way as the single-name path.
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_ShareNamingADeletedContact_RestoresItInsteadOfStagingANewOne()
   {
     var deletedBob = Contact( 11, "Bob" ) ;
@@ -382,6 +394,7 @@ public class CounterpartyResolverTests
   // Only unique violations become 409. Any other database error (here a foreign-key violation) must
   // still surface as itself, so a real fault isn't disguised as a retryable conflict.
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_NonUniqueDatabaseError_StillPropagates()
   {
     SetupContacts() ;

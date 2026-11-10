@@ -32,6 +32,7 @@ public class CounterpartyServiceTests
   private void SetupExisting( params Counterparty[] rows ) => _repository.Query().Returns( rows.ToList().BuildMock() ) ;
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task GetAllForUserAsync_FiltersByOwner_AndOrdersByName()
   {
     SetupExisting(
@@ -63,6 +64,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task GetByIdForUserAsync_ReturnsNull_WhenNotOwned()
   {
     SetupExisting( new Counterparty
@@ -79,6 +81,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_TrimmedAndPersisted()
   {
     SetupExisting() ;
@@ -93,6 +96,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_DuplicateCaseInsensitive_Throws()
   {
     SetupExisting( new Counterparty
@@ -108,6 +112,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_AllowsSameName_ForDifferentOwner()
   {
     SetupExisting( new Counterparty
@@ -124,6 +129,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_EmptyName_Throws()
   {
     SetupExisting() ;
@@ -134,6 +140,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_RaceLost_UniqueViolationMappedToConflict()
   {
     SetupExisting() ;
@@ -151,6 +158,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task UpdateAsync_ReturnsNull_WhenNotOwned()
   {
     SetupExisting( new Counterparty
@@ -167,6 +175,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task UpdateAsync_RenameCollision_Throws()
   {
     SetupExisting(
@@ -189,6 +198,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task UpdateAsync_RenameToSelfCaseChange_Allowed()
   {
     var entry = new Counterparty
@@ -207,6 +217,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task SoftDeleteAsync_Blocked_WhenReferencedByLend()
   {
     var entry = new Counterparty
@@ -232,6 +243,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task SoftDeleteAsync_Blocked_WhenReferencedByBorrowing()
   {
     var entry = new Counterparty
@@ -256,6 +268,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task SoftDeleteAsync_Unreferenced_SoftDeletes()
   {
     var entry = new Counterparty
@@ -274,6 +287,7 @@ public class CounterpartyServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task SoftDeleteAsync_NotOwned_Throws()
   {
     SetupExisting( new Counterparty
@@ -291,6 +305,7 @@ public class CounterpartyServiceTests
   // docs/reference/counterparties.md: uniqueness is per user and case-insensitive, enforced by an
   // index that also covers soft-deleted rows. Re-creating a deleted contact restores it.
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_NameOfADeletedContact_RestoresItCaseInsensitively()
   {
     var deleted = new Counterparty
@@ -314,6 +329,7 @@ public class CounterpartyServiceTests
 
   // The contact list is private per user: another user's deleted "Bob" is not the caller's to restore.
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_NameOfAnotherUsersDeletedContact_CreatesANewOneForTheCaller()
   {
     var othersDeleted = new Counterparty

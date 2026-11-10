@@ -33,6 +33,7 @@ public class IncomeTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task CreateAsync_DefaultsPayerToCaller_AndReturns201()
   {
     var spend = new SpendAccount
@@ -71,6 +72,7 @@ public class IncomeTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task GetByIdAsync_Returns404_WhenNotFound()
   {
     _service.GetByIdForUserAsync( 99L, 7L ).Returns( ( IncomeTransaction? )null ) ;
@@ -82,6 +84,7 @@ public class IncomeTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task DeleteAsync_Returns204()
   {
     var sut = CreateSut() ;

@@ -58,6 +58,7 @@ public class StockTransactionControllerTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task CreateAsync_PassesCallerIdToService_AndRefetchesForBrokerNav()
   {
     var created = BuildEntity( 10, new BrokerAccount
@@ -90,6 +91,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task CreateAsync_PerShareDividend_ComputesAmountFromQuantityTimesPrice()
   {
     StockTransaction? captured = null ;
@@ -112,6 +114,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task CreateAsync_LumpSumDividend_UsesSuppliedTotalAmount()
   {
     StockTransaction? captured = null ;
@@ -131,6 +134,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task GetAllAsync_PassesUserIdAndSymbolToService()
   {
     _service.GetAllForUserAsync( 42, Arg.Any<PaginationQuery>() )
@@ -146,6 +150,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task GetAllAsync_PassesSymbolFilter()
   {
     _service.GetAllForUserAsync( 42, Arg.Any<PaginationQuery>(), "VNM" )
@@ -158,6 +163,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task GetByIdAsync_Missing_Returns404()
   {
     _service.GetByIdForUserAsync( 99, 7 ).Returns( ( StockTransaction? )null ) ;
@@ -169,6 +175,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task GetByIdAsync_Existing_Returns200()
   {
     _service.GetByIdForUserAsync( 10, 7 ).Returns( BuildEntity() ) ;
@@ -182,6 +189,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task ExistsAsync_True_Returns200()
   {
     _service.ExistsForUserAsync( 10, 7 ).Returns( true ) ;
@@ -191,6 +199,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task ExistsAsync_False_Returns404()
   {
     _service.ExistsForUserAsync( 10, 7 ).Returns( false ) ;
@@ -200,6 +209,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_Missing_Returns404()
   {
     _service.GetByIdForUserAsync( 99, 7 ).Returns( ( StockTransaction? )null ) ;
@@ -212,6 +222,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_BrokerUnchanged_SkipsRefetch()
   {
     var existing = BuildEntity() ;
@@ -228,6 +239,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_BrokerChanged_RefetchesForFreshNav()
   {
     var existing = BuildEntity() ;
@@ -244,6 +256,7 @@ public class StockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task DeleteAsync_Returns204()
   {
     var sut = CreateSut( 42 ) ;

@@ -58,6 +58,7 @@ public class ExpenseTransactionServiceTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_WithShare_PairsLendChild_WithNegativeAmount()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -104,6 +105,7 @@ public class ExpenseTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_WithFractionalShare_SplitsByHundredths_NegativeChild()
   {
     var account = BuildAccount( 5, [42] ) ;

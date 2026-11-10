@@ -12,6 +12,7 @@ public class GoogleTokenVerifierTests
   private readonly ILogger<GoogleTokenVerifier> _logger = Substitute.For<ILogger<GoogleTokenVerifier>>() ;
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task VerifyAsync_EmptyToken_Throws()
   {
     var sut = new GoogleTokenVerifier( Options.Create( new GoogleAuthSettings
@@ -36,6 +37,7 @@ public class GoogleTokenVerifierTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task VerifyAsync_MalformedToken_ThrowsUnauthorized()
   {
     var sut = new GoogleTokenVerifier( Options.Create( new GoogleAuthSettings

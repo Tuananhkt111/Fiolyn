@@ -54,6 +54,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task LoginWithGoogleAsync_EmailNotWhitelisted_ThrowsForbidden()
   {
     _google.VerifyAsync( "token" )
@@ -66,6 +67,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task LoginWithGoogleAsync_FirstLogin_CreatesNonAdminUser()
   {
     _google.VerifyAsync( "token" )
@@ -89,6 +91,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task LoginWithGoogleAsync_ExistingUser_UpdatesProfileAndLoginTimestamp()
   {
     _google.VerifyAsync( "token" )
@@ -116,6 +119,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_ValidToken_RotatesAndReturnsNewPair()
   {
     var user = new AppUser
@@ -150,6 +154,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_ConcurrentRotation_LoserGets401_AndDoesNotKeepNewToken()
   {
     // Two concurrent rotations of the same token: the second SaveAsync hits the [ConcurrencyCheck]
@@ -185,6 +190,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_RevokedTokenReplay_RevokesChainAndThrows()
   {
     var user = new AppUser
@@ -223,6 +229,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_SoftDeletedUser_Throws()
   {
     var deletedUser = new AppUser
@@ -252,6 +259,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_ExpiredToken_Throws()
   {
     var user = new AppUser
@@ -277,6 +285,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_UnknownToken_Throws()
   {
     SetupRefreshTokens() ;
@@ -289,6 +298,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-03" )]
   public async Task LogoutAsync_RevokesToken()
   {
     var token = new RefreshToken
@@ -308,6 +318,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-03" )]
   public async Task LogoutAsync_AlreadyRevoked_IsNoOp()
   {
     var revoked = new RefreshToken
@@ -330,6 +341,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-03" )]
   public async Task LogoutAsync_UnknownToken_Throws()
   {
     SetupRefreshTokens() ;
@@ -344,6 +356,8 @@ public class AuthServiceTests
   // v1.0 US-04: only whitelisted addresses may use the app. Removing an address must also stop its
   // sessions: a refresh token issued before the removal must not mint new tokens.
   [Fact]
+  [Trait( "Story", "US-02" )]
+  [Trait( "Story", "US-04" )]
   public async Task RefreshAsync_UserNoLongerWhitelisted_Throws401AndIssuesNoTokens()
   {
     var user = new AppUser
@@ -375,6 +389,7 @@ public class AuthServiceTests
   // v1.0 US-03: logout revokes the caller's own refresh token. A token belonging to someone else
   // must not be revocable, and the answer must not reveal that the token exists.
   [Fact]
+  [Trait( "Story", "US-03" )]
   public async Task LogoutAsync_TokenOwnedByAnotherUser_Throws401AndDoesNotRevoke()
   {
     var othersToken = new RefreshToken
@@ -396,6 +411,7 @@ public class AuthServiceTests
   // An admin's soft-delete must hold: a deleted user signing in again with a still-whitelisted email
   // gets 403 — not a 500 from the unique Email/GoogleSub indexes, and not a fresh account.
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task LoginWithGoogleAsync_SoftDeletedUser_Throws403AndCreatesNothing()
   {
     _google.VerifyAsync( "token" )

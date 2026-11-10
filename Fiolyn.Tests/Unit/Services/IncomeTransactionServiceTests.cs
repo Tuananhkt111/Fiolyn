@@ -64,6 +64,7 @@ public class IncomeTransactionServiceTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task CreateAsync_NoShares_AppliesDelta_AndSaves()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -91,6 +92,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task CreateAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     _spendRepo.Query().Returns( new List<SpendAccount>
@@ -110,6 +112,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task CreateAsync_ThrowsBadRequest_WhenCategoryKindMismatch()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -140,6 +143,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_WithShare_PairsBorrowingChild_AndSplitsAmount()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -189,6 +193,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_WithFractionalShare_SplitsByHundredthsAndAbsorbsResidual()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -223,6 +228,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_SilentlyRoundsExcessPrecisionToTwoDecimals()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -254,6 +260,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_RejectsWhenRoundedSumExceeds100()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -281,6 +288,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_RejectsBelowMinimumPercentage()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -305,6 +313,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_RoundingAbsorbedByParent_TotalsReconcile()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -338,6 +347,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_RejectsShareSumOver100()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -364,6 +374,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task CreateAsync_RejectsDuplicateCounterparty_CaseInsensitive()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -390,6 +401,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task UpdateAsync_ReplacesLinkedChildren_AndAppliesDeltaForFullTotal()
   {
     var account = BuildAccount( 5, [42], 1_000_000L ) ;
@@ -473,6 +485,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task UpdateAsync_CrossSpendAccountWithShares_ReversesOldTotalAndAppliesNewTotal()
   {
     var oldAccount = BuildAccount( 5, [42], 1_000_000L ) ;
@@ -549,6 +562,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task UpdateAsync_EmptyShares_DropsAllExistingChildren_AndRestoresParentTotal()
   {
     var account = BuildAccount( 5, [42], 1_000_000L ) ;
@@ -608,6 +622,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public async Task SoftDeleteAsync_CascadesAndReversesFullTotal()
   {
     var account = BuildAccount( 5, [42], 1_000_000L ) ;
@@ -655,6 +670,7 @@ public class IncomeTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task CreateAsync_ThrowsConflict_WhenBalanceConcurrentlyModified()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -679,6 +695,7 @@ public class IncomeTransactionServiceTests
   // docs/rules/transactions-shares.md: round to 2 decimals first, then range-check [0.01, 100]. Values
   // just outside the range that round into it are accepted; the request no longer pre-checks them.
   [Theory]
+  [Trait( "Story", "US-24" )]
   [InlineData( 0.005, 100L )]
   [InlineData( 100.004, 1_000_000L )]
   public async Task CreateAsync_PercentageThatRoundsIntoRange_IsAccepted( double percentage, long expectedChild )

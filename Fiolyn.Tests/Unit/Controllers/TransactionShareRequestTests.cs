@@ -21,12 +21,14 @@ public class TransactionShareRequestTests
       .All( a => a.IsValid( value ) ) ;
 
   [Theory]
+  [Trait( "Story", "US-24" )]
   [InlineData( 0.005 )]
   [InlineData( 100.004 )]
   public void Percentage_ThatRoundsIntoRange_PassesRequestValidation( double percentage ) =>
     ParameterAccepts( nameof( TransactionShareRequest.Percentage ), percentage ).Should().BeTrue() ;
 
   [Fact]
+  [Trait( "Story", "US-24" )]
   public void CounterpartyName_IsStillRequired() =>
     ParameterAccepts( nameof( TransactionShareRequest.CounterpartyName ), null ).Should().BeFalse() ;
 }
