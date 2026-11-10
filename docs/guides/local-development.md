@@ -52,6 +52,22 @@ Run only the classes covering what you touched; fall back to the full suite for 
 changes (`IRepository<T>`, `AppDbContext`, `ServiceRegisters/*`, shared base classes) and as the
 pre-commit gate.
 
+## Guards
+
+Three layers check the rules that used to be instructions only:
+
+| Layer | Where | Runs |
+|---|---|---|
+| CI | `.github/workflows/deploy.yml`, job `verify` | tests and docs-lint, before any deploy ([0013](../decisions/0013-deploy-gated-on-tests-and-docs-lint.md)) |
+| Git | `scripts/hooks/pre-commit`, enabled by `scripts/setup.sh` | merged-ADR immutability, docs-lint, `-warnaserror` build ([0014](../decisions/0014-versioned-git-hooks.md)) |
+| Claude Code | `.claude/hooks/fiolyn_hooks.py`, registered in `.claude/settings.json` | `openapi.json` edits, `decimal` money, push account, docs-lint at turn end ([0015](../decisions/0015-claude-code-guards.md)) |
+
+After changing the Claude Code guards, run their tests:
+
+```bash
+python -I -X utf8 .claude/hooks/test_fiolyn_hooks.py
+```
+
 ## Testing the Telegram webhook
 
 You can exercise the webhook entirely locally — Telegram's servers are not involved. The payload is
