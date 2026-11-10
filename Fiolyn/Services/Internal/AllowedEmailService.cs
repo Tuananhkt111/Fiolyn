@@ -28,11 +28,23 @@ public class AllowedEmailService(
   {
     var normalizedEmail = AppUser.NormalizeEmail( email ) ;
 
+    // The unique index on Email also covers removed (soft-deleted) entries, so look at those too
+    // and bring a removed one back instead of inserting a row the index would refuse (ADR 0024).
     var existing = await repository.Query()
+      .IgnoreQueryFilters()
       .FirstOrDefaultAsync( a => a.Email == normalizedEmail ) ;
-    if ( existing is not null )
+    if ( existing is { IsDeleted: false } )
     {
       throw new ConflictException( $"Email {normalizedEmail} is already whitelisted." ) ;
+    }
+
+    if ( existing is not null )
+    {
+      existing.Note = note ;
+      existing.InvitedByUserId = invitedByUserId ;
+      repository.Restore( existing ) ;
+      await repository.SaveAsync() ;
+      return existing ;
     }
 
     var entry = new AllowedEmail

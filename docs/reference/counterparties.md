@@ -54,6 +54,12 @@ UNIQUE ("AppUserId", LOWER("Name"))
 This is raw SQL in the migration and is **not** modelled in EF, so it will not appear in the model
 snapshot. That is expected — don't add a property-based unique index alongside it. Violations
 surface as 409, mapped from Postgres `23505`; the service pre-check only narrows the common case.
+That includes the transaction save path: two requests that stage the same new contact at once get
+409 for the loser, not 500.
+
+The index also covers deleted contacts. Creating a contact whose name a deleted one holds restores
+that row (`POST /api/counterparties` takes the requested spelling); naming it on a lend, borrow or
+share restores it as it was stored.
 
 ## Deletion is blocked while referenced
 

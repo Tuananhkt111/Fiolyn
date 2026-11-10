@@ -4,6 +4,9 @@ using Fiolyn.Infrastructure.Exceptions ;
 using Fiolyn.Services.Internal ;
 using Fiolyn.Services.Internal.BaseServices ;
 using FluentAssertions ;
+using NSubstitute.ExceptionExtensions ;
+using Npgsql ;
+using Microsoft.EntityFrameworkCore ;
 using MockQueryable ;
 using NSubstitute ;
 
@@ -302,5 +305,99 @@ public class CounterpartyResolverTests
     children.Select( c => c.Amount ).Should().Equal( 400_000L, 100_000L ) ;
     income.Amount.Should().Be( 500_000L ) ;
     await _counterpartyRepo.DidNotReceive().SaveAsync() ;
+  }
+
+  // A deleted contact stays as a soft-deleted row under the unique (AppUserId, LOWER(Name)) index, so
+  // naming it on a loan must restore that row rather than stage an insert the index refuses.
+  [Fact]
+  public async Task CreateAsync_NameOfADeletedContact_RestoresItInsteadOfStagingANewOne()
+  {
+    var deletedBob = Contact( 11, "Bob" ) ;
+    deletedBob.IsDeleted = true ;
+    SetupContacts( deletedBob ) ;
+    var staged = await CaptureStagedAsync() ;
+    var sut = CreateLendSut() ;
+    var lend = new LendTransaction
+    {
+      SpendAccountId = SpendId,
+      Amount = -100,
+      Date = DateTime.UtcNow
+    } ;
+
+    var result = await sut.CreateAsync( lend, UserId, "bob" ) ;
+
+    result.Counterparty.Should().BeSameAs( deletedBob ) ;
+    staged.Should().BeEmpty() ;
+    _counterpartyRepo.Received( 1 ).Restore( deletedBob ) ;
+    await _counterpartyRepo.DidNotReceive().SaveAsync() ; // restored like an insert: the leaf's one save commits it
+  }
+
+  // Two requests that stage the same new contact at once: the loser's save hits the unique index.
+  // That must surface as 409, like every other unique violation, not as a 500.
+  [Fact]
+  public async Task CreateAsync_ContactInsertRaceLost_Returns409NotServerError()
+  {
+    SetupContacts() ;
+    var unique = new PostgresException(
+      "duplicate key value violates unique constraint", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation ) ;
+    _lendRepo.SaveAsync().ThrowsAsync( new DbUpdateException( "unique violation", unique ) ) ;
+    var sut = CreateLendSut() ;
+    var lend = new LendTransaction
+    {
+      SpendAccountId = SpendId,
+      Amount = -100,
+      Date = DateTime.UtcNow
+    } ;
+
+    var act = () => sut.CreateAsync( lend, UserId, "Alice" ) ;
+
+    await act.Should().ThrowAsync<ConflictException>() ;
+  }
+
+  // The batch path (shares) restores the same way as the single-name path.
+  [Fact]
+  public async Task CreateAsync_ShareNamingADeletedContact_RestoresItInsteadOfStagingANewOne()
+  {
+    var deletedBob = Contact( 11, "Bob" ) ;
+    deletedBob.IsDeleted = true ;
+    SetupContacts( deletedBob ) ;
+    var staged = await CaptureStagedAsync() ;
+    var sut = CreateIncomeSut() ;
+    var income = new IncomeTransaction
+    {
+      SpendAccountId = SpendId,
+      Amount = 1_000_000L,
+      Date = DateTime.UtcNow
+    } ;
+
+    await sut.CreateAsync( income, UserId, [
+      new TransactionShareInput( "bob", 30 )
+    ] ) ;
+
+    income.Children.Cast<BorrowingTransaction>().Single().Counterparty.Should().BeSameAs( deletedBob ) ;
+    staged.Should().BeEmpty() ;
+    _counterpartyRepo.Received( 1 ).Restore( deletedBob ) ;
+  }
+
+  // Only unique violations become 409. Any other database error (here a foreign-key violation) must
+  // still surface as itself, so a real fault isn't disguised as a retryable conflict.
+  [Fact]
+  public async Task CreateAsync_NonUniqueDatabaseError_StillPropagates()
+  {
+    SetupContacts() ;
+    var foreignKey = new PostgresException(
+      "insert or update violates foreign key constraint", "ERROR", "ERROR", PostgresErrorCodes.ForeignKeyViolation ) ;
+    _lendRepo.SaveAsync().ThrowsAsync( new DbUpdateException( "fk violation", foreignKey ) ) ;
+    var sut = CreateLendSut() ;
+    var lend = new LendTransaction
+    {
+      SpendAccountId = SpendId,
+      Amount = -100,
+      Date = DateTime.UtcNow
+    } ;
+
+    var act = () => sut.CreateAsync( lend, UserId, "Alice" ) ;
+
+    ( await act.Should().ThrowAsync<DbUpdateException>() ).Which.Should().NotBeOfType<DbUpdateConcurrencyException>() ;
   }
 }

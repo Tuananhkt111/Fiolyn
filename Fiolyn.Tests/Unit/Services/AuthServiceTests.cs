@@ -392,4 +392,28 @@ public class AuthServiceTests
     othersToken.RevokedAt.Should().BeNull() ;
     await _refreshTokens.DidNotReceive().SaveAsync() ;
   }
+
+  // An admin's soft-delete must hold: a deleted user signing in again with a still-whitelisted email
+  // gets 403 — not a 500 from the unique Email/GoogleSub indexes, and not a fresh account.
+  [Fact]
+  public async Task LoginWithGoogleAsync_SoftDeletedUser_Throws403AndCreatesNothing()
+  {
+    _google.VerifyAsync( "token" )
+      .Returns( new GooglePayload( "gone@example.com", "sub-gone", "Gone", "p.jpg" ) ) ;
+    SetupAllowedEmails( "gone@example.com" ) ;
+    SetupUsers( new AppUser
+    {
+      Id = 8,
+      Email = "gone@example.com",
+      GoogleSub = "sub-gone",
+      IsDeleted = true
+    } ) ;
+    SetupJwtIssues() ;
+    var sut = CreateSut() ;
+
+    await sut.Invoking( s => s.LoginWithGoogleAsync( "token" ) )
+      .Should().ThrowAsync<ForbiddenAccessException>() ;
+    await _users.DidNotReceive().AddAsync( Arg.Any<AppUser>() ) ;
+    await _refreshTokens.DidNotReceive().AddAsync( Arg.Any<RefreshToken>() ) ;
+  }
 }

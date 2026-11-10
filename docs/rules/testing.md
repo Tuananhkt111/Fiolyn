@@ -69,6 +69,10 @@ _repository.SaveAsync().ThrowsAsync( new DbUpdateConcurrencyException() ) ;   //
 
 For unique-violation mapping, throw a `DbUpdateException` whose inner is a `PostgresException` with `SqlState` `23505`. Needs `using NSubstitute.ExceptionExtensions ;`.
 
+## Soft-delete and query filters need an integration test
+
+MockQueryable does not apply EF's global query filters: a soft-deleted row in a mock is visible to every query. A unit test therefore cannot tell whether a lookup uses `.IgnoreQueryFilters()` — removing it leaves every unit test green. When a behaviour depends on seeing (or not seeing) deleted rows, add a test in `Integration/Data/` against `TestDbContextFactory.Create()` and the real `Repository<T>`; the in-memory provider applies the filters. See `SoftDeleteRestoreTests` ([0024](../decisions/0024-recreating-a-deleted-row-restores-it.md)).
+
 ## Assertions
 
 FluentAssertions throughout — `result.Should().BeOfType<OkObjectResult>()`, `act.Should().ThrowAsync<BadRequestException>()`. Assert the paged shape as `result.Items.Should().HaveCount(n)` plus `result.TotalCount.Should().Be(n)`, not just the item count.

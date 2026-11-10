@@ -78,7 +78,9 @@ guards live in service code:
 ## Soft-delete query filters
 
 Registered globally, so `IRepository.Query()` returns active rows by default. Chain
-`.IgnoreQueryFilters()` to see deleted ones.
+`.IgnoreQueryFilters()` to see deleted ones. No unique index is filtered on `IsDeleted`: a deleted
+row still holds its unique value, which is why the create paths restore a deleted twin
+([0024](../decisions/0024-recreating-a-deleted-row-restores-it.md)).
 
 | Entity | Filter |
 |---|---|

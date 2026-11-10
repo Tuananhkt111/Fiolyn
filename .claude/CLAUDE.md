@@ -47,7 +47,7 @@ Full key list: **`docs/guides/configuration.md`**.
 
 - **Services** live in `Services/External/{Telegram,Notion,Google}/` and `Services/Internal/` with subfolders `Interfaces/`, `BaseServices/`, `Helpers/`. Controllers inject interfaces. Services throw; `Infrastructure/GlobalExceptionHandler` maps `KeyNotFoundException` → 404, `UnauthorizedAccessException` → 401, `ForbiddenAccessException` → 403, `BadRequestException` → 400, `ConflictException` → 409, else 500. Never leaks exception messages.
 - **Repository** is generic (`IRepository<T>` in `Data/Repositories/`). Don't build entity-specific repositories.
-- **Entities** implement `IAuditable` and usually `ISoftDelete`. `RefreshToken` is the exception — explicit revocation via `RevokedAt`.
+- **Entities** implement `IAuditable` and usually `ISoftDelete`. `RefreshToken` is the exception — explicit revocation via `RevokedAt`. Unique indexes include soft-deleted rows, so a create restores a deleted twin instead of inserting (`docs/rules/ef-pitfalls.md`, ADR 0024).
 - **DI** auto-discovered via `IServiceRegister` implementations in `ServiceRegisters/`, ordered by `Order`. Add business services to `ScopedBusinessServicesRegister`. Use typed `AddHttpClient<TInterface, TImpl>` — **don't** wrap with `AddSingleton<TInterface>(sp => sp.GetRequiredService<TImpl>())`, which pins one `HttpClient` forever and defeats handler rotation.
 
 ### Read the matching rule before your first edit in an area

@@ -39,11 +39,22 @@ public class CounterpartyService(
     var trimmed = name.Trim() ;
     var lowered = trimmed.ToLowerInvariant() ;
 
+    // The (AppUserId, LOWER(Name)) index also covers deleted contacts: restore one rather than insert
+    // a row the index would refuse (ADR 0024). An explicit create takes the requested spelling.
     var existing = await repository.Query()
+      .IgnoreQueryFilters()
       .FirstOrDefaultAsync( c => c.AppUserId == userId && c.Name.ToLower() == lowered ) ;
-    if ( existing is not null )
+    if ( existing is { IsDeleted: false } )
     {
       throw new ConflictException( $"Counterparty '{trimmed}' already exists." ) ;
+    }
+
+    if ( existing is not null )
+    {
+      existing.Name = trimmed ;
+      repository.Restore( existing ) ;
+      await repository.SaveAsync() ;
+      return existing ;
     }
 
     var entry = new Counterparty

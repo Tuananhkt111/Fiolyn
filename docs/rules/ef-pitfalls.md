@@ -45,6 +45,7 @@ Join rows representing presence (not mutable state) skip `IAuditable`/`ISoftDele
 - `IRepository.Query()` returns filtered rows by default — no `QueryActive()` variant. Chain `.IgnoreQueryFilters()` if you genuinely need soft-deleted rows.
 - `IRepository.GetByIdAsync` is a `FindAsync` wrapper and *bypasses* the filter. Use `GetByIdOrThrowAsync` when "must be active" is part of the contract.
 - The filter applies through `.Include` and nav traversals (`b.Members.Any(m => ...)`), so don't write redundant `!m.AppUser.IsDeleted` predicates.
+- **Unique indexes include soft-deleted rows.** None of them is filtered on `IsDeleted`, so a create path whose pre-check uses the filtered `Query()` misses a deleted twin and then hits `23505`. Look up with `.IgnoreQueryFilters()`: an active match is a 409; a deleted one is **restored** (`repository.Restore`) instead of inserted. Live: `AllowedEmailService`, `TransactionCategoryService`, `CounterpartyService.CreateAsync`, `CounterpartyResolver`. A deleted `AppUser` signing in again is refused with 403 rather than restored — [0024](../decisions/0024-recreating-a-deleted-row-restores-it.md).
 
 ## SoftDelete / Restore implementation
 
@@ -52,7 +53,7 @@ Join rows representing presence (not mutable state) skip `IAuditable`/`ISoftDele
 
 ## Race-safe uniqueness
 
-Map Postgres `23505` (unique-violation) to `ConflictException`. Pre-checks narrow the common case; the unique index is the actual race-safe guarantee. Catch `DbUpdateException` whose inner is `Npgsql.PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }` and rethrow. Live: `UserService.UpdateTelegramIdAsync`, `AllowedEmailService.CreateAsync`, `CounterpartyService.{Create,Update}Async`.
+Map Postgres `23505` (unique-violation) to `ConflictException`. Pre-checks narrow the common case; the unique index is the actual race-safe guarantee. Catch `DbUpdateException` whose inner is `Npgsql.PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }` and rethrow. Live: `UserService.UpdateTelegramIdAsync`, `AllowedEmailService.CreateAsync`, `CounterpartyService.{Create,Update}Async`, and `TransactionBalanceWriter` for rows staged in a transaction's save (a new counterparty from a concurrent request).
 
 ## Refresh-token rotation
 
