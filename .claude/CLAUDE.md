@@ -108,7 +108,7 @@ Working material from phases 1–3 is transient wherever it is written and never
 
 **3 · Steps.** Write the implementation sequence — as a plan document in plan mode, as a short list in the reply otherwise. Each step names the files it touches and the rule it follows. Mark every step that carries a **decision** — a trade-off, a rejected alternative, a constraint imposed from outside the code, or something deliberately *not* built. These become ADRs in phase 6; flag them here because the reasoning is only recoverable now, while the alternatives are still in mind.
 
-**4 · Build.** Implement against the rules loaded in phase 2. Add tests per `docs/rules/testing.md`.
+**4 · Build.** Implement against the rules loaded in phase 2. Add tests per `docs/rules/testing.md`. For a logic change, don't write the tests in this conversation: spawn a fresh agent (`model: sonnet`) that follows `.claude/skills/test-gen/skill.md`, given only the requirement and the file paths; then run the `test-reviewer` agent on its tests. Fix every high, tautology or mock finding; list the rest in the PR (ADR 0017).
 
 **5 · Verify.** `mcp__ide__getDiagnostics` if available, else `dotnet build`. Then run **only the test classes covering the files you touched**:
   ```

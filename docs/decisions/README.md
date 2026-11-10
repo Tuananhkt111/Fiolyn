@@ -28,6 +28,7 @@ mark the old one superseded. The pre-commit hook enforces this: in a merged ADR,
 | [0014](0014-versioned-git-hooks.md) | Git hooks live in the repo, under `scripts/hooks/` | 2026-11-09 |
 | [0015](0015-claude-code-guards.md) | Claude Code guards in one Python dispatcher, failing open | 2026-11-09 |
 | [0016](0016-changed-line-coverage-reported-not-gated.md) | Changed-line coverage is reported before a PR, not gated | 2026-11-10 |
+| [0017](0017-tests-written-and-reviewed-apart-from-the-code.md) | Tests for a logic change are written and reviewed apart from the code | 2026-11-10 |
 
 ## Writing a new one
 

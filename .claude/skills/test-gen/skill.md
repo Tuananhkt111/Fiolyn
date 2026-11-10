@@ -1,8 +1,8 @@
 ---
 name: test-gen
 description: Generate xUnit test cases for a service or controller. Reads the target file, identifies all methods and dependencies, and writes a test class following project conventions. Use when asked to generate tests, write tests for, or add tests to a file.
-argument-hint: "<path-to-source-file>"
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, mcp__ide__getDiagnostics
+argument-hint: "<path-to-source-file> [requirement or acceptance criteria]"
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, mcp__ide__getDiagnostics
 model: sonnet
 effort: high
 ---
@@ -13,6 +13,17 @@ effort: high
 
 Generate a complete xUnit test class for a given source file, following the project's test conventions.
 
+**Tests are written without the conversation that wrote the code** (ADR 0017). Whoever wrote the code
+knows what it does, and tends to test that rather than what it should do. So:
+
+- **Typed by the owner** (`/test-gen <file> <requirement>`): run as below.
+- **Needed by Claude during a change:** don't write the tests in the same conversation. Spawn a fresh agent
+  (Agent tool, `model: sonnet`) whose prompt holds only the production file path(s), the requirement or
+  acceptance criteria, and "follow `.claude/skills/test-gen/skill.md`". It reads the signatures itself.
+  Don't paste the implementation, the diff or the reasoning behind it.
+- **In that subagent:** you can't spawn agents. Skip Step 6; return the file path, the cases and the
+  run result, and the caller runs it.
+
 ---
 
 ## Step 0: Parse Input
@@ -22,6 +33,10 @@ Accept one argument: a path to the source file to test. It may be:
 - A file name alone (e.g., `TelegramMessageService.cs`) — search the repo to resolve it
 
 If no argument is provided, ask the user which file to generate tests for.
+
+Everything after the path is the **requirement**: acceptance criteria, an FRS story ID and its text, or a
+bug report. When none is given, use the matching `docs/reference/*.md` section as the requirement and say
+so in the report.
 
 ---
 
@@ -62,6 +77,11 @@ If a test file already exists, **extend it** (add missing test cases) rather tha
 ---
 
 ## Step 3: Identify Test Cases
+
+Start from the requirement, not from the method body. Each acceptance criterion and each rule it states
+(a sign rule, a rejection, a boundary, an error mapping) gets a test that would fail if the rule broke.
+**Expected values come from the requirement**, worked out by hand: never recompute them with the
+production code's own formula or helper, and never assert a value a mock was set up to return.
 
 For each public method, generate test scenarios covering:
 
@@ -214,6 +234,17 @@ After writing the test file:
    - Number of test cases generated
    - Test run result (pass/fail count)
    - Any tests that failed and why
+
+---
+
+## Step 6: Review (logic changes only)
+
+For a **logic change** (a new or changed branch, calculation, validation, state change or error mapping),
+run the `test-reviewer` agent on the new tests. Give it the test file, the production file and the
+requirement. Skip it for a rename, a DTO-only change or DI wiring.
+
+Fix every finding that is **high**, a **tautology** or a **mock**, then rerun the tests. List the other
+findings in the report (and in the PR) without fixing them.
 
 ---
 

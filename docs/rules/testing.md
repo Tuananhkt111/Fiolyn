@@ -77,6 +77,10 @@ FluentAssertions throughout — `result.Should().BeOfType<OkObjectResult>()`, `a
 
 Map each changed production file to its `*Tests.cs` and filter (see `CLAUDE.md`, Workflow). Run the full suite for cross-cutting changes — `IRepository<T>`, `AppDbContext`, `ServiceRegisters/*`, shared base classes — and always as the pre-commit gate.
 
+## Tests for a logic change
+
+A logic change is a new or changed branch, calculation, validation, state change or error mapping. Its tests are written by a fresh agent that follows `.claude/skills/test-gen/skill.md` and gets the requirement and the file paths, not the conversation. Take expected values from the requirement, never from the production formula. Then the `test-reviewer` agent checks them for tautologies, mocks that return the asserted value, and uncovered acceptance criteria. Fix every high, tautology or mock finding; list the rest in the PR — [0017](../decisions/0017-tests-written-and-reviewed-apart-from-the-code.md).
+
 ## Changed lines no test runs
 
 Before a PR, run `python scripts/coverage-changed.py` (base defaults to `master`). Give each line it lists a test, or say in the PR why it has none (startup wiring, EF configuration). It reports and never fails — [0016](../decisions/0016-changed-line-coverage-reported-not-gated.md).
