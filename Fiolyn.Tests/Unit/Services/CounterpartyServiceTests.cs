@@ -287,4 +287,27 @@ public class CounterpartyServiceTests
     await sut.Invoking( s => s.SoftDeleteAsync( 5, 7 ) )
       .Should().ThrowAsync<KeyNotFoundException>() ;
   }
+
+  // docs/reference/counterparties.md: uniqueness is per user and case-insensitive, enforced by an
+  // index that also covers soft-deleted rows. Re-creating a deleted contact restores it.
+  [Fact]
+  public async Task CreateAsync_NameOfADeletedContact_RestoresItCaseInsensitively()
+  {
+    var deleted = new Counterparty
+    {
+      Id = 4,
+      AppUserId = 7,
+      Name = "bob",
+      IsDeleted = true
+    } ;
+    SetupExisting( deleted ) ;
+    var sut = CreateSut() ;
+
+    var entry = await sut.CreateAsync( "  Bob ", 7 ) ;
+
+    entry.Should().BeSameAs( deleted ) ;
+    entry.Name.Should().Be( "Bob" ) ;
+    _repository.Received( 1 ).Restore( deleted ) ;
+    await _repository.DidNotReceive().AddAsync( Arg.Any<Counterparty>() ) ;
+  }
 }

@@ -22,11 +22,21 @@ public class TransactionCategoryService(
   {
     var trimmed = name.Trim() ;
 
+    // The (Kind, Name) unique index also covers deleted categories: restore one rather than insert
+    // a row the index would refuse (ADR 0024).
     var existing = await repository.Query()
+      .IgnoreQueryFilters()
       .FirstOrDefaultAsync( c => c.Kind == kind && c.Name == trimmed ) ;
-    if ( existing is not null )
+    if ( existing is { IsDeleted: false } )
     {
       throw new ConflictException( $"Category '{trimmed}' already exists for kind {kind}." ) ;
+    }
+
+    if ( existing is not null )
+    {
+      repository.Restore( existing ) ;
+      await repository.SaveAsync() ;
+      return existing ;
     }
 
     var entry = new TransactionCategory

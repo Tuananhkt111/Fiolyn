@@ -117,4 +117,29 @@ public class TransactionCategoryServiceTests
     _repo.Received( 1 ).SoftDelete( entry ) ;
     await _repo.Received( 1 ).SaveAsync() ;
   }
+
+  // The (Kind, Name) unique index also covers soft-deleted categories, so re-creating a deleted name
+  // must restore the old row instead of inserting one the index refuses.
+  [Fact]
+  public async Task CreateAsync_NameOfADeletedCategory_RestoresItInsteadOfInserting()
+  {
+    var deleted = new TransactionCategory
+    {
+      Id = 3,
+      Name = "Groceries",
+      Kind = TransactionKind.Expense,
+      IsDeleted = true
+    } ;
+    _repo.Query().Returns( new List<TransactionCategory>
+    {
+      deleted
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var entry = await sut.CreateAsync( "Groceries", TransactionKind.Expense ) ;
+
+    entry.Should().BeSameAs( deleted ) ;
+    _repo.Received( 1 ).Restore( deleted ) ;
+    await _repo.DidNotReceive().AddAsync( Arg.Any<TransactionCategory>() ) ;
+  }
 }

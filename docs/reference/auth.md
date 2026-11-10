@@ -116,6 +116,10 @@ That user can then manage the whitelist and other users' admin flags through the
 `ConflictException`, mapped from Postgres `23505`. The pre-check narrows the common case; the index
 is the actual race-safe guarantee.
 
+The indexes also cover soft-deleted rows. Re-adding a removed `AllowedEmail` restores that row (with
+the new note and inviter) instead of inserting a second one. A soft-deleted `AppUser` who signs in
+again is refused with 403, even if the address is still whitelisted: an admin's delete holds.
+
 ## Configuration
 
 `Jwt:SigningKey` is mandatory and must be at least 32 characters — both `AuthServiceRegister` at

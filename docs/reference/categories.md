@@ -15,7 +15,8 @@ Routes, parameters and request bodies: [`openapi.json`](openapi.json)
 (`Income | Expense | Lend | Borrowing | Transfer | Adjustment | Stock`).
 
 - **Unique index on `(Kind, Name)`** — the same name may be reused across kinds ("Other" for both
-  Income and Expense) but not twice within one kind.
+  Income and Expense) but not twice within one kind. The index also covers deleted categories, so
+  re-creating a deleted name restores that row.
 - **`Kind` is immutable after create.** Only `Name` can be updated. Changing a kind would silently
   invalidate every transaction already tagged with it.
 - The FK from `TransactionBase` is optional with `SetNull` on delete, so retiring a category leaves

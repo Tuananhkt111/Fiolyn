@@ -99,4 +99,32 @@ public class AllowedEmailServiceTests
     _repository.Received( 1 ).SoftDelete( entry ) ;
     await _repository.Received( 1 ).SaveAsync() ;
   }
+
+  // A removed whitelist entry stays as a soft-deleted row, and the unique index on Email still covers
+  // it. Re-adding the address must bring that row back, not insert a second one the index refuses.
+  [Fact]
+  public async Task CreateAsync_EmailOfARemovedEntry_RestoresItInsteadOfInserting()
+  {
+    var removed = new AllowedEmail
+    {
+      Id = 4,
+      Email = "back@example.com",
+      Note = "old note",
+      IsDeleted = true
+    } ;
+    _repository.Query().Returns( new List<AllowedEmail>
+    {
+      removed
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var entry = await sut.CreateAsync( "Back@Example.com", "returning", 9 ) ;
+
+    entry.Should().BeSameAs( removed ) ;
+    entry.Note.Should().Be( "returning" ) ;
+    entry.InvitedByUserId.Should().Be( 9 ) ;
+    _repository.Received( 1 ).Restore( removed ) ;
+    await _repository.DidNotReceive().AddAsync( Arg.Any<AllowedEmail>() ) ;
+    await _repository.Received( 1 ).SaveAsync() ;
+  }
 }

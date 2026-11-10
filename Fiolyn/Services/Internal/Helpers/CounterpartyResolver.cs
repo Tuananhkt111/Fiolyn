@@ -42,7 +42,11 @@ internal static class CounterpartyResolver
     }
 
     var loweredKeys = trimmedByLowered.Keys.ToHashSet() ;
+    // Deleted contacts are included: the unique (AppUserId, LOWER(Name)) index covers them, so a
+    // name that only a deleted contact holds is restored, not staged as a new row (ADR 0024).
+    // The index allows one row per lowered name and user, so the dictionary keys are unique.
     var existing = ( await repository.Query()
+        .IgnoreQueryFilters()
         .Where( c => c.AppUserId == userId && loweredKeys.Contains( c.Name.ToLower() ) )
         .ToListAsync() )
       .ToDictionary( c => c.Name.ToLowerInvariant(), c => c ) ;
@@ -52,6 +56,11 @@ internal static class CounterpartyResolver
     {
       if ( existing.TryGetValue( lowered, out var found ) )
       {
+        if ( found.IsDeleted )
+        {
+          repository.Restore( found ) ; // staged like an insert: the leaf's single save commits it
+        }
+
         result[ trimmed ] = found ;
         continue ;
       }

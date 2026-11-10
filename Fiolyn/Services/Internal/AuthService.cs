@@ -32,8 +32,15 @@ public class AuthService(
       throw new ForbiddenAccessException( "This email is not authorized to sign in." ) ;
     }
 
+    // Deleted users are looked up too: the unique Email/GoogleSub indexes cover them, and an admin's
+    // delete must hold even while the address is still whitelisted (ADR 0024).
     var user = await userRepository.Query()
+      .IgnoreQueryFilters()
       .FirstOrDefaultAsync( u => u.GoogleSub == payload.Sub || u.Email == normalizedEmail ) ;
+    if ( user is { IsDeleted: true } )
+    {
+      throw new ForbiddenAccessException( "This account has been deleted." ) ;
+    }
 
     if ( user is null )
     {
