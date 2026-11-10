@@ -2,7 +2,7 @@
 
 Profile reads, Telegram-ID linking and admin user management are in place. Two v1.0 statements do not match the code: `PATCH /api/users/me` edits only the display name (email is not editable, so the 409 email-conflict path does not exist), and `DELETE /api/users/me/telegram-id` returns 200 with the profile, not 204. Git shows both behaviours date from the first commits for these endpoints (`cdf57e4`, 2026-04-20 and `95cc427`, 2026-04-25) and no file in this module changed after v1.0 was written (2026-09-16). So v1.0 misdescribed them; the code did not move.
 
-**Verdict:** 2 of 4 stories match; partial in US-06 (email not editable); drift in US-07 (unlink returns 200).
+**Verdict:** 4 of 4 stories match against Rev 3. Rev 2 was partly wrong for US-06 (email is not editable) and US-07 (unlink returns 200).
 
 ## US-05 — View my profile
 
@@ -25,15 +25,15 @@ Profile reads, Telegram-ID linking and admin user management are in place. Two v
 
 **Tests:** `UserControllerTests.UpdateMeAsync_DelegatesCallerIdAndReturns200`, `UserServiceTests.UpdateDisplayNameAsync_UpdatesAndSaves`
 
-**Verdict: Partly.** Display name edits work and `IsAdmin` is not editable, but email cannot be changed, so AC2 has no code path.
+**Verdict: Matches** against Rev 3. Rev 2 said email was editable, so its AC2 had no code path; Rev 3 removes it.
 
 | Criterion (v1.0) | Today | Evidence |
 |---|---|---|
-| AC1 · Editing display name / email → 200 with updated values | Differs: display name only. `UpdateMeRequest` has a single `DisplayName` field; the service sets only `DisplayName`. Unchanged since `cdf57e4` (2026-04-20). | `Fiolyn/Controllers/DTOs/Requests/User/UpdateMeRequest.cs:8-9`, `Fiolyn/Controllers/UserController.cs:33-37`, `Fiolyn/Services/Internal/UserService.cs:28-35` |
-| AC2 · Changing email to one already used → 409 | Missing. No endpoint changes `AppUser.Email` after creation (only Google login reconciles it). | `Fiolyn/Controllers/DTOs/Requests/User/UpdateMeRequest.cs:8-9`, `Fiolyn/Services/Internal/AuthService.cs:54` |
+| AC1 · Editing display name / email → 200 with updated values | Differs: display name only. `UpdateMeRequest` has a single `DisplayName` field; the service sets only `DisplayName`. Unchanged since `cdf57e4` (2026-04-20). Corrected in Rev 3. | `Fiolyn/Controllers/DTOs/Requests/User/UpdateMeRequest.cs:8-9`, `Fiolyn/Controllers/UserController.cs:33-37`, `Fiolyn/Services/Internal/UserService.cs:28-35` |
+| AC2 · Changing email to one already used → 409 | Missing. No endpoint changes `AppUser.Email` after creation (only Google login reconciles it). Corrected in Rev 3. | `Fiolyn/Controllers/DTOs/Requests/User/UpdateMeRequest.cs:8-9`, `Fiolyn/Services/Internal/AuthService.cs:54` |
 | AC3 · A user cannot change their own `IsAdmin` here | Holds. `UpdateMeRequest` has no `IsAdmin`. | `Fiolyn/Controllers/DTOs/Requests/User/UpdateMeRequest.cs:8-9` |
 | BR · Email uniqueness enforced; email normalized | Not applicable on this endpoint (email not editable). The unique index and normalizing setter exist on `AppUser`. | `Fiolyn/Entities/AppUser.cs:10`, `:29` |
-| Profile Fields Reference · Email "✓ (via PATCH /me)" | Differs: Email is not user-editable. | `Fiolyn/Controllers/DTOs/Requests/User/UpdateMeRequest.cs:8-9` |
+| Profile Fields Reference · Email "✓ (via PATCH /me)" | Differs: Email is not user-editable. Corrected in Rev 3. | `Fiolyn/Controllers/DTOs/Requests/User/UpdateMeRequest.cs:8-9` |
 | Not in v1.0 · A user-set display name survives the next login? | No. Login overwrites `DisplayName` whenever Google sends a name. | `Fiolyn/Services/Internal/AuthService.cs:56` |
 
 ## US-07 — Link / unlink my Telegram ID
@@ -42,13 +42,13 @@ Profile reads, Telegram-ID linking and admin user management are in place. Two v
 
 **Tests:** `UserControllerTests.SetMyTelegramIdAsync_DelegatesCallerIdAndReturns200`, `UserControllerTests.ClearMyTelegramIdAsync_DelegatesCallerIdWithNullAndReturns200`, `UserServiceTests.UpdateTelegramIdAsync_SetsAndSaves`, `UserServiceTests.UpdateTelegramIdAsync_NullClearsAndSkipsUniquenessCheck`, `UserServiceTests.UpdateTelegramIdAsync_TakenByOtherUser_ThrowsConflictAndDoesNotSave`, `UserServiceTests.UpdateTelegramIdAsync_RaceLost_UniqueViolationMappedToConflict`, `UserServiceTests.UpdateTelegramIdAsync_SelfReassign_IsNotAConflict`, `TelegramMessageServiceTests.ProcessWebhookAsync_TelegramIdNotLinked_ReturnsSkippedAndDoesNotCallNotion`
 
-**Verdict: Drifted.** Linking and the 409 work, but unlinking returns 200 with the profile body, not 204 (since `95cc427`, 2026-04-25).
+**Verdict: Matches** against Rev 3. Rev 2 said unlinking returns 204; it returns 200 with the profile (since `95cc427`, 2026-04-25).
 
 | Criterion (v1.0) | Today | Evidence |
 |---|---|---|
 | AC1 · Linking an unused Telegram ID → 200/204; user can ingest via Telegram | Holds. Returns 200 with `UserResponse`; the webhook resolves the sender by `AppUser.TelegramId`. | `Fiolyn/Controllers/UserController.cs:43-47`, `Fiolyn/Services/External/Telegram/TelegramMessageService.cs:38-44` |
 | AC2 · Linking an ID used by another user → 409 | Holds. Pre-check plus Postgres `23505` both map to `ConflictException`. | `Fiolyn/Services/Internal/UserService.cs:53-60`, `:69-73`, `Fiolyn/Entities/AppUser.cs:12` |
-| AC3 · Clearing the ID → 204; future messages from that ID ignored | Differs: returns **200** with `UserResponse`, not 204. The "ignored" part holds: an unlinked sender is skipped as "User not allowed". | `Fiolyn/Controllers/UserController.cs:53-57`, `Fiolyn/Services/External/Telegram/TelegramMessageService.cs:38-44` |
+| AC3 · Clearing the ID → 204; future messages from that ID ignored | Differs: returns **200** with `UserResponse`, not 204. The "ignored" part holds: an unlinked sender is skipped as "User not allowed". Corrected in Rev 3. | `Fiolyn/Controllers/UserController.cs:53-57`, `Fiolyn/Services/External/Telegram/TelegramMessageService.cs:38-44` |
 | BR · `TelegramId` is the Telegram whitelist | Holds. | `Fiolyn/Entities/AppUser.cs:61`, `Fiolyn/Services/External/Telegram/TelegramMessageService.cs:38-44` |
 | BR · Duplicate surfaces as 409, race-safe via unique index | Holds. | `Fiolyn/Entities/AppUser.cs:12`, `Fiolyn/Services/Internal/UserService.cs:69-73` |
 
