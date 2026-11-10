@@ -1,6 +1,6 @@
 # 0020 — Story-to-code links are written down and checked by docs-lint
 
-**Date:** 2026-11-10 · **Status:** Accepted
+**Date:** 2026-11-10 · **Status:** Withdrawn by [0023](0023-frs-v1-1-withdrawn.md) (2026-11-10)
 
 ## Context
 

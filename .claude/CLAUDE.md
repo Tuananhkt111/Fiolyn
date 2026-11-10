@@ -14,7 +14,7 @@ Fiolyn is a .NET 10 web API with two front doors, both writing to one ledger:
 
 **Stack:** C# 14 on .NET 10 · EF Core 10 · Neon PostgreSQL · Northflank (Docker) · GitHub Actions → GHCR · Notion · Telegram Bot API · Google Sign-In · xUnit · NSubstitute · FluentAssertions
 
-**Layout:** `Fiolyn/` (app) · `Fiolyn.Tests/` (tests) · `docs/` (see [Documentation](#documentation)) · `planning/` (transient working material, not documentation) · `FRS/` (FRS v1.1 analysis, a snapshot at `6c3c953`, not documentation)
+**Layout:** `Fiolyn/` (app) · `Fiolyn.Tests/` (tests) · `docs/` (see [Documentation](#documentation)) · `planning/` (transient working material, not documentation)
 
 ---
 
@@ -103,7 +103,7 @@ Turning a requirement — an FRS extract, a feature request, a bug report — in
 
 Working material from phases 1–3 is transient wherever it is written and never lands in the repo. The durable outputs are the code, the reference update and the ADR. (`docs/` once held ten `PLAN_*.md` files that outlived their moment and rotted into contradictory pseudo-specs.)
 
-**1 · Scope.** Map the requirement onto the [routing table](#read-the-matching-rule-before-your-first-edit-in-an-area). Name every area it touches, including ones it only reads from. For FRS work, check `FRS/README.md` → "Open questions, ranked": Modules 3–7 are not specified while a High question is open (ADR 0021).
+**1 · Scope.** Map the requirement onto the [routing table](#read-the-matching-rule-before-your-first-edit-in-an-area). Name every area it touches, including ones it only reads from.
 
 **2 · Load — before proposing any steps.** Read `docs/rules/*` for each area in scope, plus `docs/reference/*.md` for behaviour that already exists. This is the phase that produces consistent code, and it only works before the design is fixed: the rules constrain what can be built, they are not a style pass applied afterwards. Finish able to state the invariants the change must not break — and if a rule forbids the obvious approach, raise it now rather than after the code is written.
 
@@ -127,8 +127,7 @@ Working material from phases 1–3 is transient wherever it is written and never
   | Behaviour | the matching `docs/reference/*.md` |
   | A project-wide pattern | `docs/rules/*` **and** this file (per `feedback_update_claude_md`) |
   | A decision flagged in phase 3 | a **new** `docs/decisions/NNNN-*.md` — never edit a merged ADR, supersede it |
-  | Code for an FRS story (US-nn) | its `**Code:**` line in `FRS/module-*.md`, and `[Trait( "Story", "US-nn" )]` on its tests (ADR 0020) |
 
   Nothing else needs touching. Adding a leaf service, a DTO or a test changes no doc.
 
-  Then run `bash scripts/docs-lint.sh` — map completeness, ADR index, cross-layer pointers, every link and `#anchor`, frozen counts, FRS story code links. It must pass before committing.
+  Then run `bash scripts/docs-lint.sh` — map completeness, ADR index, cross-layer pointers, every link and `#anchor`, frozen counts. It must pass before committing.

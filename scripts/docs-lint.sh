@@ -8,8 +8,6 @@
 #   4. every rule doc points back at its reference / ADR
 #   5. every relative link and #anchor resolves
 #   6. no count is frozen into prose
-#   7. every class an FRS story lists under **Code:** is still declared under Fiolyn/,
-#      and every such story has at least one test tagged [Trait( "Story", "US-nn" )]
 #
 # Content quality is not checkable here — that is what review is for. This only
 # catches the structural drift that always happens silently.
@@ -126,33 +124,6 @@ if [ -n "$hits" ] ; then
 else
   report OK "no counts frozen into prose"
 fi
-
-# ------------------------------------------------------ 7. story code links
-
-section "Story code links — FRS/"
-# One "<file> <story> <name>" line per name in a **Code:** line, the story taken from the
-# nearest '## US-nn' heading above it. The trailing "tests tagged ..." clause is not a name.
-links="$( awk '
-  /^## US-[0-9]+/ { match( $0, /US-[0-9]+/ ) ; story = substr( $0, RSTART, RLENGTH ) }
-  /^\*\*Code:\*\*/ {
-    line = $0 ; sub( / · tests tagged.*/, "", line )
-    while ( match( line, /`[A-Za-z_][A-Za-z0-9_]*`/ ) ) {
-      print FILENAME, story, substr( line, RSTART + 1, RLENGTH - 2 )
-      line = substr( line, RSTART + RLENGTH )
-    }
-  }' FRS/*.md 2> /dev/null )"
-n=0
-while read -r file story name ; do
-  [ -n "$name" ] || continue
-  n=$(( n + 1 ))
-  git grep -qE "(class|record|interface|enum|struct)[[:space:]]+${name}([^A-Za-z0-9_]|\$)" -- 'Fiolyn/' \
-    || report FAIL "$file ($story): \`$name\` is no longer declared under Fiolyn/"
-done <<< "$links"
-for story in $( printf '%s\n' "$links" | awk 'NF { print $2 }' | sort -u ) ; do
-  git grep -qF "[Trait( \"Story\", \"$story\" )]" -- 'Fiolyn.Tests/' \
-    || report FAIL "$story has a Code: list but no test tagged [Trait( \"Story\", \"$story\" )]"
-done
-report OK "$n story code links checked"
 
 # ------------------------------------------------------------------- verdict
 
