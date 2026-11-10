@@ -1,14 +1,39 @@
 name: Deploy
 
+# Every push to master and every pull request into it runs `verify`.
+# Only a push to master deploys, and only after `verify` passes.
 on:
   push:
+    branches: [master]
+  pull_request:
     branches: [master]
 
 env:
   IMAGE_NAME: ghcr.io/tuananhkt111/fiolyn
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET (version from global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Test
+        run: dotnet test Fiolyn.sln -c Release
+
+      - name: Docs lint
+        run: bash scripts/docs-lint.sh
+
   build-and-deploy:
+    needs: verify
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
