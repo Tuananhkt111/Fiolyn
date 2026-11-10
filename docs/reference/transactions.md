@@ -28,6 +28,9 @@ therefore skips the `[Range(1, …)]` validation.
 | Adjustment | as supplied (signed) |
 | Stock | Buy −, Sell/Dividend + |
 
+`description` is optional on every leaf. Leaving it out or sending `null` stores an empty string,
+and a PUT without it clears the old one.
+
 ### Stock totals
 
 The unsigned trade total is not a stored column — it is `Math.Abs(Amount)` on the way out.
@@ -116,4 +119,6 @@ There is no balance-edit endpoint on spend accounts.
 ## Tests
 
 One `*ServiceTests` class per leaf under `Fiolyn.Tests/Unit/Services/`, plus
-`TransactionReadServiceTests` for the unified read.
+`TransactionReadServiceTests` for the unified read. `Integration/Api/TransactionAcceptanceTests`
+drives the criteria the controller decides (sign, `[Range]`, symbol case, an omitted description)
+through the real pipeline, and `Integration/Data/ConcurrencyRaceTests` races two balance writes.

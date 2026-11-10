@@ -9,7 +9,7 @@ No reference-doc twin — this is implementation rules only.
 
 Stack: xUnit · NSubstitute · FluentAssertions · MockQueryable. `Xunit` and `Fiolyn.Common.Pagination` are global usings — don't re-import them.
 
-Layout: `Unit/Services/`, `Unit/Controllers/`, `Unit/Common/`, `Integration/Data/`, `Helpers/`. One test class per production class, named `<ClassName>Tests`.
+Layout: `Unit/Services/`, `Unit/Controllers/`, `Unit/Common/`, `Integration/Data/`, `Integration/Api/`, `Helpers/`. One test class per production class, named `<ClassName>Tests`.
 
 ## Stub `IRepository<T>.Query()` with `.BuildMock()`
 
@@ -58,6 +58,13 @@ Controller tests stub the service, not the query — use `Arg.Any<PaginationQuer
 ## Typed-HttpClient services
 
 Inject a real `HttpClient` wrapping `MockHttpMessageHandler` (`Helpers/`) rather than substituting `HttpClient` — it is not mockable. The handler records `LastRequest` and `LastRequestContent`, so assert the outgoing payload there.
+
+## API-level tests: when the pipeline decides
+
+Some outcomes are decided before a service runs: 401 and 403 from `[Authorize]` and the Admin policy, 400 from a request's `[Range]`, and the sign a controller gives an amount. Controller unit tests can't see any of these. Test them through `Integration/Helpers/FiolynApiFactory`, which hosts the real app on EF's in-memory provider: `As( user )` sends a token the app minted itself, `SeedAsync` and `QueryAsync` reach the same store. Read results back from the store or the API, never from the object you seeded. Keep service logic in unit tests: these boot the app ([0025](../decisions/0025-api-level-tests-on-the-real-pipeline.md)).
+
+- `Integration/Api/AuthorizationTests` lists the endpoints from `openapi.json` and decides which are admin-only from their paths. A new admin area outside `/api/admin/`, `/api/allowed-emails` and the admin `/api/users` routes needs its path added to that rule.
+- A real race: give each request its own context over one shared in-memory store, and make one finish while the other is between its read and its save (a `SaveChangesInterceptor` works). See `Integration/Data/ConcurrencyRaceTests`. The in-memory store has no rollback and doesn't enforce unique indexes, so what a loser leaves behind, and unique-violation races, still need a mocked exception or a relational provider.
 
 ## Simulating concurrency and conflicts
 

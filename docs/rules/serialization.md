@@ -25,6 +25,16 @@ This trips people up constantly. On a **DTO**, `[JsonPropertyName]` (System.Text
 
 Don't "standardise" one service onto the other stack without checking: the external parsers use `JsonDocument`/`TryGetProperty` against payloads that Fiolyn doesn't control, which is a different job from DTO binding.
 
+## A record's default value doesn't survive binding
+
+Newtonsoft builds a positional record through its constructor and passes `null` for any field the
+JSON leaves out. The default in the declaration (`string Description = ""`) is ignored. Sending
+`null` explicitly gives the same result. So a non-nullable `string` on a request can still arrive
+as `null`. Every client that leaves out an optional field then gets a 500 on save, because the
+column is `NOT NULL`. Normalise where the value lands: `TransactionBase.Description` turns `null`
+into `""` in its setter, with the `field` keyword. Don't rely on the record default, and don't mark
+the field `[Required]`, because it is optional in the contract.
+
 ## camelCase is automatic
 
 `CamelCasePropertyNamesContractResolver` is registered globally. Write DTO properties in PascalCase and let the resolver emit `brokerAccountId`. Never hand-name a JSON property to force casing.
