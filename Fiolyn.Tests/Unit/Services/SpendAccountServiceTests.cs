@@ -348,6 +348,7 @@ public class SpendAccountServiceTests
     var result = await sut.GetMembersAsync( 5, 10, new PaginationQuery() ) ;
 
     result.Items.Select( m => m.AppUserId ).Should().BeEquivalentTo( [10L, 20L] ) ;
+    _accountRepo.Received( 1 ).Query() ;
     _memberRepo.DidNotReceive().Query() ;
   }
 
@@ -652,5 +653,21 @@ public class SpendAccountServiceTests
 
     await act.Should().ThrowAsync<BadRequestException>() ;
     _accountRepo.DidNotReceive().SoftDelete( Arg.Any<SpendAccount>() ) ;
+  }
+
+  // docs/rules/access-control.md: a caller who isn't a member gets 404, even though the account exists
+  // and has members. (GetMembersAsync_Throws_WhenCallerIsNotMember seeds no account at all.)
+  [Fact]
+  public async Task GetMembersAsync_AccountExistsButCallerIsNotAMember_ThrowsKeyNotFound()
+  {
+    _accountRepo.Query().Returns( new List<SpendAccount>
+    {
+      BuildAccount( 5, [20, 30] )
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var act = () => sut.GetMembersAsync( 5, 10, new PaginationQuery() ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
   }
 }
