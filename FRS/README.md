@@ -5,7 +5,7 @@ How far the backend still matches `FRS_Fiolyn_v1.0.docx`, the spec of the system
 | | |
 |---|---|
 | **Spec** | `FRS_Fiolyn_v1.0.docx`, Rev 2, 2026-09-16 — "Baseline — documents the system as built" |
-| **Code** | `master` at `4aa72f7` (2026-11-10) |
+| **Code** | Checked against `master` at `4aa72f7` (2026-11-10); rows that #20–#23 changed are updated to `2c9b0e4`. `path:line` evidence in the other rows refers to `4aa72f7`. |
 | **Scope** | Backend stories US-01 … US-26 (Part I, Modules 1–9). The frontend stories FE-US-01 … FE-US-25 belong to the FiolynWeb repository and are out of scope here. |
 | **Method** | Each acceptance criterion and business rule was checked against the C# code and tests, with `path:line` evidence. Authority: code and `docs/reference/openapi.json`, then `docs/rules/`, then `docs/reference/`. Claims marked *inferred* were read from code but not run. |
 
@@ -16,6 +16,9 @@ only by a DTO move and a Swashbuckle version bump. Every difference below alread
 date, so in each case it is **v1.0 that describes the system wrongly**, or the code that has a
 defect v1.0 didn't notice.
 
+**Since the check, every code defect is fixed** (B1–B8, in #20–#23), and every criterion that had no
+test now has one (C, in #23). What is left is list A: places where v1.0 itself needs correcting.
+
 ## Verdicts
 
 | Module | Stories | Verdict |
@@ -25,7 +28,7 @@ defect v1.0 didn't notice.
 | [3 · Spend Accounts](module-3-spend-accounts.md) | US-09 – US-11 | US-10 differs (members are added by email; the last member can't be removed) |
 | [4 · Broker Accounts](module-4-broker-accounts.md) | US-12 – US-14 | All match (US-13 adds by email too) |
 | [5 · Transaction Categories](module-5-categories.md) | US-15 – US-16 | All match |
-| [6 · Transactions](module-6-transactions.md) | US-17 – US-21 | US-19 partly (transfer edit and delete need only one side's membership) |
+| [6 · Transactions](module-6-transactions.md) | US-17 – US-21 | All match (US-19 was partly; fixed in #20) |
 | [7 · Counterparties & Obligations](module-7-counterparties-obligations.md) | US-22 – US-23 | All match |
 | [8 · Income/Expense Shares](module-8-shares.md) | US-24 | Matches, with small undocumented edges |
 | [9 · Telegram Ingest & Notion](module-9-telegram-ingest.md) | US-25 – US-26 | US-26 differs (per-share dividends; `broker:` is required) |
@@ -46,41 +49,55 @@ The code is right and the spec should change.
   - the percentage is a `double`, not a 2-place decimal.
 - **Appendix A.1 preamble:** it points to FRS v1.1 for target designs. v1.1 was a draft that has been withdrawn, so this sentence should go.
 
-## B · Possible code defects (your call: fix the code, or accept and document)
+## B · Code defects
 
-| # | Finding | Severity | Status |
+| # | Finding | Severity | Fixed in |
 |---|---|---|---|
-| 1 | A member of only the destination account can edit or delete a transfer. Deleting it reverses the balance of a source account they aren't a member of. This contradicts v1.0 and `docs/reference/transactions.md` ("membership of **both**"). | High | Verified in code (`TransferTransactionService.cs:122-127`) |
-| 2 | `StockTransactionRequest` has no `[Range]` on `Quantity`, `Price` or `TotalAmount`, so a Buy with a negative total credits the account. This breaks the rule in `docs/rules/transactions.md` that request DTOs carry a positive magnitude. | High | Verified in code |
-| 3 | The unique indexes on whitelist emails, user email and Google id, counterparty names and category names also cover soft-deleted rows, while the services' pre-checks skip them. Re-adding a removed email, contact or category gives 409. Lend, borrow or shares naming a deleted contact, or a deleted user signing in again, probably gives 500. | Medium | Counterparty index verified; the effects are *inferred* |
-| 4 | Refreshing a token doesn't re-check the whitelist, so a user removed from it keeps access for up to 30 days. | Medium | *Inferred* |
-| 5 | Logout doesn't check that the refresh token belongs to the caller. | Low | *Inferred* |
-| 6 | `SpendAccountService.GetMembersAsync` checks membership in a separate query, against `docs/rules/access-control.md`. | Low | Reported |
-| 7 | A share percentage is range-checked by the DTO before the service rounds it, so 0.005 or 100.004 is rejected instead of rounded. | Low | Reported |
+| 1 | A member of only the destination account can edit or delete a transfer. Deleting it reverses the balance of a source account they aren't a member of. This contradicts v1.0 and `docs/reference/transactions.md` ("membership of **both**"). | High | #20 |
+| 2 | `StockTransactionRequest` has no `[Range]` on `Quantity`, `Price` or `TotalAmount`, so a Buy with a negative total credits the account. This breaks the rule in `docs/rules/transactions.md` that request DTOs carry a positive magnitude. | High | #21 |
+| 3 | The unique indexes on whitelist emails, user email and Google id, counterparty names and category names also cover soft-deleted rows, while the services' pre-checks skip them. Re-adding a removed email, contact or category gives 409. Lend, borrow or shares naming a deleted contact, or a deleted user signing in again, probably gives 500. | Medium | #22, ADR 0024 |
+| 4 | Refreshing a token doesn't re-check the whitelist, so a user removed from it keeps access for up to 30 days. | Medium | #20, ADR 0023 |
+| 5 | Logout doesn't check that the refresh token belongs to the caller. | Low | #20 |
+| 6 | `SpendAccountService.GetMembersAsync` checks membership in a separate query, against `docs/rules/access-control.md`. | Low | #20 |
+| 7 | A share percentage is range-checked by the DTO before the service rounds it, so 0.005 or 100.004 is rejected instead of rounded. | Low | #21 |
+| 8 | A transaction request without `description`, or with `null`, failed with 500 on every kind, though `openapi.json` marks the field optional. Newtonsoft passes `null` for a missing record parameter, and the column is NOT NULL. Found by the C tests. | Medium | #23 |
 
-The 500-instead-of-409 on a concurrent duplicate contact (found by the CounterpartyResolver tests) is the same family as #3.
+The 500-instead-of-409 on a concurrent duplicate contact (found by the CounterpartyResolver tests) is the same family as #3, and was fixed with it.
+
+**Open candidate, not verified:** an admin creating a spend account for an `AppUserId` that doesn't exist has no existence check, so the foreign key would fail at save and give 500 ([US-11](module-3-spend-accounts.md)). Admin-only, and read from the code, not run.
 
 ## C · Untested criteria
 
-- No test covers a 401 or 403 path: the admin policies and `[Authorize]`.
-- The Expense sign, delete-reversal outside shares, a stock symbol's case through the API, the stock category check, a transfer with `Amount < 1`, and obligations for a counterparty with both a lend and a borrow (US-23 AC2) have no tests.
-- Nothing races two requests against a real database; the concurrency tests simulate the exception.
+All covered in #23 ([ADR 0025](../docs/decisions/0025-api-level-tests-on-the-real-pipeline.md)):
+
+- **401 and 403:** `AuthorizationTests` sends real requests to every operation in `openapi.json`, through the auth pipeline.
+- **The criteria the controllers decide:** `TransactionAcceptanceTests` covers the Expense sign, delete reversal outside shares, stock symbol case, the stock category check and a transfer with `Amount < 1`.
+- **US-23 AC2:** `ObligationAggregationTests`.
+- **Races:** `ConcurrencyRaceTests` interleaves two refreshes and two balance writes over one store.
+
+Still not covered, because they need a relational database: what a race's loser leaves behind (EF's in-memory store has no rollback; two tests are skipped), and unique-index races (still simulated).
 
 ## v1.0 Appendix A — open questions today
 
-| # | Question | Today |
-|---|---|---|
-| 1 | Does a display name edited via `PATCH /me` survive the next Google login? | **The code answers it: no.** Google overwrites it on every login (`AuthService.cs:56`). |
-| 2 | Can a member leave a shared account? | Resolved in v1.0, and the code agrees: yes, unless they are the last member. |
-| 3 | Per-user custom categories? | Open. Categories are global. |
-| 4 | Admin view of obligations? | Open. There is no admin endpoint. |
-| 5 | Verify §4's data types against the code | Partly answered: every id and foreign key is `long`; the nullability is listed in the module files. |
-| 6 | Document the remaining endpoints to field level? | Open. |
-| 7 | A stable error-code catalogue? | Open. |
-| 8 | Real priorities and preconditions per story? | Open. The code can't answer it. |
-| 9 | Non-functional targets? | Open. |
+Ranked by what costs most to leave open: first what users or the frontend meet today, then what the
+spec needs, then feature ideas. The ranking is a recommendation; the decisions are the owner's.
+
+| Rank | # | Question | Today | Why this rank |
+|---|---|---|---|---|
+| 1 | 1 | Does a display name edited via `PATCH /me` survive the next Google login? | **The code answers it: no.** Google overwrites it on every login (`AuthService.cs:56`). | Google overwrites an edited display name at the next login, so `PATCH /me` looks broken to a user. A one-line decision: keep the user's edit, or drop the endpoint. |
+| 2 | 7 | A stable error-code catalogue? | Open. | The frontend can only branch on HTTP status: every 400, for example, has the same body. Any error code added later becomes a contract. |
+| 3 | 9 | Non-functional targets? | Open. | Without targets, nothing can say whether the API is fast or available enough, and no test can check it. |
+| 4 | 8 | Real priorities and preconditions per story? | Open. The code can't answer it. | Needed before v1.0 can plan work. Only the owner can answer it. |
+| 5 | 6 | Document the remaining endpoints to field level? | Open. | Mostly closed by reference: `docs/reference/openapi.json` is generated from the code and lists every field. v1.0 can point to it. |
+| 6 | 5 | Verify §4's data types against the code | Partly answered: every id and foreign key is `long`; the nullability is listed in the module files. | Mostly answered. The rest can be closed by pointing to `docs/reference/data-model.md` and the module files. |
+| 7 | 4 | Admin view of obligations? | Open. There is no admin endpoint. | A feature idea. No one needs it today. |
+| 8 | 3 | Per-user custom categories? | Open. Categories are global. | A feature idea with a large cost: the categories, their unique index and the admin endpoints would all change. |
+| 9 | 2 | Can a member leave a shared account? | Resolved in v1.0, and the code agrees: yes, unless they are the last member. | Answered. It can be removed from Appendix A. |
 
 ## Files
 
 One file per backend module, linked above. Each story lists the classes that implement it today
-(`**Code:**`) and the tests that cover it (`**Tests:**`).
+(`**Code:**`) and the tests that cover it (`**Tests:**`). Those two lines are kept current with the
+code, unlike the dated findings above. Every listed test carries `[Trait( "Story", "US-nn" )]`, and
+`scripts/docs-lint.sh` fails when a listed class is gone, or when the list and the tags disagree
+([ADR 0026](../docs/decisions/0026-frs-stories-linked-to-code-and-tests.md)).

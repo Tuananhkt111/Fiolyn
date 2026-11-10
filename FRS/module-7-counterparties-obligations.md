@@ -1,6 +1,6 @@
 # Module 7 — Counterparties & Obligations
 
-Each user keeps a private contact list. Lend and borrow rows point at it, and a rollup sums them per contact. The code still does what v1.0 describes for both stories. One edge case that v1.0 does not cover is noted under US-22: the unique index also covers soft-deleted contacts.
+Each user keeps a private contact list. Lend and borrow rows point at it, and a rollup sums them per contact. The code still does what v1.0 describes for both stories. One edge case that v1.0 does not cover is noted under US-22: the unique index also covers soft-deleted contacts. #22 handles it.
 
 **Verdict:** 2 of 2 stories match; no drift.
 
@@ -21,7 +21,7 @@ Each user keeps a private contact list. Lend and borrow rows point at it, and a 
 | Rule · Names are auto-trimmed | Holds. The entity setter trims, and the service trims before its checks. | `Fiolyn/Entities/Counterparty.cs:38-42`, `Fiolyn/Services/Internal/CounterpartyService.cs:39` |
 | Rule · GET (paged), GET/HEAD /{id} read the caller's own contacts | Holds. Every read filters on `AppUserId == userId`. The list is ordered by name and then id, and paged. | `Fiolyn/Services/Internal/CounterpartyService.cs:18-29`, `Fiolyn/Controllers/CounterpartyController.cs:23-48` |
 | Rule · Co-members can read the name; only the owner can rename or delete | Holds. Transaction reads eager-load the `Counterparty` nav. The `Counterparty` query filter is `!IsDeleted` only. Rename and delete go through `GetByIdForUserAsync`, which filters on the owner. | `Fiolyn/Services/Internal/BaseServices/CounterpartyTransactionServiceBase.cs:50-51`, `Fiolyn/Services/Internal/TransactionReadService.cs:54-55`, `Fiolyn/Data/AppDbContext.cs:131`, `Fiolyn/Services/Internal/CounterpartyService.cs:27-29` |
-| Edge not covered by v1.0 · reusing the name of a soft-deleted contact | Not in v1.0. The unique index is not partial, so it includes soft-deleted rows, while the service pre-check and the resolver only see active rows. From the code: a POST with a deleted contact's name gets a `23505`, which maps to 409. A Lend/Borrow, or a share, that names only a deleted contact stages a new row and hits the same `23505`. That save path catches only `DbUpdateConcurrencyException`, so the error would surface as 500. This is not verified at runtime: no test covers it, and it has not been run against Postgres. | `Fiolyn/Data/Migrations/20260510023914_InitialCreate.cs:513-515`, `Fiolyn/Services/Internal/Helpers/CounterpartyResolver.cs:45-48`, `Fiolyn/Services/Internal/Helpers/TransactionBalanceWriter.cs:22-31` |
+| Edge not covered by v1.0 · reusing the name of a soft-deleted contact | Not in v1.0. The unique index is not partial, so it includes soft-deleted rows. Before #22, a POST with a deleted contact's name got 409, and a lend, borrow or share naming one got 500. Since #22 (ADR 0024), the deleted contact is restored instead: by the endpoint with the requested spelling, by the resolver as stored. A concurrent duplicate on the save path now maps to 409. | `CounterpartyService.CreateAsync`, `CounterpartyResolver`, `TransactionBalanceWriter` |
 
 ## US-23 — View obligations
 
@@ -29,12 +29,12 @@ Each user keeps a private contact list. Lend and borrow rows point at it, and a 
 
 **Tests:** `ObligationServiceTests.GetAllForUserAsync_AggregatesLendAndBorrowPerCounterparty`, `ObligationServiceTests.GetAllForUserAsync_OmitsCounterpartiesWithZeroBalances`, `ObligationAggregationTests.GetAllForUserAsync_LendExceedsBorrow_SumsEachSideAndNetIsPositive`, `ObligationAggregationTests.GetAllForUserAsync_BorrowExceedsLend_SumsEachSideAndNetIsNegative`, `ObligationAggregationTests.GetAllForUserAsync_LendEqualsBorrow_StillListedWithNetZero`, `ObligationAggregationTests.GetAllForUserAsync_CounterpartyWithNoTransactions_IsNotListed`, `ObligationAggregationTests.GetAllForUserAsync_LendOnly_ListedWithPayableZeroAndNetEqualToReceivable`, `ObligationAggregationTests.GetAllForUserAsync_BorrowOnly_ListedWithReceivableZeroAndNetNegativePayable`, `ObligationAggregationTests.GetAllForUserAsync_OtherUsersCounterpartiesAndSameNamedContact_AreExcluded`, `ObligationAggregationTests.GetAllForUserAsync_SoftDeletedLend_DoesNotCount`
 
-**Verdict: Matches.** All three criteria hold. No test covers AC2, where one counterparty has both a lend and a borrow.
+**Verdict: Matches.** All three criteria hold. AC2 and the omission rule are tested over a real context (#23).
 
 | Criterion (v1.0) | Today | Evidence |
 |---|---|---|
 | AC1 · One lend of N → Receivable N, Payable 0, Net +N | Holds. Receivable is the sum of `Math.Abs(Amount)` over the caller's lend rows, grouped by counterparty. | `Fiolyn/Services/Internal/ObligationService.cs:23-31`, `Fiolyn/Services/Internal/ObligationService.cs:68` |
-| AC2 · Offsetting lend and borrow → Net is the difference | Holds in code: `Net = receivable - payable`. No test covers a counterparty that has both kinds of row. | `Fiolyn/Services/Internal/ObligationService.cs:34-42`, `Fiolyn/Services/Internal/ObligationService.cs:68` |
+| AC2 · Offsetting lend and borrow → Net is the difference | Holds: `Net = receivable - payable`. `ObligationAggregationTests` covers positive, negative and zero Net with several rows per side (#23). | `Fiolyn/Services/Internal/ObligationService.cs:34-42`, `Fiolyn/Services/Internal/ObligationService.cs:68` |
 | AC3 · Counterparties with zero net activity are omitted | Holds as the business rule states it: a row is skipped only when receivable and payable are both 0. A counterparty whose lend and borrow cancel out (Net 0) is still listed. | `Fiolyn/Services/Internal/ObligationService.cs:63-66` |
 | Rule · Scoped to the caller | Holds. All three queries filter on the owner of the counterparty. | `Fiolyn/Services/Internal/ObligationService.cs:24`, `Fiolyn/Services/Internal/ObligationService.cs:35`, `Fiolyn/Services/Internal/ObligationService.cs:45` |
 | Rule · Share children already counted, no separate source | Holds. The rollup reads only the Lend and Borrowing tables, and those tables contain the share children. | `Fiolyn/Services/Internal/ObligationService.cs:20-31` |

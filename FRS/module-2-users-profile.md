@@ -15,7 +15,7 @@ Profile reads, Telegram-ID linking and admin user management are in place. Two v
 | Criterion (v1.0) | Today | Evidence |
 |---|---|---|
 | AC1 · Authenticated `GET /me` → 200 with the caller's fields | Holds. `UserResponse` carries email, display name, picture, Telegram ID and admin flag, plus `Id`, `LastLoginAt`, `Created`. | `Fiolyn/Controllers/UserController.cs:23-27`, `Fiolyn/Controllers/DTOs/Responses/User/UserResponse.cs` |
-| AC2 · Unauthenticated → 401 | Holds via class-level `[Authorize]`. No test covers the attribute. | `Fiolyn/Controllers/UserController.cs:17` |
+| AC2 · Unauthenticated → 401 | Holds via class-level `[Authorize]`. `AuthorizationTests` sends real requests through the auth pipeline (#23). | `Fiolyn/Controllers/UserController.cs:17` |
 | AC3 · A user can only read their own profile via `/me` | Holds. The id comes from `User.GetUserId()`; there is no id parameter. | `Fiolyn/Controllers/UserController.cs:26` |
 | BR · Cross-user reads are admin-only (US-08) | Holds. The only cross-user read is the admin list `GET /api/users`; there is no `GET /api/users/{id}`. | `Fiolyn/Controllers/UserController.cs:63-68` |
 
@@ -62,13 +62,13 @@ Profile reads, Telegram-ID linking and admin user management are in place. Two v
 
 | Criterion (v1.0) | Today | Evidence |
 |---|---|---|
-| AC1 · Non-admin on any admin user endpoint → 403 | Holds via per-action `Admin` policy on all five endpoints. No test covers the attributes. | `Fiolyn/Controllers/UserController.cs:64`, `:75`, `:86`, `:97`, `:108` |
+| AC1 · Non-admin on any admin user endpoint → 403 | Holds via per-action `Admin` policy on all five endpoints. `AuthorizationTests` sends real requests through the auth pipeline (#23). | `Fiolyn/Controllers/UserController.cs:64`, `:75`, `:86`, `:97`, `:108` |
 | AC2 · Admin promotes a user → that user's later tokens carry the admin claim | Holds. `PATCH /{id}` sets `IsAdmin`; the claim is read from `user.IsAdmin` at each token issue, including refresh. Existing access tokens keep the old claim until they expire. | `Fiolyn/Services/Internal/UserService.cs:38-45`, `Fiolyn/Services/Internal/JwtService.cs:37`, `Fiolyn/Services/Internal/AuthService.cs:100` |
 | AC3 · Admin links a Telegram ID already in use → 409 | Holds. Same service method as US-07. | `Fiolyn/Controllers/UserController.cs:85-90`, `Fiolyn/Services/Internal/UserService.cs:53-73` |
 | AC4 · Admin soft-deletes a user → excluded from active queries | Holds. `SoftDelete` plus the `AppUser` query filter; the member join rows of a deleted user are also filtered out. | `Fiolyn/Services/Internal/UserService.cs:81-86`, `Fiolyn/Data/AppDbContext.cs:122`, `:133` |
 | `GET /api/users` lists as `PagedResult` | Holds. | `Fiolyn/Services/Internal/UserService.cs:20-25` |
 | Admin unlink `DELETE /{id}/telegram-id` | Returns 200 with `UserResponse` (v1.0 gives no code). | `Fiolyn/Controllers/UserController.cs:96-101` |
-| Not in v1.0 · Soft-deleted user signs in again with Google | Not verified. The lookup skips soft-deleted rows, so login tries to insert a second `AppUser` with the same `Email`/`GoogleSub`; the unique indexes have no filter and `AuthService` does not catch `DbUpdateException`, which would give 500. Inferred from code; no test. Refresh for that user returns 401. | `Fiolyn/Services/Internal/AuthService.cs:35-51`, `:95-98`, `Fiolyn/Entities/AppUser.cs:10-11` |
+| Not in v1.0 · Soft-deleted user signs in again with Google | Since #22 (ADR 0024), refused with 403 and nothing is created: the lookup ignores the soft-delete filter, so it no longer tries to insert a duplicate (which gave 500). Refresh for that user returns 401. | `AuthService.LoginWithGoogleAsync`, `AuthService.RefreshAsync` |
 
 ---
 [← Module 1](module-1-authentication.md) · [Index](README.md) · [Module 3 →](module-3-spend-accounts.md)

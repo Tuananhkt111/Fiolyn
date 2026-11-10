@@ -1,6 +1,6 @@
 # Module 3 — Spend Accounts
 
-Spend-account CRUD, membership-scoped access and the admin twin all work as FRS v1.0 states. Member management differs from the v1.0 text: members are added by **email**, not user id; adding an existing member is a no-op; the last member cannot be removed (400); and the member list runs a separate membership check before the read rather than one combined query. Git shows these behaviours date from `62fdfbe` (2026-04-24) and `09655d5` (2026-05-10), and no file in this module changed after v1.0 was written (2026-09-16) except a DTO move (`87a56ab`). So v1.0 misdescribed member management; the code did not move after it.
+Spend-account CRUD, membership-scoped access and the admin twin all work as FRS v1.0 states. Member management differs from the v1.0 text: members are added by **email**, not user id; adding an existing member is a no-op; and the last member cannot be removed (400). The member list ran a separate membership check before the read; #20 made it one query. Git shows these behaviours date from `62fdfbe` (2026-04-24) and `09655d5` (2026-05-10), and no file in this module changed after v1.0 was written (2026-09-16) except a DTO move (`87a56ab`). So v1.0 misdescribed member management; the code did not move after it.
 
 **Verdict:** 2 of 3 stories match; drift in US-10 (add by email, last-member guard).
 
@@ -39,7 +39,7 @@ Spend-account CRUD, membership-scoped access and the admin twin all work as FRS 
 | Main flow · Adding a user who is already a member | Not in v1.0. Idempotent: returns the current list (200), no error. | `Fiolyn/Services/Internal/SpendAccountService.cs:123-126` |
 | Main flow · A member removes a member (including themselves) | Holds, with a guard not in v1.0: removing the **last** member → 400 "delete the account instead". | `Fiolyn/Services/Internal/SpendAccountService.cs:147-160` |
 | List members with email / display name | Holds. | `Fiolyn/Services/Internal/SpendAccountService.cs:90-96`, `Fiolyn/Controllers/DTOs/Responses/SpendAccount/SpendAccountMemberResponse.cs` |
-| BR · Caller-membership check baked into the same query that fetches/mutates membership | Differs for the list: `GetMembersAsync` runs a separate `AnyAsync` check, then a second query (since `09655d5`, 2026-05-10). Add and remove do it in one query. `docs/rules/access-control.md` states the one-query rule too. | `Fiolyn/Services/Internal/SpendAccountService.cs:82-96`, `:104-110`, `:142-145` |
+| BR · Caller-membership check baked into the same query that fetches/mutates membership | Holds since #20. `GetMembersAsync` used to run a separate `AnyAsync` check (since `09655d5`, 2026-05-10); it is now one query from the account. Add and remove already did it in one query. | `SpendAccountService.GetMembersAsync`, `AddMemberAsync`, `RemoveMemberAsync` |
 | BR · No invite/accept flow | Holds. | `Fiolyn/Controllers/SpendAccountController.cs:112-116` |
 | BR · Join rows hard-deleted | Holds. `SpendAccountMember` is not `ISoftDelete`; removal calls `Delete`. | `Fiolyn/Entities/SpendAccountMember.cs:13`, `Fiolyn/Services/Internal/SpendAccountService.cs:162` |
 
@@ -53,7 +53,7 @@ Spend-account CRUD, membership-scoped access and the admin twin all work as FRS 
 
 | Criterion (v1.0) | Today | Evidence |
 |---|---|---|
-| AC1 · Non-admin → 403 on all `/api/admin/spend-accounts` endpoints | Holds via class-level `Admin` policy. No test covers the attribute. | `Fiolyn/Controllers/AdminSpendAccountController.cs:17` |
+| AC1 · Non-admin → 403 on all `/api/admin/spend-accounts` endpoints | Holds via class-level `Admin` policy. `AuthorizationTests` sends real requests through the auth pipeline (#23). | `Fiolyn/Controllers/AdminSpendAccountController.cs:17` |
 | AC2 · Admin can read/modify accounts regardless of membership | Holds. Admin service methods have no membership filter. | `Fiolyn/Services/Internal/SpendAccountService.cs:167-215` |
 | GET (paged), GET /{id}, POST (`AdminSpendAccountCreateRequest`), PUT /{id}, DELETE /{id} | Holds. POST makes `AppUserId` the first member; PUT reuses `SpendAccountUpdateRequest` (no balance). `GET` also accepts an optional `?userId=` filter (not in v1.0). | `Fiolyn/Controllers/AdminSpendAccountController.cs:24-92`, `Fiolyn/Controllers/DTOs/Requests/SpendAccount/AdminSpendAccountCreateRequest.cs:9-13` |
 | Responses enriched with owner/member information | Holds for members (id, email, display name, joined-at). There is no separate owner field. | `Fiolyn/Controllers/DTOs/Responses/SpendAccount/AdminSpendAccountResponse.cs:8-27`, `Fiolyn/Services/Internal/SpendAccountService.cs:186-190` |
