@@ -48,10 +48,15 @@ public abstract class TransactionBase : IAuditable, ISoftDelete
   public DateTime Date { get ; set ; }
 
   /// <summary>
-  ///   Gets or sets the optional free-text description.
+  ///   Gets or sets the optional free-text description. Null becomes empty: the column is NOT NULL,
+  ///   and a request that omits the field binds it as null (Newtonsoft ignores a record's default).
   /// </summary>
   [MaxLength( 500 )]
-  public string Description { get ; set ; } = string.Empty ;
+  public string Description
+  {
+    get ;
+    set => field = value ?? string.Empty ;
+  } = string.Empty ;
 
   /// <summary>
   ///   Gets or sets the optional foreign key to the <see cref="AppUser" /> attributed as the payer.
