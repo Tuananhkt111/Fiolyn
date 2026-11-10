@@ -93,6 +93,10 @@ requirements analysis. It is deliberately outside the four layers and outside `d
 input to decisions, not a record of them. Nothing in `docs/` should link to it as a source of
 truth.
 
+`FRS/` at the repo root holds the conformance analysis of FRS v1.1 against the code at `6c3c953`:
+a dated snapshot, not kept in step with the code, and outside the four layers for the same reason
+([0019](decisions/0019-frs-analysis-committed-as-a-snapshot.md)).
+
 ## Regenerating `openapi.json`
 
 ```bash

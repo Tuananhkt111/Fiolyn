@@ -30,6 +30,7 @@ mark the old one superseded. The pre-commit hook enforces this: in a merged ADR,
 | [0016](0016-changed-line-coverage-reported-not-gated.md) | Changed-line coverage is reported before a PR, not gated | 2026-11-10 |
 | [0017](0017-tests-written-and-reviewed-apart-from-the-code.md) | Tests for a logic change are written and reviewed apart from the code | 2026-11-10 |
 | [0018](0018-pinned-skills-are-owner-typed.md) | Skills whose model pin matters are typed by the owner only | 2026-11-10 |
+| [0019](0019-frs-analysis-committed-as-a-snapshot.md) | The FRS v1.1 analysis is committed as a dated snapshot | 2026-11-10 |
 
 ## Writing a new one
 
