@@ -29,6 +29,8 @@ Every `UpdateAsync` (and the `SpendAccount` PUT) mutates the **already-tracked**
 
 Request DTOs carry a positive magnitude with `[Range(1, long.MaxValue)]`; the service or controller applies the sign. `AdjustmentTransaction` is the **only** leaf whose DTO takes a signed amount and therefore skips the `[Range]` attribute — don't copy that into a new leaf.
 
+`StockTransactionRequest` is the one exception to `[Range(1, …)]`: its `Quantity`, `Price` and `TotalAmount` take `[Range(0, long.MaxValue)]`, because a lump-sum dividend has no quantity or price and a per-share one ignores the total. The real guard is `StockTransactionService.EnsureValidTrade`, which also catches Telegram input — keep it in both `CreateAsync` and `UpdateAsync`.
+
 For stock, compute at the boundary with `StockTransaction.ComputeSignedAmount` (one call = `ResolveTradeTotal` + `ComputeAmount`) rather than chaining the two yourself.
 
 `StockTransaction.Symbol` uppercases itself in its setter — don't `ToUpperInvariant()` on assignment.

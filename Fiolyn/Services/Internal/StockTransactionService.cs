@@ -61,6 +61,7 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task<StockTransaction> CreateAsync( StockTransaction transaction, long userId )
   {
+    EnsureValidTrade( transaction ) ;
     var spendId = await brokerRepository.Query()
                     .Where( b => b.Id == transaction.BrokerAccountId
                                  && b.Members.Any( m => m.AppUserId == userId ) )
@@ -125,6 +126,7 @@ public partial class StockTransactionService(
   /// <inheritdoc />
   public async Task UpdateAsync( StockTransaction transaction, long userId )
   {
+    EnsureValidTrade( transaction ) ;
     // Outer null → transaction missing; NewSpendAccountId null → caller not a member of the new
     // broker. Both surface as 404.
     var newBrokerId = transaction.BrokerAccountId ;
@@ -248,6 +250,22 @@ public partial class StockTransactionService(
 
   [GeneratedRegex( @"(\w+):(.+?)(?=\s+\w+:|\s*$)" )]
   private static partial Regex NamedParamRegex() ;
+
+  // docs/rules/transactions.md: the sign is server-side. Quantity and price are never negative (a
+  // lump-sum dividend carries 0 for both), and once signed a Buy must debit and a Sell or Dividend
+  // must credit. Checked here and not only on the request DTO, because Telegram ingest builds the
+  // entity from parsed text and reaches CreateAsync too.
+  private static void EnsureValidTrade( StockTransaction transaction )
+  {
+    var signIsRight = transaction.StockTransactionType == StockTransactionType.Buy
+      ? transaction.Amount < 0
+      : transaction.Amount > 0 ;
+    if ( transaction.Quantity < 0 || transaction.Price < 0 || ! signIsRight )
+    {
+      throw new BadRequestException(
+        "Quantity, price and total must not be negative, and the total must be greater than zero." ) ;
+    }
+  }
 
   private async Task<StockTransaction?> ParseBuySellAsync( string text, string[] parts, string typeStr )
   {

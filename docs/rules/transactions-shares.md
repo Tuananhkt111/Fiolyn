@@ -25,7 +25,7 @@ Empty `shares` short-circuits to the base path — that branch is the one that m
 
 ## Keep the split in integer arithmetic
 
-Percentages carry 2 decimal places. `ValidateAndTrim` rounds to 2 decimals (half-away-from-zero) and scales to integer hundredths, so the split and the sum check stay exact:
+Percentages carry 2 decimal places. `ValidateAndTrim` rounds to 2 decimals (half-away-from-zero), range-checks the result against [0.01, 100], and scales to integer hundredths. That is the only range check: `TransactionShareRequest.Percentage` deliberately has no `[Range]`, which would reject values such as 0.005 before they are rounded. Scaling to hundredths means the split and the sum check stay exact:
 
 ```
 childAmount = sign * ( magnitude * hundredths / 10000 )

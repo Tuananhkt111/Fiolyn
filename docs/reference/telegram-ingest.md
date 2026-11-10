@@ -45,7 +45,8 @@ stock div  {symbol} {total}                [named...]     lump sum
 stock div  {symbol} {qty} {price}          [named...]     per-share
 ```
 
-All positional numbers are integers (whole VND, whole shares) — see
+All positional numbers are non-negative integers (whole VND, whole shares); a negative one, or a
+trade whose total comes out zero, is rejected as an error — see
 [0001](../decisions/0001-money-as-long-not-decimal.md).
 
 **Buy and sell** need all five positional values. `{total}` is the actual cash moved and is *not*

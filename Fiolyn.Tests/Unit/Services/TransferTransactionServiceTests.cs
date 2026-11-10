@@ -220,4 +220,90 @@ public class TransferTransactionServiceTests
     callers.Balance.Should().Be( 500_000L ) ;
     await _repository.DidNotReceive().SaveAsync() ;
   }
+
+  // docs/reference/transactions.md: reads stay visible to a member of the destination only, so
+  // incoming transfers show up for them. Only writes need membership of both accounts.
+  [Fact]
+  public async Task GetByIdForUserAsync_DestinationOnlyMember_StillSeesTheTransfer()
+  {
+    var source = BuildAccount( 5, [99] ) ;
+    var destination = BuildAccount( 6, [42] ) ;
+    var transfer = new TransferTransaction
+    {
+      Id = 7,
+      SpendAccountId = 5,
+      DestinationSpendAccountId = 6,
+      SpendAccount = source,
+      DestinationSpendAccount = destination,
+      Amount = 200_000L
+    } ;
+    _repository.Query().Returns( new List<TransferTransaction>
+    {
+      transfer
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetByIdForUserAsync( 7, 42 ) ;
+
+    result.Should().BeSameAs( transfer ) ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_ThrowsKeyNotFound_WhenRepointedToAnAccountTheCallerIsNotAMemberOf()
+  {
+    var source = BuildAccount( 5, [42], 800_000L ) ;
+    var destination = BuildAccount( 6, [42], 200_000L ) ;
+    var others = BuildAccount( 9, [99], 0L ) ;
+    _spendRepo.Query().Returns( new List<SpendAccount>
+    {
+      source,
+      destination,
+      others
+    }.BuildMock() ) ;
+    _spendRepo.GetByIdOrThrowAsync( 5L ).Returns( source ) ;
+    _spendRepo.GetByIdOrThrowAsync( 6L ).Returns( destination ) ;
+    _spendRepo.GetByIdOrThrowAsync( 9L ).Returns( others ) ;
+    _repository.Query().Returns( new List<TransferTransaction>
+    {
+      new()
+      {
+        Id = 7,
+        SpendAccountId = 5,
+        DestinationSpendAccountId = 6,
+        Amount = 200_000L
+      }
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var act = () => sut.UpdateAsync( new TransferTransaction
+    {
+      Id = 7,
+      SpendAccountId = 5,
+      DestinationSpendAccountId = 9,
+      Amount = 200_000L
+    }, 42 ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    others.Balance.Should().Be( 0L ) ;
+    destination.Balance.Should().Be( 200_000L ) ;
+    await _repository.DidNotReceive().SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_ThrowsKeyNotFound_WhenTransferDoesNotExist()
+  {
+    _repository.Query().Returns( new List<TransferTransaction>().BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var act = () => sut.UpdateAsync( new TransferTransaction
+    {
+      Id = 404,
+      SpendAccountId = 5,
+      DestinationSpendAccountId = 6,
+      Amount = 1L
+    }, 42 ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
+    await _repository.DidNotReceive().SaveAsync() ;
+  }
 }
