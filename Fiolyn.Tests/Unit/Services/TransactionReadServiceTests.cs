@@ -52,6 +52,7 @@ public class TransactionReadServiceTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-20" )]
   public async Task GetAllForUserAsync_ReturnsOwnedTransactions_OrderedByDateDesc()
   {
     var spend = BuildAccount( 5, [42] ) ;
@@ -95,6 +96,7 @@ public class TransactionReadServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-20" )]
   public async Task GetAllForUserAsync_IncludesStockRowsViaBrokerMembership()
   {
     var spend = BuildAccount( 5, [99] ) ;
@@ -124,6 +126,7 @@ public class TransactionReadServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-20" )]
   public async Task GetAllForUserAsync_IncludesTransfersViaDestinationMembership()
   {
     var source = BuildAccount( 5, [99] ) ;
@@ -150,6 +153,7 @@ public class TransactionReadServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task GetAllAsync_WithUserId_IncludesTransfersViaDestinationMembership()
   {
     var source = BuildAccount( 5, [99] ) ;

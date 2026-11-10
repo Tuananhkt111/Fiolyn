@@ -8,7 +8,7 @@ Google SSO login, refresh-token rotation, logout and the admin-managed email whi
 
 **Code:** `AuthController` · `AuthService` · `IAuthService` · `GoogleTokenVerifier` · `IGoogleTokenVerifier` · `GooglePayload` · `JwtService` · `IJwtService` · `AuthServiceRegister` · `AppUser` · `AllowedEmail` · `RefreshToken` · `GoogleLoginRequest` · `AuthResponse` · tests tagged `[Trait( "Story", "US-01" )]`
 
-**Tests:** `AuthServiceTests.LoginWithGoogleAsync_EmailNotWhitelisted_ThrowsForbidden`, `AuthServiceTests.LoginWithGoogleAsync_FirstLogin_CreatesNonAdminUser`, `AuthServiceTests.LoginWithGoogleAsync_ExistingUser_UpdatesProfileAndLoginTimestamp`, `AuthControllerTests.LoginWithGoogleAsync_Returns200WithTokens`, `GoogleTokenVerifierTests.VerifyAsync_EmptyToken_Throws`, `GoogleTokenVerifierTests.VerifyAsync_MalformedToken_ThrowsUnauthorized`, `JwtServiceTests.Ctor_MissingSigningKey_Throws`, `JwtServiceTests.Ctor_ShortSigningKey_Throws`, `JwtServiceTests.CreateAccessToken_IncludesExpectedClaims`, `JwtServiceTests.CreateRefreshToken_RawAndHashAreConsistent`
+**Tests:** `AuthServiceTests.LoginWithGoogleAsync_EmailNotWhitelisted_ThrowsForbidden`, `AuthServiceTests.LoginWithGoogleAsync_FirstLogin_CreatesNonAdminUser`, `AuthServiceTests.LoginWithGoogleAsync_ExistingUser_UpdatesProfileAndLoginTimestamp`, `AuthControllerTests.LoginWithGoogleAsync_Returns200WithTokens`, `GoogleTokenVerifierTests.VerifyAsync_EmptyToken_Throws`, `GoogleTokenVerifierTests.VerifyAsync_MalformedToken_ThrowsUnauthorized`, `JwtServiceTests.Ctor_MissingSigningKey_Throws`, `JwtServiceTests.Ctor_ShortSigningKey_Throws`, `JwtServiceTests.CreateAccessToken_IncludesExpectedClaims`, `JwtServiceTests.CreateRefreshToken_RawAndHashAreConsistent`, `AuthServiceTests.LoginWithGoogleAsync_SoftDeletedUser_Throws403AndCreatesNothing`, `SoftDeleteRestoreTests.Login_DeletedUserWithAWhitelistedEmail_IsRefusedAndNoUserIsCreated`, `AuthorizationTests.Anonymous_WithoutToken_IsNotRejectedWith401`
 
 **Verdict: Matches.** Login verifies the Google token, checks the whitelist, upserts the user and issues both tokens in one save.
 
@@ -29,7 +29,7 @@ Google SSO login, refresh-token rotation, logout and the admin-managed email whi
 
 **Code:** `AuthController` · `AuthService` · `IAuthService` · `JwtService` · `IJwtService` · `RefreshToken` · `RefreshTokenRequest` · `AuthResponse` · tests tagged `[Trait( "Story", "US-02" )]`
 
-**Tests:** `AuthServiceTests.RefreshAsync_ValidToken_RotatesAndReturnsNewPair`, `AuthServiceTests.RefreshAsync_RevokedTokenReplay_RevokesChainAndThrows`, `AuthServiceTests.RefreshAsync_ConcurrentRotation_LoserGets401_AndDoesNotKeepNewToken`, `AuthServiceTests.RefreshAsync_ExpiredToken_Throws`, `AuthServiceTests.RefreshAsync_UnknownToken_Throws`, `AuthServiceTests.RefreshAsync_SoftDeletedUser_Throws`, `AuthControllerTests.RefreshAsync_Returns200WithTokens`
+**Tests:** `AuthServiceTests.RefreshAsync_ValidToken_RotatesAndReturnsNewPair`, `AuthServiceTests.RefreshAsync_RevokedTokenReplay_RevokesChainAndThrows`, `AuthServiceTests.RefreshAsync_ConcurrentRotation_LoserGets401_AndDoesNotKeepNewToken`, `AuthServiceTests.RefreshAsync_ExpiredToken_Throws`, `AuthServiceTests.RefreshAsync_UnknownToken_Throws`, `AuthServiceTests.RefreshAsync_SoftDeletedUser_Throws`, `AuthControllerTests.RefreshAsync_Returns200WithTokens`, `AuthServiceTests.RefreshAsync_UserNoLongerWhitelisted_Throws401AndIssuesNoTokens`, `ConcurrencyRaceTests.Refresh_TwoConcurrentRequestsOnSameToken_ExactlyOneSucceedsAndLoserGets401`, `ConcurrencyRaceTests.Refresh_LosingRequest_LeavesNoActiveTokenBehind`
 
 **Verdict: Matches.** Rotation is atomic, replay and expiry give 401, and the concurrency guard is in place.
 
@@ -46,7 +46,7 @@ Google SSO login, refresh-token rotation, logout and the admin-managed email whi
 
 **Code:** `AuthController` · `AuthService` · `IAuthService` · `RefreshToken` · `RefreshTokenRequest` · tests tagged `[Trait( "Story", "US-03" )]`
 
-**Tests:** `AuthServiceTests.LogoutAsync_RevokesToken`, `AuthServiceTests.LogoutAsync_AlreadyRevoked_IsNoOp`, `AuthServiceTests.LogoutAsync_UnknownToken_Throws`, `AuthControllerTests.LogoutAsync_Returns204`
+**Tests:** `AuthServiceTests.LogoutAsync_RevokesToken`, `AuthServiceTests.LogoutAsync_AlreadyRevoked_IsNoOp`, `AuthServiceTests.LogoutAsync_UnknownToken_Throws`, `AuthControllerTests.LogoutAsync_Returns204`, `AuthServiceTests.LogoutAsync_TokenOwnedByAnotherUser_Throws401AndDoesNotRevoke`, `AuthorizationTests.Enumeration_FindsEndpointsAndEveryAdminGroup`, `AuthorizationTests.Protected_WithoutToken_Returns401`, `AuthorizationTests.Anonymous_WithoutToken_IsNotRejectedWith401`, `AuthorizationTests.AppRoutes_MatchOpenApiOperations`, `AuthorizationTests.Protected_TokenSignedWithWrongKey_Returns401`, `AuthorizationTests.Protected_ExpiredToken_Returns401`, `AuthorizationTests.Protected_WrongIssuerToken_Returns401`, `AuthorizationTests.Protected_WrongAudienceToken_Returns401`, `AuthorizationTests.Protected_ValidHandBuiltToken_IsAccepted`
 
 **Verdict: Matches.** Logout requires a bearer token, sets `RevokedAt` and returns 204.
 
@@ -61,7 +61,7 @@ Google SSO login, refresh-token rotation, logout and the admin-managed email whi
 
 **Code:** `AllowedEmailController` · `AllowedEmailService` · `IAllowedEmailService` · `AllowedEmail` · `AllowedEmailRequest` · `AllowedEmailResponse` · `AuthConstants` · `AuthService` · tests tagged `[Trait( "Story", "US-04" )]`
 
-**Tests:** `AllowedEmailServiceTests.CreateAsync_NormalizesEmailAndPersists`, `AllowedEmailServiceTests.CreateAsync_DuplicateEmail_Throws`, `AllowedEmailServiceTests.CreateAsync_RaceLost_UniqueViolationMappedToConflict`, `AllowedEmailServiceTests.SoftDeleteAsync_Existing_SoftDeletes`, `AllowedEmailServiceTests.SoftDeleteAsync_Missing_ThrowsKeyNotFound`, `AllowedEmailControllerTests.GetAllAsync_Returns200WithMappedList`, `AllowedEmailControllerTests.CreateAsync_Returns201WithInviterAttributed`, `AllowedEmailControllerTests.DeleteAsync_Returns204`
+**Tests:** `AllowedEmailServiceTests.CreateAsync_NormalizesEmailAndPersists`, `AllowedEmailServiceTests.CreateAsync_DuplicateEmail_Throws`, `AllowedEmailServiceTests.CreateAsync_RaceLost_UniqueViolationMappedToConflict`, `AllowedEmailServiceTests.SoftDeleteAsync_Existing_SoftDeletes`, `AllowedEmailServiceTests.SoftDeleteAsync_Missing_ThrowsKeyNotFound`, `AllowedEmailControllerTests.GetAllAsync_Returns200WithMappedList`, `AllowedEmailControllerTests.CreateAsync_Returns201WithInviterAttributed`, `AllowedEmailControllerTests.DeleteAsync_Returns204`, `AuthServiceTests.RefreshAsync_UserNoLongerWhitelisted_Throws401AndIssuesNoTokens`, `AllowedEmailServiceTests.CreateAsync_EmailOfARemovedEntry_RestoresItInsteadOfInserting`, `SoftDeleteRestoreTests.AllowedEmail_ReAddingARemovedAddress_RestoresTheSameRow`, `AuthorizationTests.AdminOnly_NonAdminToken_Returns403`, `AuthorizationTests.AdminOnly_AdminToken_IsNeitherUnauthorizedNorForbidden`
 
 **Verdict: Matches.** All four ACs hold; a removed email cannot be re-added through the API (not a v1.0 criterion).
 

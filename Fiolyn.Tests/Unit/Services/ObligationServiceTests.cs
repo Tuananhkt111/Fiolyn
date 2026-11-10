@@ -26,6 +26,7 @@ public class ObligationServiceTests
   private ObligationService CreateSut() => new(_counterpartyRepo, _lendRepo, _borrowingRepo) ;
 
   [Fact]
+  [Trait( "Story", "US-23" )]
   public async Task GetAllForUserAsync_AggregatesLendAndBorrowPerCounterparty()
   {
     var bob = new Counterparty
@@ -105,6 +106,7 @@ public class ObligationServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-23" )]
   public async Task GetAllForUserAsync_OmitsCounterpartiesWithZeroBalances()
   {
     var bob = new Counterparty

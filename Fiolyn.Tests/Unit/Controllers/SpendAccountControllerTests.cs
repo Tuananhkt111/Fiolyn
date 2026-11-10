@@ -73,6 +73,7 @@ public class SpendAccountControllerTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-09" )]
   public async Task CreateAsync_PassesCallerIdToService_AndReturns201()
   {
     SpendAccount? captured = null ;
@@ -92,6 +93,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-09" )]
   public async Task GetAllAsync_PassesUserIdToService()
   {
     _service.GetAllForUserAsync( 42, Arg.Any<PaginationQuery>() )
@@ -108,6 +110,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-09" )]
   public async Task GetByIdAsync_Missing_Returns404()
   {
     _service.GetByIdForUserAsync( 99, 7 ).Returns( ( SpendAccount? )null ) ;
@@ -119,6 +122,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-09" )]
   public async Task GetByIdAsync_Existing_Returns200()
   {
     _service.GetByIdForUserAsync( 10, 7 ).Returns( BuildEntity() ) ;
@@ -132,6 +136,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-09" )]
   public async Task UpdateAsync_Missing_Returns404()
   {
     _service.UpdateAsync( 99, 7, Arg.Any<string>(), Arg.Any<SpendAccountType>() )
@@ -144,6 +149,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-09" )]
   public async Task UpdateAsync_Existing_PassesScalarsToService_AndReturns200()
   {
     var updated = BuildEntity( name: "Renamed", type: SpendAccountType.Credit, balance: 1_000_000L ) ;
@@ -161,6 +167,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-09" )]
   public async Task DeleteAsync_Returns204()
   {
     var sut = CreateSut( 42 ) ;
@@ -172,6 +179,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-10" )]
   public async Task GetMembersAsync_Returns200WithMemberList()
   {
     _service.GetMembersAsync( 10, 7, Arg.Any<PaginationQuery>() )
@@ -188,6 +196,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-10" )]
   public async Task AddMemberAsync_PassesEmailToService_AndReturnsMemberList()
   {
     _service.AddMemberAsync( 10, 7, "target@example.com" ).Returns( [
@@ -205,6 +214,7 @@ public class SpendAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-10" )]
   public async Task RemoveMemberAsync_CallsServiceAndReturns204()
   {
     var sut = CreateSut( 42 ) ;

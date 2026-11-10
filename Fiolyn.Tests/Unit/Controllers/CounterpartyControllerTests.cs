@@ -33,6 +33,7 @@ public class CounterpartyControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task GetAllAsync_Returns200WithMappedList()
   {
     _service.GetAllForUserAsync( 7L, Arg.Any<PaginationQuery>() )
@@ -60,6 +61,7 @@ public class CounterpartyControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task GetByIdAsync_Returns404_WhenMissing()
   {
     _service.GetByIdForUserAsync( 99L, 7L ).Returns( ( Counterparty? )null ) ;
@@ -71,6 +73,7 @@ public class CounterpartyControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_Returns201WithMappedBody()
   {
     var entry = new Counterparty
@@ -90,6 +93,7 @@ public class CounterpartyControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task UpdateAsync_Returns404_WhenMissing()
   {
     _service.UpdateAsync( 5L, 7L, "Renamed" ).Returns( ( Counterparty? )null ) ;
@@ -101,6 +105,7 @@ public class CounterpartyControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task UpdateAsync_Returns200_OnSuccess()
   {
     _service.UpdateAsync( 5L, 7L, "Renamed" ).Returns( new Counterparty
@@ -119,6 +124,7 @@ public class CounterpartyControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task DeleteAsync_Returns204()
   {
     var sut = CreateSut() ;

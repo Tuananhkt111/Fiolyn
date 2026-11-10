@@ -38,6 +38,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-05" )]
   public async Task GetMeAsync_Returns200WithCallerProfile()
   {
     var user = new AppUser
@@ -58,6 +59,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-06" )]
   public async Task UpdateMeAsync_DelegatesCallerIdAndReturns200()
   {
     var user = new AppUser
@@ -79,6 +81,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-08" )]
   public async Task GetAllAsync_Returns200WithMappedList()
   {
     _userService.GetAllAsync( Arg.Any<PaginationQuery>() )
@@ -106,6 +109,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-08" )]
   public async Task SetAdminAsync_DelegatesAndReturns200()
   {
     var user = new AppUser
@@ -127,6 +131,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-08" )]
   public async Task DeleteAsync_Returns204()
   {
     var sut = CreateSut() ;
@@ -138,6 +143,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-07" )]
   public async Task SetMyTelegramIdAsync_DelegatesCallerIdAndReturns200()
   {
     var user = new AppUser
@@ -159,6 +165,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-07" )]
   public async Task ClearMyTelegramIdAsync_DelegatesCallerIdWithNullAndReturns200()
   {
     var user = new AppUser
@@ -180,6 +187,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-08" )]
   public async Task SetTelegramIdAsync_DelegatesToRouteIdAndReturns200()
   {
     var user = new AppUser
@@ -201,6 +209,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-08" )]
   public async Task ClearTelegramIdAsync_DelegatesToRouteIdWithNullAndReturns200()
   {
     var user = new AppUser

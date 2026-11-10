@@ -31,6 +31,7 @@ public class TelegramControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task PostAsync_ServiceReturnsSuccess_Returns200()
   {
     _messageService.ProcessWebhookAsync( Arg.Any<string>() ).Returns( ProcessResult.Success() ) ;
@@ -43,6 +44,7 @@ public class TelegramControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task PostAsync_ServiceReturnsSkipped_Returns200()
   {
     _messageService.ProcessWebhookAsync( Arg.Any<string>() ).Returns( ProcessResult.Skipped( "no text" ) ) ;
@@ -55,6 +57,7 @@ public class TelegramControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task PostAsync_ServiceReturnsError_Returns200()
   {
     _messageService.ProcessWebhookAsync( Arg.Any<string>() ).Returns( ProcessResult.Error( "crash" ) ) ;
@@ -67,6 +70,7 @@ public class TelegramControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task PostAsync_PassesRawBodyToService()
   {
     const string body = """{"message":{"from":{"id":1},"text":"raw body test"}}""" ;

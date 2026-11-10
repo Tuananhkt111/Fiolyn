@@ -43,6 +43,7 @@ public class TransferTransactionServiceTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-19" )]
   public async Task CreateAsync_DebitsSource_AndCreditsDestination()
   {
     var source = BuildAccount( 5, [42], 1_000_000L ) ;
@@ -70,6 +71,7 @@ public class TransferTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-19" )]
   public async Task CreateAsync_ThrowsBadRequest_WhenSourceEqualsDestination()
   {
     var sut = CreateSut() ;
@@ -85,6 +87,7 @@ public class TransferTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-19" )]
   public async Task CreateAsync_ThrowsKeyNotFound_WhenCallerIsNotMemberOfBoth()
   {
     var source = BuildAccount( 5, [42] ) ;
@@ -107,6 +110,7 @@ public class TransferTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-19" )]
   public async Task SoftDeleteAsync_ReversesBothLegs()
   {
     var source = BuildAccount( 5, [42], 800_000L ) ;
@@ -143,6 +147,7 @@ public class TransferTransactionServiceTests
   // v1.0 US-19 and docs/reference/transactions.md: a transfer requires membership of BOTH accounts.
   // Reads stay visible to a destination-only member; writes must not be possible for them.
   [Fact]
+  [Trait( "Story", "US-19" )]
   public async Task SoftDeleteAsync_ThrowsKeyNotFound_WhenCallerIsMemberOfDestinationOnly()
   {
     var source = BuildAccount( 5, [99], 800_000L ) ;
@@ -179,6 +184,7 @@ public class TransferTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-19" )]
   public async Task UpdateAsync_ThrowsKeyNotFound_WhenCallerIsNotMemberOfTheOriginalSource()
   {
     // Caller 42 belongs to the transfer's destination (6) and to account 7, but not to its source (5).
@@ -224,6 +230,7 @@ public class TransferTransactionServiceTests
   // docs/reference/transactions.md: reads stay visible to a member of the destination only, so
   // incoming transfers show up for them. Only writes need membership of both accounts.
   [Fact]
+  [Trait( "Story", "US-19" )]
   public async Task GetByIdForUserAsync_DestinationOnlyMember_StillSeesTheTransfer()
   {
     var source = BuildAccount( 5, [99] ) ;
@@ -249,6 +256,7 @@ public class TransferTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-19" )]
   public async Task UpdateAsync_ThrowsKeyNotFound_WhenRepointedToAnAccountTheCallerIsNotAMemberOf()
   {
     var source = BuildAccount( 5, [42], 800_000L ) ;
@@ -290,6 +298,7 @@ public class TransferTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-19" )]
   public async Task UpdateAsync_ThrowsKeyNotFound_WhenTransferDoesNotExist()
   {
     _repository.Query().Returns( new List<TransferTransaction>().BuildMock() ) ;

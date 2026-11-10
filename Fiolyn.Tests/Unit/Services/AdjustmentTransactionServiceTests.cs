@@ -42,6 +42,7 @@ public class AdjustmentTransactionServiceTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task CreateAsync_AcceptsNegativeDelta()
   {
     var account = BuildAccount( 5, [42], 1_000_000L ) ;
@@ -63,6 +64,7 @@ public class AdjustmentTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-17" )]
   public async Task CreateAsync_AcceptsPositiveDelta()
   {
     var account = BuildAccount( 5, [42], 1_000_000L ) ;

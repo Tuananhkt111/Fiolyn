@@ -46,6 +46,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task ProcessWebhookAsync_MissingMessageField_ReturnsSkipped()
   {
     var sut = CreateSut() ;
@@ -57,6 +58,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task ProcessWebhookAsync_MissingFromField_ReturnsSkipped()
   {
     var sut = CreateSut() ;
@@ -68,6 +70,8 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-07" )]
+  [Trait( "Story", "US-25" )]
   public async Task ProcessWebhookAsync_TelegramIdNotLinked_ReturnsSkippedAndDoesNotCallNotion()
   {
     SetupNoAllowedUsers() ;
@@ -81,6 +85,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task ProcessWebhookAsync_AllowedUserNoTextField_ReturnsSkipped()
   {
     SetupAllowedUser( 123L ) ;
@@ -93,6 +98,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task ProcessWebhookAsync_AllowedUserEmptyText_ReturnsSkipped()
   {
     SetupAllowedUser( 123L ) ;
@@ -105,6 +111,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task ProcessWebhookAsync_ValidMessage_ReturnsSuccessAndCallsNotion()
   {
     SetupAllowedUser( 123L ) ;
@@ -118,6 +125,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task ProcessWebhookAsync_InvalidJson_ReturnsError()
   {
     var sut = CreateSut() ;
@@ -129,6 +137,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task ProcessWebhookAsync_NotionThrows_ReturnsError()
   {
     SetupAllowedUser( 123L ) ;
@@ -143,6 +152,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ProcessWebhookAsync_StockMessage_CallsCreateAsyncWithCallerIdAndSkipsNotion()
   {
     SetupAllowedUser( 123L ) ;
@@ -169,6 +179,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ProcessWebhookAsync_StockMessage_CallerNotBrokerMember_ReturnsError()
   {
     SetupAllowedUser( 123L ) ;
@@ -196,6 +207,7 @@ public class TelegramMessageServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ProcessWebhookAsync_InvalidStockFormat_ReturnsError()
   {
     SetupAllowedUser( 123L ) ;

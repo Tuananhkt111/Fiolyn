@@ -88,6 +88,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task CreateAsync_AddsCreatorAsFirstMember_AndSaves()
   {
     SetupSpendAccount( 7, [42] ) ;
@@ -108,6 +109,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task CreateAsync_ThrowsKeyNotFound_WhenCallerIsNotMemberOfSpendAccount()
   {
     SetupSpendAccount( 7, [99] ) ;
@@ -125,6 +127,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task CreateAsync_ThrowsKeyNotFound_WhenSpendAccountIsMissingOrSoftDeleted()
   {
     SetupNoSpendAccounts() ;
@@ -142,6 +145,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task GetAllForUserAsync_FiltersByMembership()
   {
     List<BrokerAccount> accounts =
@@ -161,6 +165,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task GetAllForUserAsync_OrdersByName()
   {
     List<BrokerAccount> accounts =
@@ -178,6 +183,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task GetByIdForUserAsync_ReturnsAccount_WhenCallerIsMember()
   {
     List<BrokerAccount> accounts = [BuildAccount( 5, [10, 20] )] ;
@@ -191,6 +197,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task GetByIdForUserAsync_ReturnsNull_WhenCallerIsNotMember()
   {
     List<BrokerAccount> accounts = [BuildAccount( 5, [99] )] ;
@@ -203,6 +210,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task ExistsForUserAsync_True_WhenMember()
   {
     List<BrokerAccount> accounts = [BuildAccount( 5, [10] )] ;
@@ -213,6 +221,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task ExistsForUserAsync_False_WhenNotMember()
   {
     List<BrokerAccount> accounts = [BuildAccount( 5, [99] )] ;
@@ -223,6 +232,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task UpdateAsync_ReturnsNull_WhenCallerIsNotMember()
   {
     _accountRepo.Query().Returns( new List<BrokerAccount>
@@ -238,6 +248,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task UpdateAsync_DoesNotRevalidateSpendMembership_WhenSpendAccountIdUnchanged()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
@@ -257,6 +268,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task UpdateAsync_RevalidatesSpendMembership_AndRefetches_WhenSpendAccountIdChanges()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
@@ -275,6 +287,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task UpdateAsync_ThrowsKeyNotFound_WhenChangedSpendAccountIsNotMember()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
@@ -292,6 +305,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task AdminUpdateAsync_ReturnsNull_WhenMissing()
   {
     _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
@@ -304,6 +318,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task AdminUpdateAsync_RenameOnly_SkipsSpendAccountLookup_AndSaves()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
@@ -322,6 +337,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task AdminUpdateAsync_PropagatesKeyNotFound_WhenSpendAccountMissing()
   {
     var account = BuildAccount( 5, [10], spendAccountId: 7 ) ;
@@ -340,6 +356,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task SoftDeleteAsync_SoftDeletes_WhenCallerIsMember()
   {
     var account = BuildAccount( 5, [10] ) ;
@@ -356,6 +373,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-12" )]
   public async Task SoftDeleteAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     _accountRepo.Query().Returns( new List<BrokerAccount>
@@ -371,6 +389,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task GetMembersAsync_ReturnsMembersOrderedByJoinedAt_WhenCallerIsMember()
   {
     var account = BuildAccount( 5, [10, 20] ) ;
@@ -392,6 +411,7 @@ public class BrokerAccountServiceTests
   // docs/rules/access-control.md: GetMembersAsync bakes the caller-membership check into the query that
   // fetches the members, so there is no separate precondition round-trip against the member table.
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task GetMembersAsync_ChecksMembershipInTheSameQuery_NoSeparateMemberQuery()
   {
     var account = BuildAccount( 5, [10, 20] ) ;
@@ -412,6 +432,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task GetMembersAsync_Throws_WhenCallerIsNotMember()
   {
     _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
@@ -423,6 +444,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task AddMemberAsync_AddsNewMember_WhenTargetExists()
   {
     var account = BuildAccount( 5, [10] ) ;
@@ -445,6 +467,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task AddMemberAsync_NormalizesEmailBeforeLookup()
   {
     var account = BuildAccount( 5, [10] ) ;
@@ -465,6 +488,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task AddMemberAsync_IsIdempotent_WhenTargetIsAlreadyMember()
   {
     var account = BuildAccount( 5, [10, 20] ) ;
@@ -486,6 +510,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task AddMemberAsync_ThrowsKeyNotFound_WhenTargetEmailIsUnknown()
   {
     var account = BuildAccount( 5, [10] ) ;
@@ -503,6 +528,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task AddMemberAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
@@ -515,6 +541,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task RemoveMemberAsync_RemovesMember_WhenMultipleRemain()
   {
     var account = BuildAccount( 5, [10, 20, 30] ) ;
@@ -532,6 +559,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task RemoveMemberAsync_ThrowsBadRequest_WhenRemovingLastMember()
   {
     var account = BuildAccount( 5, [10] ) ;
@@ -548,6 +576,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task RemoveMemberAsync_ThrowsKeyNotFound_WhenTargetIsNotMember()
   {
     var account = BuildAccount( 5, [10, 20] ) ;
@@ -564,6 +593,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task RemoveMemberAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
@@ -575,6 +605,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task GetAllAsync_NoFilter_ReturnsAllAccountsOrderedByName()
   {
     List<BrokerAccount> accounts =
@@ -594,6 +625,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task GetAllAsync_WithUserIdFilter_ReturnsOnlyAccountsUserIsMemberOf()
   {
     List<BrokerAccount> accounts =
@@ -611,6 +643,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task GetByIdAsync_ReturnsAccount_RegardlessOfMembership()
   {
     var account = BuildAccount( 5, [99] ) ;
@@ -627,6 +660,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task GetByIdAsync_ReturnsNull_WhenNotFound()
   {
     _accountRepo.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
@@ -638,6 +672,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task AdminSoftDeleteAsync_SoftDeletes_WhenFound()
   {
     var account = BuildAccount( 5, [99] ) ;
@@ -651,6 +686,7 @@ public class BrokerAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task AdminSoftDeleteAsync_Propagates_KeyNotFoundException_FromRepository()
   {
     _accountRepo.GetByIdOrThrowAsync( 99L )
@@ -666,6 +702,7 @@ public class BrokerAccountServiceTests
   // docs/rules/access-control.md: a caller who isn't a member gets 404, even though the account exists
   // and has members. (GetMembersAsync_Throws_WhenCallerIsNotMember seeds no account at all.)
   [Fact]
+  [Trait( "Story", "US-13" )]
   public async Task GetMembersAsync_AccountExistsButCallerIsNotAMember_ThrowsKeyNotFound()
   {
     _accountRepo.Query().Returns( new List<BrokerAccount>

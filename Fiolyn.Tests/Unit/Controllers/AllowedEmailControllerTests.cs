@@ -38,6 +38,7 @@ public class AllowedEmailControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task GetAllAsync_Returns200WithMappedList()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>() )
@@ -63,6 +64,7 @@ public class AllowedEmailControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task CreateAsync_Returns201WithInviterAttributed()
   {
     var entry = new AllowedEmail
@@ -84,6 +86,7 @@ public class AllowedEmailControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task DeleteAsync_Returns204()
   {
     var sut = CreateSut() ;

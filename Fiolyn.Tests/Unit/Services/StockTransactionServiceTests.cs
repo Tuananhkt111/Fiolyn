@@ -81,6 +81,7 @@ public class StockTransactionServiceTests
   private void SetupNoBrokers() => _brokerRepository.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ParseMessageAsync_BuyMessage_ReturnsBuyTransaction()
   {
     SetupBroker( "VPS", 1L ) ;
@@ -101,6 +102,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ParseMessageAsync_SellMessage_ReturnsSellTransaction()
   {
     SetupBroker( "Fidelity", 2L ) ;
@@ -119,6 +121,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ParseMessageAsync_DividendMessage_ReturnsDividendTransaction()
   {
     SetupBroker( "VPS", 1L ) ;
@@ -137,6 +140,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ParseMessageAsync_PerShareDividend_ComputesTotalFromQuantityTimesPrice()
   {
     SetupBroker( "VPS", 1L ) ;
@@ -156,6 +160,7 @@ public class StockTransactionServiceTests
 
   // Every row names a broker that resolves, so only the format check can make the parse return null.
   [Theory]
+  [Trait( "Story", "US-26" )]
   [InlineData( "" )]
   [InlineData( "not a stock message broker:VPS" )]
   [InlineData( "stock broker:VPS" )]
@@ -180,6 +185,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ParseMessageAsync_BrokerLookup_IsCaseInsensitive()
   {
     SetupBrokers( ( "SSI", 5L ), ( "VPS", 1L ) ) ;
@@ -192,6 +198,7 @@ public class StockTransactionServiceTests
   }
 
   [Theory]
+  [Trait( "Story", "US-26" )]
   [InlineData( "STOCK BUY VNM 100 45000 4501500 broker:VPS", StockTransactionType.Buy, -4501500L )]
   [InlineData( "Stock Sell VNM 100 45000 4501500 broker:VPS", StockTransactionType.Sell, 4501500L )]
   [InlineData( "stock DIV VNM 500000 broker:VPS", StockTransactionType.Dividend, 500000L )]
@@ -209,6 +216,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ParseMessageAsync_NoDateOrNotes_DefaultsToUtcNowAndEmptyDescription()
   {
     SetupBroker( "VPS", 1L ) ;
@@ -223,6 +231,7 @@ public class StockTransactionServiceTests
   }
 
   [Theory]
+  [Trait( "Story", "US-26" )]
   [InlineData( "stock div VNM 500000 date:2026-04-14 broker:VPS", 0L, 0L, 500000L )]
   [InlineData( "stock div VNM 100 5000 notes:Q2 broker:VPS", 100L, 5000L, 500000L )]
   public async Task ParseMessageAsync_NamedParamAfterNumbers_EndsPositionalScan(
@@ -241,6 +250,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ParseMessageAsync_SenderNotMemberOfBroker_StillResolves()
   {
     // Resolution is global; membership is enforced later, in CreateAsync.
@@ -254,6 +264,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-26" )]
   public async Task ParseMessageAsync_BrokerNotFound_ReturnsNull()
   {
     SetupNoBrokers() ;
@@ -266,6 +277,7 @@ public class StockTransactionServiceTests
 
   // A broker named "VPS" exists, so null can only come from the missing broker: param.
   [Theory]
+  [Trait( "Story", "US-26" )]
   [InlineData( "stock buy VNM 100 45000 4501500" )]
   [InlineData( "stock buy VNM 100 45000 4501500 notes:VPS" )]
   [InlineData( "stock div VNM 500000 notes:VPS" )]
@@ -280,6 +292,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task CreateAsync_Buy_AppliesNegativeDelta_AndSaves()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
@@ -309,6 +322,7 @@ public class StockTransactionServiceTests
   // change in the wrong direction. Rows give the entity as the controller builds it: Amount is
   // already signed by StockTransaction.ComputeSignedAmount, so a negative Buy total arrives positive.
   [Theory]
+  [Trait( "Story", "US-18" )]
   [InlineData( StockTransactionType.Buy, 100L, 45000L, 4_501_500L )]
   [InlineData( StockTransactionType.Sell, 10L, 150L, -1_500L )]
   [InlineData( StockTransactionType.Dividend, 0L, 0L, -500_000L )]
@@ -344,6 +358,7 @@ public class StockTransactionServiceTests
   // Same rules on update. Seeded with a real member, broker and original row, so without the guard the
   // call would reach the balance write instead of failing for an unrelated reason.
   [Theory]
+  [Trait( "Story", "US-18" )]
   [InlineData( StockTransactionType.Buy, 100L, 45000L, 4_501_500L )]
   [InlineData( StockTransactionType.Sell, 10L, 150L, -1_500L )]
   [InlineData( StockTransactionType.Buy, -100L, 45000L, -4_501_500L )]
@@ -386,6 +401,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task CreateAsync_Sell_AppliesPositiveDelta()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
@@ -405,6 +421,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task CreateAsync_Dividend_AppliesPositiveDelta()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
@@ -424,6 +441,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task CreateAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     SetupBroker( "VPS", 1L, [99] ) ;
@@ -446,6 +464,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task GetAllForUserAsync_FiltersByBrokerMembership()
   {
     var userBroker = BuildBroker( 1, "VPS", [42] ) ;
@@ -478,6 +497,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task GetAllForUserAsync_WithSymbolFilter_FiltersSymbolAndMembership()
   {
     var broker = BuildBroker( 1, "VPS", [42] ) ;
@@ -509,6 +529,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task GetByIdForUserAsync_ReturnsTransaction_WhenCallerIsMember()
   {
     var broker = BuildBroker( 1, "VPS", [42] ) ;
@@ -533,6 +554,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task GetByIdForUserAsync_ReturnsNull_WhenCallerIsNotMember()
   {
     var broker = BuildBroker( 1, "VPS", [99] ) ;
@@ -555,6 +577,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task ExistsForUserAsync_True_WhenCallerIsMember()
   {
     var broker = BuildBroker( 1, "VPS", [42] ) ;
@@ -574,6 +597,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task ExistsForUserAsync_False_WhenCallerIsNotMember()
   {
     var broker = BuildBroker( 1, "VPS", [99] ) ;
@@ -593,6 +617,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_SameBroker_AppliesNetDelta()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
@@ -626,6 +651,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_SameBroker_NoChange_SkipsBalanceLoad()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
@@ -657,6 +683,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_BuyToSell_FlipsBalanceImpact()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
@@ -689,6 +716,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_BrokerChange_ReversesOldSpendAndAppliesNew()
   {
     var oldBroker = new BrokerAccount
@@ -743,6 +771,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_ThrowsKeyNotFound_WhenOriginalNotFound()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
@@ -763,6 +792,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     SetupBroker( "VPS", 1L, [99], 7 ) ;
@@ -797,6 +827,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task SoftDeleteAsync_ReversesDelta_AndSoftDeletes()
   {
     var broker = BuildBroker( 1, "VPS", [42], 7 ) ;
@@ -828,6 +859,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task SoftDeleteAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     var broker = BuildBroker( 1, "VPS", [99] ) ;
@@ -849,6 +881,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task AdminGetAllAsync_NoFilter_ReturnsAll()
   {
     var broker = BuildBroker( 1, "VPS", [42] ) ;
@@ -881,6 +914,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task AdminGetAllAsync_WithUserId_FiltersByMembership()
   {
     var userBroker = BuildBroker( 1, "VPS", [42] ) ;
@@ -911,6 +945,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task AdminGetByIdAsync_ReturnsTransaction_RegardlessOfMembership()
   {
     var broker = BuildBroker( 1, "VPS", [99] ) ;
@@ -932,6 +967,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task AdminSoftDeleteAsync_ReversesDelta_AndSoftDeletes()
   {
     var broker = BuildBroker( 1, "VPS", [], 7 ) ;
@@ -959,6 +995,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task AdminSoftDeleteAsync_ThrowsKeyNotFound_WhenMissing()
   {
     _repository.Query().Returns( new List<StockTransaction>().BuildMock() ) ;
@@ -971,6 +1008,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task CreateAsync_ThrowsConflict_WhenBalanceConcurrentlyModified()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
@@ -991,6 +1029,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task UpdateAsync_ThrowsConflict_WhenBalanceConcurrentlyModified()
   {
     SetupBroker( "VPS", 1L, [42], 7 ) ;
@@ -1024,6 +1063,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-18" )]
   public async Task SoftDeleteAsync_ThrowsConflict_WhenBalanceConcurrentlyModified()
   {
     var broker = BuildBroker( 1, "VPS", [42], 7 ) ;
@@ -1054,6 +1094,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task AdminSoftDeleteAsync_ThrowsConflict_WhenBalanceConcurrentlyModified()
   {
     var broker = BuildBroker( 1, "VPS", [], 7 ) ;
@@ -1080,6 +1121,7 @@ public class StockTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task AdminGetAllAsync_WithSymbolFilter_FiltersSymbol()
   {
     var broker = BuildBroker( 1, "VPS", [42] ) ;

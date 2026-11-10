@@ -35,6 +35,7 @@ public class NotionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task AppendAsync_SuccessResponse_DoesNotThrow()
   {
     var (sut, _) = CreateSut() ;
@@ -45,6 +46,7 @@ public class NotionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task AppendAsync_ErrorResponse_ThrowsInvalidOperationException()
   {
     var (sut, _) = CreateSut( HttpStatusCode.BadRequest, """{"message":"Bad Request"}""" ) ;
@@ -56,6 +58,7 @@ public class NotionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task AppendAsync_SendsPayloadWithDatabaseIdAndText()
   {
     var (sut, handler) = CreateSut() ;
@@ -70,6 +73,7 @@ public class NotionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-25" )]
   public async Task AppendAsync_SetsAuthorizationHeader()
   {
     var (sut, handler) = CreateSut() ;

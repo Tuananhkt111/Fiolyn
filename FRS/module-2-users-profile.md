@@ -8,7 +8,7 @@ Profile reads, Telegram-ID linking and admin user management are in place. Two v
 
 **Code:** `UserController` · `UserService` · `IUserService` · `UserResponse` · `AppUser` · `ClaimsPrincipalExtensions` · tests tagged `[Trait( "Story", "US-05" )]`
 
-**Tests:** `UserControllerTests.GetMeAsync_Returns200WithCallerProfile`, `UserServiceTests.GetByIdAsync_Missing_ThrowsKeyNotFound`
+**Tests:** `UserControllerTests.GetMeAsync_Returns200WithCallerProfile`, `UserServiceTests.GetByIdAsync_Missing_ThrowsKeyNotFound`, `AuthorizationTests.Enumeration_FindsEndpointsAndEveryAdminGroup`, `AuthorizationTests.Protected_WithoutToken_Returns401`, `AuthorizationTests.AppRoutes_MatchOpenApiOperations`, `AuthorizationTests.NonAdminEndpoint_NonAdminToken_IsNeitherUnauthorizedNorForbidden`
 
 **Verdict: Matches.** `GET /api/users/me` reads the caller id from the token and returns their profile.
 
@@ -56,7 +56,7 @@ Profile reads, Telegram-ID linking and admin user management are in place. Two v
 
 **Code:** `UserController` · `UserService` · `IUserService` · `UpdateRoleRequest` · `SetTelegramIdRequest` · `UserResponse` · `AppUser` · `JwtService` · `AuthConstants` · tests tagged `[Trait( "Story", "US-08" )]`
 
-**Tests:** `UserControllerTests.GetAllAsync_Returns200WithMappedList`, `UserControllerTests.SetAdminAsync_DelegatesAndReturns200`, `UserControllerTests.SetTelegramIdAsync_DelegatesToRouteIdAndReturns200`, `UserControllerTests.ClearTelegramIdAsync_DelegatesToRouteIdWithNullAndReturns200`, `UserControllerTests.DeleteAsync_Returns204`, `UserServiceTests.SetAdminAsync_TogglesFlag`, `UserServiceTests.SoftDeleteAsync_Existing_SoftDeletes`, `UserServiceTests.UpdateTelegramIdAsync_TakenByOtherUser_ThrowsConflictAndDoesNotSave`, `JwtServiceTests.CreateAccessToken_IncludesExpectedClaims`, `JwtServiceTests.CreateAccessToken_NonAdmin_SetsIsAdminFalse`
+**Tests:** `UserControllerTests.GetAllAsync_Returns200WithMappedList`, `UserControllerTests.SetAdminAsync_DelegatesAndReturns200`, `UserControllerTests.SetTelegramIdAsync_DelegatesToRouteIdAndReturns200`, `UserControllerTests.ClearTelegramIdAsync_DelegatesToRouteIdWithNullAndReturns200`, `UserControllerTests.DeleteAsync_Returns204`, `UserServiceTests.SetAdminAsync_TogglesFlag`, `UserServiceTests.SoftDeleteAsync_Existing_SoftDeletes`, `UserServiceTests.UpdateTelegramIdAsync_TakenByOtherUser_ThrowsConflictAndDoesNotSave`, `JwtServiceTests.CreateAccessToken_IncludesExpectedClaims`, `JwtServiceTests.CreateAccessToken_NonAdmin_SetsIsAdminFalse`, `AuthorizationTests.AdminOnly_NonAdminToken_Returns403`, `AuthorizationTests.AdminOnly_AdminToken_IsNeitherUnauthorizedNorForbidden`, `AuthorizationTests.NonAdminEndpoint_NonAdminToken_IsNeitherUnauthorizedNorForbidden`
 
 **Verdict: Matches.** All five admin endpoints exist behind the `Admin` policy and behave as stated.
 

@@ -18,6 +18,7 @@ public class TransactionCategoryControllerTests
   private TransactionCategoryController CreateSut() => new(_service) ;
 
   [Fact]
+  [Trait( "Story", "US-15" )]
   public async Task GetAllAsync_NoFilter_ReturnsAllCategories()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>() )
@@ -48,6 +49,7 @@ public class TransactionCategoryControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-15" )]
   public async Task GetAllAsync_WithKindFilter_PassesKindToService()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>(), TransactionKind.Expense )
@@ -69,6 +71,7 @@ public class TransactionCategoryControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-15" )]
   public async Task GetAllAsync_EmptyList_ReturnsEmptyArray()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>() )

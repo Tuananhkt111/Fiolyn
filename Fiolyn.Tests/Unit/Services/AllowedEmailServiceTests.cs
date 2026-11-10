@@ -29,6 +29,7 @@ public class AllowedEmailServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task CreateAsync_NormalizesEmailAndPersists()
   {
     SetupExisting() ;
@@ -44,6 +45,7 @@ public class AllowedEmailServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task CreateAsync_DuplicateEmail_Throws()
   {
     SetupExisting( "dup@example.com" ) ;
@@ -54,6 +56,7 @@ public class AllowedEmailServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task CreateAsync_RaceLost_UniqueViolationMappedToConflict()
   {
     // The pre-check passed (no row matched the normalized email yet) but a concurrent admin
@@ -74,6 +77,7 @@ public class AllowedEmailServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task SoftDeleteAsync_Missing_ThrowsKeyNotFound()
   {
     _repository.GetByIdOrThrowAsync( 99L ).ThrowsAsync( new KeyNotFoundException() ) ;
@@ -84,6 +88,7 @@ public class AllowedEmailServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task SoftDeleteAsync_Existing_SoftDeletes()
   {
     var entry = new AllowedEmail
@@ -103,6 +108,7 @@ public class AllowedEmailServiceTests
   // A removed whitelist entry stays as a soft-deleted row, and the unique index on Email still covers
   // it. Re-adding the address must bring that row back, not insert a second one the index refuses.
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task CreateAsync_EmailOfARemovedEntry_RestoresItInsteadOfInserting()
   {
     var removed = new AllowedEmail

@@ -27,6 +27,7 @@ public class AuthControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task LoginWithGoogleAsync_Returns200WithTokens()
   {
     var response = new AuthResponse( "access", "refresh", DateTime.UtcNow.AddMinutes( 15 ) ) ;
@@ -40,6 +41,7 @@ public class AuthControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_Returns200WithTokens()
   {
     var response = new AuthResponse( "access", "refresh", DateTime.UtcNow.AddMinutes( 15 ) ) ;
@@ -53,6 +55,7 @@ public class AuthControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-03" )]
   public async Task LogoutAsync_Returns204()
   {
     var sut = CreateSut() ;

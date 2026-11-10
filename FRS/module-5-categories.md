@@ -8,7 +8,7 @@
 
 **Code:** `TransactionCategoryController` · `TransactionCategoryService` · `ITransactionCategoryService` · `TransactionCategory` · `TransactionKind` · `TransactionCategoryResponse` · tests tagged `[Trait( "Story", "US-15" )]`
 
-**Tests:** `TransactionCategoryControllerTests.GetAllAsync_NoFilter_ReturnsAllCategories`, `TransactionCategoryControllerTests.GetAllAsync_WithKindFilter_PassesKindToService`, `TransactionCategoryControllerTests.GetAllAsync_EmptyList_ReturnsEmptyArray`, `TransactionCategoryServiceTests.GetAllAsync_FiltersByKind_WhenSpecified`
+**Tests:** `TransactionCategoryControllerTests.GetAllAsync_NoFilter_ReturnsAllCategories`, `TransactionCategoryControllerTests.GetAllAsync_WithKindFilter_PassesKindToService`, `TransactionCategoryControllerTests.GetAllAsync_EmptyList_ReturnsEmptyArray`, `TransactionCategoryServiceTests.GetAllAsync_FiltersByKind_WhenSpecified`, `AuthorizationTests.Enumeration_FindsEndpointsAndEveryAdminGroup`, `AuthorizationTests.Protected_WithoutToken_Returns401`, `AuthorizationTests.AppRoutes_MatchOpenApiOperations`
 
 **Verdict: Matches.** One authenticated, read-only, paged list endpoint with an optional `?kind=` filter.
 
@@ -24,7 +24,7 @@
 
 **Code:** `AdminTransactionCategoryController` · `TransactionCategoryService` · `TransactionCategory` · `TransactionCategoryCreateRequest` · `TransactionCategoryUpdateRequest` · `TransactionCategoryResponse` · `ConflictException` · tests tagged `[Trait( "Story", "US-16" )]`
 
-**Tests:** `AdminTransactionCategoryControllerTests.CreateAsync_Returns201_WithBody`, `AdminTransactionCategoryControllerTests.GetByIdAsync_Returns404_WhenMissing`, `AdminTransactionCategoryControllerTests.GetAllAsync_PassesKindFilter`, `TransactionCategoryServiceTests.CreateAsync_ThrowsConflict_WhenSameKindNameExists`, `TransactionCategoryServiceTests.CreateAsync_AllowsSameNameDifferentKind`, `TransactionCategoryServiceTests.UpdateAsync_RenamesButKeepsKind`, `TransactionCategoryServiceTests.SoftDeleteAsync_ProcessesAndSaves`
+**Tests:** `AdminTransactionCategoryControllerTests.CreateAsync_Returns201_WithBody`, `AdminTransactionCategoryControllerTests.GetByIdAsync_Returns404_WhenMissing`, `AdminTransactionCategoryControllerTests.GetAllAsync_PassesKindFilter`, `TransactionCategoryServiceTests.CreateAsync_ThrowsConflict_WhenSameKindNameExists`, `TransactionCategoryServiceTests.CreateAsync_AllowsSameNameDifferentKind`, `TransactionCategoryServiceTests.UpdateAsync_RenamesButKeepsKind`, `TransactionCategoryServiceTests.SoftDeleteAsync_ProcessesAndSaves`, `TransactionCategoryServiceTests.CreateAsync_NameOfADeletedCategory_RestoresItInsteadOfInserting`, `SoftDeleteRestoreTests.TransactionCategory_ReCreatingADeletedName_RestoresTheSameRow`, `AuthorizationTests.AdminOnly_NonAdminToken_Returns403`, `AuthorizationTests.AdminOnly_AdminToken_IsNeitherUnauthorizedNorForbidden`
 
 **Verdict: Matches.** Admin-only CRUD; duplicates within a kind return 409; `Kind` cannot be changed. No test exercises the 403 path.
 

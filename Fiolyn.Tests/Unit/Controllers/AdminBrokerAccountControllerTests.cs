@@ -58,6 +58,7 @@ public class AdminBrokerAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task GetAllAsync_NoFilter_ReturnsAdminResponseListWithMembers()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>() )
@@ -77,6 +78,7 @@ public class AdminBrokerAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task GetAllAsync_WithUserIdFilter_PassesFilter()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>(), 42L )
@@ -94,6 +96,7 @@ public class AdminBrokerAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task GetByIdAsync_Missing_Returns404()
   {
     _service.GetByIdAsync( 99 ).Returns( ( BrokerAccount? )null ) ;
@@ -105,6 +108,7 @@ public class AdminBrokerAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task GetByIdAsync_Existing_Returns200WithAdminResponse()
   {
     var account = BuildEntity( 10, [7, 8] ) ;
@@ -123,6 +127,7 @@ public class AdminBrokerAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task CreateAsync_UsesAppUserIdFromRequest_AndReturns201()
   {
     BrokerAccount? captured = null ;
@@ -155,6 +160,7 @@ public class AdminBrokerAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task UpdateAsync_Missing_Returns404()
   {
     _service.UpdateAsync( 99, Arg.Any<string>(), Arg.Any<long>() )
@@ -167,6 +173,7 @@ public class AdminBrokerAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task UpdateAsync_PassesScalarsToService_AndReturns200()
   {
     var updated = BuildEntity( 10, [7], "Renamed", 9 ) ;
@@ -183,6 +190,7 @@ public class AdminBrokerAccountControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-14" )]
   public async Task DeleteAsync_Returns204_AndCallsUnscopedSoftDelete()
   {
     var sut = CreateSut() ;

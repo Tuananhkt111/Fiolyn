@@ -8,6 +8,8 @@
 #   4. every rule doc points back at its reference / ADR
 #   5. every relative link and #anchor resolves
 #   6. no count is frozen into prose
+#   7. every class an FRS story lists under **Code:** is still declared under Fiolyn/, and each
+#      story's **Tests:** list matches the tests tagged [Trait( "Story", "US-nn" )], both ways
 #
 # Content quality is not checkable here — that is what review is for. This only
 # catches the structural drift that always happens silently.
@@ -124,6 +126,73 @@ if [ -n "$hits" ] ; then
 else
   report OK "no counts frozen into prose"
 fi
+
+# ------------------------------------------------------ 7. story code links
+
+section "Story code links — FRS/"
+# One "<file> <story> <name>" line per name in a **Code:** line, the story taken from the
+# nearest '## US-nn' heading above it. The trailing "tests tagged ..." clause is not a name.
+links="$( awk '
+  /^## US-[0-9]+/ { match( $0, /US-[0-9]+/ ) ; story = substr( $0, RSTART, RLENGTH ) }
+  /^\*\*Code:\*\*/ {
+    line = $0 ; sub( / · tests tagged.*/, "", line )
+    while ( match( line, /`[A-Za-z_][A-Za-z0-9_]*`/ ) ) {
+      print FILENAME, story, substr( line, RSTART + 1, RLENGTH - 2 )
+      line = substr( line, RSTART + RLENGTH )
+    }
+  }' FRS/*.md 2> /dev/null )"
+# Every type name declared under Fiolyn/, collected once: one git grep per name is slow on Windows.
+declared=" $( git grep -hoE "(class|record|interface|enum|struct)[[:space:]]+[A-Za-z_][A-Za-z0-9_]*" -- 'Fiolyn/' \
+  | awk '{ print $2 }' | sort -u | tr '\n' ' ' ) "
+n=0
+while read -r file story name ; do
+  [ -n "$name" ] || continue
+  n=$(( n + 1 ))
+  case "$declared" in
+    *" $name "*) ;;
+    *) report FAIL "$file ($story): \`$name\` is no longer declared under Fiolyn/" ;;
+  esac
+done <<< "$links"
+report OK "$n story code links checked"
+
+# "<story> <Class.Method>" for every test a **Tests:** line lists, and for every test method
+# carrying [Trait( "Story", ... )] (the traits sit in the attribute block above the method).
+listed="$( awk '
+  /^## US-[0-9]+/ { match( $0, /US-[0-9]+/ ) ; story = substr( $0, RSTART, RLENGTH ) }
+  /^\*\*Tests:\*\*/ {
+    line = $0
+    while ( match( line, /`[A-Za-z0-9_]+\.[A-Za-z0-9_]+`/ ) ) {
+      print story, substr( line, RSTART + 1, RLENGTH - 2 )
+      line = substr( line, RSTART + RLENGTH )
+    }
+  }' FRS/*.md 2> /dev/null | sort -u )"
+tagged="$( git ls-files -z -- 'Fiolyn.Tests/*.cs' | xargs -0 awk '
+  FNR == 1 { cls = "" ; n = 0 }
+  { sub( /\r$/, "" ) }
+  cls == "" && match( $0, /^[[:space:]]*(public |internal )?((sealed|static|partial|abstract) )*class [A-Za-z0-9_]+/ ) {
+    cls = substr( $0, RSTART, RLENGTH ) ; sub( /.*class /, "", cls )
+  }
+  match( $0, /\[Trait\( "Story", "US-[0-9]+" \)\]/ ) {
+    s = substr( $0, RSTART, RLENGTH ) ; match( s, /US-[0-9]+/ ) ; pend[ ++n ] = substr( s, RSTART, RLENGTH ) ; next
+  }
+  match( $0, /public (async )?(Task|void) [A-Za-z0-9_]+\(/ ) {
+    m = substr( $0, RSTART, RLENGTH - 1 ) ; sub( /.* /, "", m )
+    for ( i = 1 ; i <= n ; i++ ) print pend[ i ], cls "." m
+    n = 0 ; next
+  }
+  /^[[:space:]]*(\[|\/\/|$)/ { next }
+  { n = 0 }' | sort -u )"
+comm -23 <( printf '%s\n' "$listed" ) <( printf '%s\n' "$tagged" ) | while read -r story test ; do
+  [ -n "$test" ] && report FAIL "$story lists \`$test\`, but no such test carries [Trait( \"Story\", \"$story\" )]"
+done
+comm -13 <( printf '%s\n' "$listed" ) <( printf '%s\n' "$tagged" ) | while read -r story test ; do
+  [ -n "$test" ] && report FAIL "\`$test\` is tagged $story but missing from that story's **Tests:** line"
+done
+for story in $( printf '%s\n' "$links" | awk 'NF { print $2 }' | sort -u ) ; do
+  printf '%s\n' "$tagged" | grep -q "^$story " \
+    || report FAIL "$story has a Code: list but no test tagged [Trait( \"Story\", \"$story\" )]"
+done
+report OK "$( printf '%s\n' "$listed" | grep -c . ) story test links checked"
 
 # ------------------------------------------------------------------- verdict
 

@@ -50,6 +50,7 @@ public class BorrowingTransactionServiceTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_ReusesExistingCounterparty()
   {
     var account = BuildAccount( 5, [42] ) ;
@@ -84,6 +85,7 @@ public class BorrowingTransactionServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-22" )]
   public async Task CreateAsync_EmptyName_Throws()
   {
     var sut = CreateSut() ;

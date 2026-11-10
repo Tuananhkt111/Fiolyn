@@ -36,6 +36,7 @@ public class AdminStockTransactionControllerTests
     } ;
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task GetAllAsync_NoFilter_ReturnsList()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>() )
@@ -51,6 +52,7 @@ public class AdminStockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task GetAllAsync_WithUserIdAndSymbol_PassesFiltersToService()
   {
     _service.GetAllAsync( Arg.Any<PaginationQuery>(), 42L, "VNM" )
@@ -63,6 +65,7 @@ public class AdminStockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task GetByIdAsync_Missing_Returns404()
   {
     _service.GetByIdAsync( 99 ).Returns( ( StockTransaction? )null ) ;
@@ -74,6 +77,7 @@ public class AdminStockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task GetByIdAsync_Existing_Returns200()
   {
     _service.GetByIdAsync( 10 ).Returns( BuildEntity() ) ;
@@ -88,6 +92,7 @@ public class AdminStockTransactionControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-21" )]
   public async Task DeleteAsync_Returns204_AndCallsUnscopedSoftDelete()
   {
     var sut = CreateSut() ;
