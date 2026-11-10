@@ -304,6 +304,63 @@ public class StockTransactionServiceTests
     await _repository.Received( 1 ).SaveAsync() ;
   }
 
+  // docs/rules/transactions.md: the sign is server-side, never from the client. A negative quantity,
+  // price or total (from the API or a Telegram command) must be rejected, not turned into a balance
+  // change in the wrong direction. Rows give the entity as the controller builds it: Amount is
+  // already signed by StockTransaction.ComputeSignedAmount, so a negative Buy total arrives positive.
+  [Theory]
+  [InlineData( StockTransactionType.Buy, 100L, 45000L, 4_501_500L )]
+  [InlineData( StockTransactionType.Sell, 10L, 150L, -1_500L )]
+  [InlineData( StockTransactionType.Dividend, 0L, 0L, -500_000L )]
+  [InlineData( StockTransactionType.Buy, -100L, 45000L, -4_501_500L )]
+  [InlineData( StockTransactionType.Sell, 10L, -150L, 1_500L )]
+  [InlineData( StockTransactionType.Buy, 100L, 45000L, 0L )]
+  public async Task CreateAsync_NegativeOrZeroTrade_ThrowsBadRequestAndLeavesBalance(
+    StockTransactionType type, long quantity, long price, long signedAmount )
+  {
+    SetupBroker( "VPS", 1L, [42], 7 ) ;
+    var spendAccount = SetupSpendAccount( 7 ) ;
+    var sut = CreateSut() ;
+    var transaction = new StockTransaction
+    {
+      Symbol = "VNM",
+      StockTransactionType = type,
+      Quantity = quantity,
+      Price = price,
+      Amount = signedAmount,
+      Date = DateTime.UtcNow,
+      BrokerAccountId = 1
+    } ;
+
+    var act = () => sut.CreateAsync( transaction, 42 ) ;
+
+    await act.Should().ThrowAsync<BadRequestException>() ;
+    spendAccount.Balance.Should().Be( 0L ) ;
+    await _repository.DidNotReceive().SaveAsync() ;
+  }
+
+  [Fact]
+  public async Task UpdateAsync_BuyWithFlippedSign_ThrowsBadRequestBeforeAnyWrite()
+  {
+    var sut = CreateSut() ;
+    var transaction = new StockTransaction
+    {
+      Id = 3,
+      Symbol = "VNM",
+      StockTransactionType = StockTransactionType.Buy,
+      Quantity = 100,
+      Price = 45000,
+      Amount = 4_501_500L,
+      Date = DateTime.UtcNow,
+      BrokerAccountId = 1
+    } ;
+
+    var act = () => sut.UpdateAsync( transaction, 42 ) ;
+
+    await act.Should().ThrowAsync<BadRequestException>() ;
+    await _repository.DidNotReceive().SaveAsync() ;
+  }
+
   [Fact]
   public async Task CreateAsync_Sell_AppliesPositiveDelta()
   {
@@ -350,7 +407,11 @@ public class StockTransactionServiceTests
     var transaction = new StockTransaction
     {
       BrokerAccountId = 1,
-      Symbol = "VNM"
+      Symbol = "VNM",
+      StockTransactionType = StockTransactionType.Buy,
+      Quantity = 100,
+      Price = 45000,
+      Amount = -4_501_500L,
     } ;
 
     var act = async () => await sut.CreateAsync( transaction, 42 ) ;
@@ -697,7 +758,11 @@ public class StockTransactionServiceTests
     var transaction = new StockTransaction
     {
       Id = 5,
-      BrokerAccountId = 1
+      BrokerAccountId = 1,
+      StockTransactionType = StockTransactionType.Buy,
+      Quantity = 100,
+      Price = 45000,
+      Amount = -4_501_500L,
     } ;
 
     var act = async () => await sut.UpdateAsync( transaction, 42 ) ;

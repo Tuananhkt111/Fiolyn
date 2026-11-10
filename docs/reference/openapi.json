@@ -4233,7 +4233,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "Request body for creating or updating a stock transaction."
+        "description": "Request body for creating or updating a stock transaction. Quantity, price and total are\r\nunsigned magnitudes (0 is allowed: a lump-sum dividend has no quantity or price, a per-share one\r\nignores the total); the service applies the sign and rejects a total that comes out zero."
       },
       "StockTransactionType": {
         "enum": [
@@ -4296,7 +4296,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "One slot in the optional `shares` array on income / expense create / update bodies.\r\nThe free-text `counterpartyName` is resolved (or created) per-user; the\r\n`percentage` is a slice in [0.01, 100] with up to 2 decimal places — values with\r\nmore precision are silently rounded server-side (half-away-from-zero). The sum across\r\nall shares on a single transaction must be ≤ 100 (validated server-side)."
+        "description": "One slot in the optional `shares` array on income / expense create / update bodies.\r\nThe free-text `counterpartyName` is resolved (or created) per-user; the\r\n`percentage` is rounded server-side to 2 decimal places (half-away-from-zero) and only\r\nthen range-checked against [0.01, 100], so it carries no `[Range]` here — a DTO range would\r\nreject values such as 0.005 that round into range. The sum across all shares on a single\r\ntransaction must be ≤ 100 (validated server-side)."
       },
       "TransferTransactionRequest": {
         "type": "object",

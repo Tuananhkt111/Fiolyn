@@ -41,6 +41,11 @@ The controller calls `StockTransaction.ComputeSignedAmount` at the boundary, whi
 and sign in one call. `Symbol` uppercases itself in its setter — don't normalize it at the call
 site.
 
+`StockTransactionService` rejects a trade with a negative quantity or price, or whose signed amount
+points the wrong way (a Buy that would credit, a Sell or Dividend that would debit) or is zero —
+400, before anything is read or written. This covers both the API and Telegram ingest, which builds
+the entity from parsed text.
+
 ## Atomic balance writes
 
 Every mutation goes through
