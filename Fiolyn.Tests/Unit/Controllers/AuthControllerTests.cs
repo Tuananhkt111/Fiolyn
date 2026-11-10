@@ -2,7 +2,10 @@ using Fiolyn.Controllers ;
 using Fiolyn.Controllers.DTOs.Requests.Auth ;
 using Fiolyn.Controllers.DTOs.Responses.Auth ;
 using Fiolyn.Services.Internal.Interfaces ;
+using System.IdentityModel.Tokens.Jwt ;
+using System.Security.Claims ;
 using FluentAssertions ;
+using Microsoft.AspNetCore.Http ;
 using Microsoft.AspNetCore.Mvc ;
 using NSubstitute ;
 
@@ -12,7 +15,16 @@ public class AuthControllerTests
 {
   private readonly IAuthService _authService = Substitute.For<IAuthService>() ;
 
-  private AuthController CreateSut() => new(_authService) ;
+  private AuthController CreateSut( long callerId = 7 )
+  {
+    var controller = new AuthController( _authService ) ;
+    var identity = new ClaimsIdentity( [new Claim( JwtRegisteredClaimNames.Sub, callerId.ToString() )], "TestAuth" ) ;
+    controller.ControllerContext = new ControllerContext
+    {
+      HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal( identity ) }
+    } ;
+    return controller ;
+  }
 
   [Fact]
   public async Task LoginWithGoogleAsync_Returns200WithTokens()
@@ -48,6 +60,6 @@ public class AuthControllerTests
     var result = await sut.LogoutAsync( new RefreshTokenRequest( "r" ) ) ;
 
     result.Should().BeOfType<NoContentResult>() ;
-    await _authService.Received( 1 ).LogoutAsync( "r" ) ;
+    await _authService.Received( 1 ).LogoutAsync( "r", 7 ) ;
   }
 }

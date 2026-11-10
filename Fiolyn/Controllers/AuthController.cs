@@ -1,4 +1,5 @@
 using Fiolyn.Controllers.DTOs.Requests.Auth ;
+using Fiolyn.Extensions ;
 using Fiolyn.Services.Internal.Interfaces ;
 using Microsoft.AspNetCore.Authorization ;
 using Microsoft.AspNetCore.Mvc ;
@@ -41,7 +42,7 @@ public class AuthController( IAuthService authService ) : ControllerBase
   [Authorize]
   public async Task<IActionResult> LogoutAsync( [FromBody] RefreshTokenRequest request )
   {
-    await authService.LogoutAsync( request.RefreshToken ) ;
+    await authService.LogoutAsync( request.RefreshToken, User.GetUserId() ) ;
     return NoContent() ;
   }
 }

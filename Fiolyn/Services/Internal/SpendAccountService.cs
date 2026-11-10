@@ -79,21 +79,24 @@ public class SpendAccountService(
   public async Task<PagedResult<SpendAccountMember>> GetMembersAsync(
     long accountId, long callerUserId, PaginationQuery pagination )
   {
-    var callerIsMember = await repository.Query()
-      .AnyAsync( a => a.Id == accountId
-                      && a.Members.Any( m => m.AppUserId == callerUserId ) ) ;
-    if ( ! callerIsMember )
+    // One query: the caller-membership check sits in the same query that fetches the members
+    // (docs/rules/access-control.md). Starting from the account keeps its soft-delete filter.
+    // An account always has at least one member, so an empty result means "not a member" → 404.
+    var page = await repository.Query()
+      .Where( a => a.Id == accountId && a.Members.Any( m => m.AppUserId == callerUserId ) )
+      .SelectMany( a => a.Members )
+      .AsNoTracking()
+      .Include( m => m.AppUser )
+      .OrderBy( m => m.JoinedAt )
+      .ThenBy( m => m.AppUserId )
+      .ToPagedResultAsync( pagination ) ;
+
+    if ( page.TotalCount == 0 )
     {
       throw new KeyNotFoundException( $"SpendAccount {accountId} not found for user {callerUserId}." ) ;
     }
 
-    return await memberRepository.Query()
-      .AsNoTracking()
-      .Include( m => m.AppUser )
-      .Where( m => m.SpendAccountId == accountId )
-      .OrderBy( m => m.JoinedAt )
-      .ThenBy( m => m.AppUserId )
-      .ToPagedResultAsync( pagination ) ;
+    return page ;
   }
 
   /// <inheritdoc />

@@ -389,6 +389,27 @@ public class BrokerAccountServiceTests
     result.Items.Select( m => m.AppUserId ).Should().ContainInOrder( 20L, 10L ) ;
   }
 
+  // docs/rules/access-control.md: GetMembersAsync bakes the caller-membership check into the query that
+  // fetches the members, so there is no separate precondition round-trip against the member table.
+  [Fact]
+  public async Task GetMembersAsync_ChecksMembershipInTheSameQuery_NoSeparateMemberQuery()
+  {
+    var account = BuildAccount( 5, [10, 20] ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    _memberRepo.Query().Returns( account.Members.ToList().BuildMock() ) ;
+    _accountRepo.ClearReceivedCalls() ;
+    _memberRepo.ClearReceivedCalls() ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetMembersAsync( 5, 10, new PaginationQuery() ) ;
+
+    result.Items.Select( m => m.AppUserId ).Should().BeEquivalentTo( [10L, 20L] ) ;
+    _memberRepo.DidNotReceive().Query() ;
+  }
+
   [Fact]
   public async Task GetMembersAsync_Throws_WhenCallerIsNotMember()
   {
