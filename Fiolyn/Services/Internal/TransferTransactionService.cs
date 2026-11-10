@@ -58,6 +58,9 @@ public class TransferTransactionService(
       throw new KeyNotFoundException( $"TransferTransaction {transaction.Id} not found." ) ;
     }
 
+    // The old legs are reversed below, so the caller must belong to both accounts the transfer
+    // touches today, not only to the ones it is being moved to.
+    await EnsureBothMembershipAsync( fetched.SpendAccountId, fetched.DestinationSpendAccountId, userId ) ;
     await EnsureBothMembershipAsync(
       transaction.SpendAccountId, transaction.DestinationSpendAccountId, userId ) ;
     await TransactionCategoryGuard.EnsureKindMatchesAsync(
@@ -96,9 +99,12 @@ public class TransferTransactionService(
   /// <inheritdoc />
   public async Task SoftDeleteAsync( long id, long userId )
   {
+    // GetByIdForUserAsync admits a member of either side (reads show incoming transfers to the
+    // destination's members). Deleting reverses both legs, so it needs membership of both.
     var transaction = await GetByIdForUserAsync( id, userId )
                       ?? throw new KeyNotFoundException(
                         $"TransferTransaction {id} not found for user {userId}." ) ;
+    await EnsureBothMembershipAsync( transaction.SpendAccountId, transaction.DestinationSpendAccountId, userId ) ;
     await SoftDeleteAndReverseAsync( transaction ) ;
   }
 

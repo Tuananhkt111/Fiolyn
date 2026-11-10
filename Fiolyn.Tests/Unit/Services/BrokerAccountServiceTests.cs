@@ -389,6 +389,28 @@ public class BrokerAccountServiceTests
     result.Items.Select( m => m.AppUserId ).Should().ContainInOrder( 20L, 10L ) ;
   }
 
+  // docs/rules/access-control.md: GetMembersAsync bakes the caller-membership check into the query that
+  // fetches the members, so there is no separate precondition round-trip against the member table.
+  [Fact]
+  public async Task GetMembersAsync_ChecksMembershipInTheSameQuery_NoSeparateMemberQuery()
+  {
+    var account = BuildAccount( 5, [10, 20] ) ;
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    _memberRepo.Query().Returns( account.Members.ToList().BuildMock() ) ;
+    _accountRepo.ClearReceivedCalls() ;
+    _memberRepo.ClearReceivedCalls() ;
+    var sut = CreateSut() ;
+
+    var result = await sut.GetMembersAsync( 5, 10, new PaginationQuery() ) ;
+
+    result.Items.Select( m => m.AppUserId ).Should().BeEquivalentTo( [10L, 20L] ) ;
+    _accountRepo.Received( 1 ).Query() ;
+    _memberRepo.DidNotReceive().Query() ;
+  }
+
   [Fact]
   public async Task GetMembersAsync_Throws_WhenCallerIsNotMember()
   {
@@ -639,5 +661,21 @@ public class BrokerAccountServiceTests
 
     await act.Should().ThrowAsync<KeyNotFoundException>() ;
     _accountRepo.DidNotReceive().SoftDelete( Arg.Any<BrokerAccount>() ) ;
+  }
+
+  // docs/rules/access-control.md: a caller who isn't a member gets 404, even though the account exists
+  // and has members. (GetMembersAsync_Throws_WhenCallerIsNotMember seeds no account at all.)
+  [Fact]
+  public async Task GetMembersAsync_AccountExistsButCallerIsNotAMember_ThrowsKeyNotFound()
+  {
+    _accountRepo.Query().Returns( new List<BrokerAccount>
+    {
+      BuildAccount( 5, [20, 30] )
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+
+    var act = () => sut.GetMembersAsync( 5, 10, new PaginationQuery() ) ;
+
+    await act.Should().ThrowAsync<KeyNotFoundException>() ;
   }
 }

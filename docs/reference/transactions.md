@@ -67,7 +67,9 @@ Service split:
 
 - Stock writes gate on `BrokerAccount` membership.
 - Everything else gates on `SpendAccount` membership.
-- Transfer requires membership of **both** source and destination.
+- Transfer requires membership of **both** source and destination — on create, and on update and
+  delete for both the accounts the transfer uses now and the ones it is moved to. Reads stay visible
+  to a destination-only member (below); writes don't.
 
 The unified `GET /api/transactions` reads the union: member of the row's `SpendAccount`, **or** —
 for transfers — member of the `DestinationSpendAccount`, **or** — for stock rows — member of the

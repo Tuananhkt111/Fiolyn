@@ -134,6 +134,7 @@ public class AuthServiceTests
       RevokedAt = null
     } ;
     SetupRefreshTokens( existing ) ;
+    SetupAllowedEmails( "a@b.com" ) ;
     _jwt.HashRefreshToken( "old-raw" ).Returns( "old-hash" ) ;
     _jwt.HashRefreshToken( "refresh-raw" ).Returns( "refresh-hash" ) ;
     _jwt.CreateAccessToken( user ).Returns( ( "access", DateTime.UtcNow.AddMinutes( 15 ) ) ) ;
@@ -170,6 +171,7 @@ public class AuthServiceTests
       RevokedAt = null
     } ;
     SetupRefreshTokens( existing ) ;
+    SetupAllowedEmails( "a@b.com" ) ;
     _jwt.HashRefreshToken( "old-raw" ).Returns( "old-hash" ) ;
     _jwt.HashRefreshToken( "refresh-raw" ).Returns( "refresh-hash" ) ;
     _jwt.CreateAccessToken( user ).Returns( ( "access", DateTime.UtcNow.AddMinutes( 15 ) ) ) ;
@@ -299,7 +301,7 @@ public class AuthServiceTests
     _jwt.HashRefreshToken( "raw" ).Returns( "h" ) ;
 
     var sut = CreateSut() ;
-    await sut.LogoutAsync( "raw" ) ;
+    await sut.LogoutAsync( "raw", 1 ) ;
 
     token.RevokedAt.Should().NotBeNull() ;
     _refreshTokens.Received( 1 ).Update( token ) ;
@@ -320,7 +322,7 @@ public class AuthServiceTests
     _jwt.HashRefreshToken( "raw" ).Returns( "h" ) ;
 
     var sut = CreateSut() ;
-    await sut.LogoutAsync( "raw" ) ;
+    await sut.LogoutAsync( "raw", 1 ) ;
 
     revoked.RevokedAt.Should().Be( originalRevokedAt ) ;
     _refreshTokens.DidNotReceive().Update( Arg.Any<RefreshToken>() ) ;
@@ -335,7 +337,59 @@ public class AuthServiceTests
 
     var sut = CreateSut() ;
 
-    await sut.Invoking( s => s.LogoutAsync( "raw" ) )
+    await sut.Invoking( s => s.LogoutAsync( "raw", 1 ) )
       .Should().ThrowAsync<UnauthorizedAccessException>() ;
+  }
+
+  // v1.0 US-04: only whitelisted addresses may use the app. Removing an address must also stop its
+  // sessions: a refresh token issued before the removal must not mint new tokens.
+  [Fact]
+  public async Task RefreshAsync_UserNoLongerWhitelisted_Throws401AndIssuesNoTokens()
+  {
+    var user = new AppUser
+    {
+      Id = 1,
+      Email = "removed@b.com",
+      GoogleSub = "s"
+    } ;
+    var existing = new RefreshToken
+    {
+      Id = 10,
+      UserId = 1,
+      User = user,
+      TokenHash = "old-hash",
+      ExpiresAt = DateTime.UtcNow.AddDays( 1 )
+    } ;
+    SetupRefreshTokens( existing ) ;
+    SetupAllowedEmails( "someone-else@b.com" ) ;
+    _jwt.HashRefreshToken( "old-raw" ).Returns( "old-hash" ) ;
+    SetupJwtIssues() ;
+    var sut = CreateSut() ;
+
+    await sut.Invoking( s => s.RefreshAsync( "old-raw" ) )
+      .Should().ThrowAsync<UnauthorizedAccessException>() ;
+    await _refreshTokens.DidNotReceive().AddAsync( Arg.Any<RefreshToken>() ) ;
+    _jwt.DidNotReceive().CreateAccessToken( Arg.Any<AppUser>() ) ;
+  }
+
+  // v1.0 US-03: logout revokes the caller's own refresh token. A token belonging to someone else
+  // must not be revocable, and the answer must not reveal that the token exists.
+  [Fact]
+  public async Task LogoutAsync_TokenOwnedByAnotherUser_Throws401AndDoesNotRevoke()
+  {
+    var othersToken = new RefreshToken
+    {
+      UserId = 1,
+      TokenHash = "h",
+      ExpiresAt = DateTime.UtcNow.AddDays( 1 )
+    } ;
+    SetupRefreshTokens( othersToken ) ;
+    _jwt.HashRefreshToken( "raw" ).Returns( "h" ) ;
+    var sut = CreateSut() ;
+
+    await sut.Invoking( s => s.LogoutAsync( "raw", 2 ) )
+      .Should().ThrowAsync<UnauthorizedAccessException>() ;
+    othersToken.RevokedAt.Should().BeNull() ;
+    await _refreshTokens.DidNotReceive().SaveAsync() ;
   }
 }

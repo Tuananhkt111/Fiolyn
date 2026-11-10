@@ -97,6 +97,14 @@ public class AuthService(
       throw new UnauthorizedAccessException() ;
     }
 
+    // Removing an address from the whitelist ends its sessions at the next refresh, not 30 days later.
+    var email = stored.User.Email ;
+    if ( ! await allowedEmailRepository.Query().AnyAsync( a => a.Email == email ) )
+    {
+      logger.LogWarning( "Refresh refused for user {UserId}: email no longer whitelisted", stored.UserId ) ;
+      throw new UnauthorizedAccessException() ;
+    }
+
     var newPair = await IssueTokensAsync( stored.User ) ;
 
     stored.RevokedAt = DateTime.UtcNow ;
@@ -116,7 +124,7 @@ public class AuthService(
   }
 
   /// <inheritdoc />
-  public async Task LogoutAsync( string rawRefreshToken )
+  public async Task LogoutAsync( string rawRefreshToken, long userId )
   {
     if ( string.IsNullOrWhiteSpace( rawRefreshToken ) )
     {
@@ -127,7 +135,8 @@ public class AuthService(
     var stored = await refreshTokenRepository.Query()
       .FirstOrDefaultAsync( r => r.TokenHash == hash ) ;
 
-    if ( stored is null )
+    // Someone else's token is answered exactly like an unknown one, so the call reveals nothing.
+    if ( stored is null || stored.UserId != userId )
     {
       throw new UnauthorizedAccessException() ;
     }

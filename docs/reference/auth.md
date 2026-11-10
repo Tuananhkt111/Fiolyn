@@ -15,7 +15,7 @@ Routes, parameters and request bodies: [`openapi.json`](openapi.json) (`Auth`, `
   `AppUser.NormalizeEmail`), `GoogleSub`, `DisplayName`, `PictureUrl`, `IsAdmin`, `LastLoginAt`
   and the optional `TelegramId`.
 - **`AllowedEmail`** — admin-managed whitelist. A Google login is rejected unless the account's
-  email is present.
+  email is present, and a refresh is refused once it has been removed.
 - **`RefreshToken`** — opaque, persisted as a SHA-256 hash, revoked rather than soft-deleted.
 
 `AppUser.TelegramId` doubles as the Telegram-ingest whitelist — see
@@ -69,15 +69,20 @@ one save.
 
 Two protections sit on top:
 
-- **Reuse detection.** Replaying an already-revoked token revokes the entire rotation chain for
+- **Reuse detection.** Replaying an already-revoked token revokes every active refresh token of
   that user, on the assumption that a leaked token is being used in parallel with the legitimate
-  one. The chain is tracked through `ReplacedByTokenHash`.
+  one. `ReplacedByTokenHash` records each rotation but is not read by this check.
+- **Whitelist re-check.** A refresh for a user whose email is no longer in `AllowedEmail` is refused
+  with 401 and issues nothing, so removing an address ends its sessions within one access-token
+  lifetime rather than the refresh token's 30 days.
 - **Concurrency.** `RevokedAt` carries `[ConcurrencyCheck]`, so EF emits
   `UPDATE … WHERE Id = @id AND RevokedAt IS NULL`. Two concurrent refreshes on the same token race;
   the loser's save throws and its half-staged replacement rolls back with the same transaction,
   surfacing as 401.
 
 `POST /api/auth/logout` sets `RevokedAt` on the supplied token and requires a valid access token.
+The token must belong to the caller; someone else's token is answered with 401, exactly like an
+unknown one, so the call reveals nothing about it.
 
 ## Authorization
 

@@ -97,21 +97,24 @@ public class BrokerAccountService(
   public async Task<PagedResult<BrokerAccountMember>> GetMembersAsync(
     long accountId, long callerUserId, PaginationQuery pagination )
   {
-    var callerIsMember = await repository.Query()
-      .AnyAsync( b => b.Id == accountId
-                      && b.Members.Any( m => m.AppUserId == callerUserId ) ) ;
-    if ( ! callerIsMember )
+    // One query: the caller-membership check sits in the same query that fetches the members
+    // (docs/rules/access-control.md). Starting from the account keeps its soft-delete filter.
+    // An account always has at least one member, so an empty result means "not a member" → 404.
+    var page = await repository.Query()
+      .Where( b => b.Id == accountId && b.Members.Any( m => m.AppUserId == callerUserId ) )
+      .SelectMany( b => b.Members )
+      .AsNoTracking()
+      .Include( m => m.AppUser )
+      .OrderBy( m => m.JoinedAt )
+      .ThenBy( m => m.AppUserId )
+      .ToPagedResultAsync( pagination ) ;
+
+    if ( page.TotalCount == 0 )
     {
       throw new KeyNotFoundException( $"BrokerAccount {accountId} not found for user {callerUserId}." ) ;
     }
 
-    return await memberRepository.Query()
-      .AsNoTracking()
-      .Include( m => m.AppUser )
-      .Where( m => m.BrokerAccountId == accountId )
-      .OrderBy( m => m.JoinedAt )
-      .ThenBy( m => m.AppUserId )
-      .ToPagedResultAsync( pagination ) ;
+    return page ;
   }
 
   /// <inheritdoc />

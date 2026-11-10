@@ -26,8 +26,8 @@ public interface IAuthService
   Task<AuthResponse> RefreshAsync( string rawRefreshToken ) ;
 
   /// <summary>
-  ///   Revokes a refresh token (logout).
+  ///   Revokes a refresh token (logout). The token must belong to <paramref name="userId" />, the caller.
   /// </summary>
-  /// <exception cref="UnauthorizedAccessException">Token unknown.</exception>
-  Task LogoutAsync( string rawRefreshToken ) ;
+  /// <exception cref="UnauthorizedAccessException">Token unknown, or owned by another user.</exception>
+  Task LogoutAsync( string rawRefreshToken, long userId ) ;
 }
