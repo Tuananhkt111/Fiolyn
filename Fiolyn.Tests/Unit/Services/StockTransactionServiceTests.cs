@@ -315,6 +315,8 @@ public class StockTransactionServiceTests
   [InlineData( StockTransactionType.Buy, -100L, 45000L, -4_501_500L )]
   [InlineData( StockTransactionType.Sell, 10L, -150L, 1_500L )]
   [InlineData( StockTransactionType.Buy, 100L, 45000L, 0L )]
+  [InlineData( StockTransactionType.Sell, 10L, 150L, 0L )]
+  [InlineData( StockTransactionType.Dividend, 0L, 0L, 0L )]
   public async Task CreateAsync_NegativeOrZeroTrade_ThrowsBadRequestAndLeavesBalance(
     StockTransactionType type, long quantity, long price, long signedAmount )
   {
@@ -339,25 +341,47 @@ public class StockTransactionServiceTests
     await _repository.DidNotReceive().SaveAsync() ;
   }
 
-  [Fact]
-  public async Task UpdateAsync_BuyWithFlippedSign_ThrowsBadRequestBeforeAnyWrite()
+  // Same rules on update. Seeded with a real member, broker and original row, so without the guard the
+  // call would reach the balance write instead of failing for an unrelated reason.
+  [Theory]
+  [InlineData( StockTransactionType.Buy, 100L, 45000L, 4_501_500L )]
+  [InlineData( StockTransactionType.Sell, 10L, 150L, -1_500L )]
+  [InlineData( StockTransactionType.Buy, -100L, 45000L, -4_501_500L )]
+  [InlineData( StockTransactionType.Sell, 10L, -150L, 1_500L )]
+  [InlineData( StockTransactionType.Dividend, 0L, 0L, 0L )]
+  public async Task UpdateAsync_NegativeOrZeroTrade_ThrowsBadRequestBeforeAnyWrite(
+    StockTransactionType type, long quantity, long price, long signedAmount )
   {
-    var sut = CreateSut() ;
-    var transaction = new StockTransaction
+    SetupBroker( "VPS", 1L, [42], 7 ) ;
+    var spendAccount = SetupSpendAccount( 7 ) ;
+    _repository.Query().Returns( new List<StockTransaction>
     {
-      Id = 3,
+      new()
+      {
+        Id = 5,
+        BrokerAccountId = 1,
+        BrokerAccount = BuildBroker( 1, "VPS", [42], 7 ),
+        SpendAccountId = 7,
+        StockTransactionType = StockTransactionType.Buy,
+        Amount = -1_000_000L
+      }
+    }.BuildMock() ) ;
+    var sut = CreateSut() ;
+    var updated = new StockTransaction
+    {
+      Id = 5,
       Symbol = "VNM",
-      StockTransactionType = StockTransactionType.Buy,
-      Quantity = 100,
-      Price = 45000,
-      Amount = 4_501_500L,
-      Date = DateTime.UtcNow,
-      BrokerAccountId = 1
+      BrokerAccountId = 1,
+      StockTransactionType = type,
+      Quantity = quantity,
+      Price = price,
+      Amount = signedAmount
     } ;
 
-    var act = () => sut.UpdateAsync( transaction, 42 ) ;
+    var act = () => sut.UpdateAsync( updated, 42 ) ;
 
     await act.Should().ThrowAsync<BadRequestException>() ;
+    spendAccount.Balance.Should().Be( 0L ) ;
     await _repository.DidNotReceive().SaveAsync() ;
   }
 

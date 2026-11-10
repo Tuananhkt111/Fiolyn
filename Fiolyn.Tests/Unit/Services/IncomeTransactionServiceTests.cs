@@ -675,4 +675,35 @@ public class IncomeTransactionServiceTests
 
     await act.Should().ThrowAsync<ConflictException>() ;
   }
+
+  // docs/rules/transactions-shares.md: round to 2 decimals first, then range-check [0.01, 100]. Values
+  // just outside the range that round into it are accepted; the request no longer pre-checks them.
+  [Theory]
+  [InlineData( 0.005, 100L )]
+  [InlineData( 100.004, 1_000_000L )]
+  public async Task CreateAsync_PercentageThatRoundsIntoRange_IsAccepted( double percentage, long expectedChild )
+  {
+    var account = BuildAccount( 5, [42] ) ;
+    _spendRepo.Query().Returns( new List<SpendAccount>
+    {
+      account
+    }.BuildMock() ) ;
+    _spendRepo.GetByIdOrThrowAsync( 5L ).Returns( account ) ;
+    _counterpartyRepo.Query().Returns( new List<Counterparty>().BuildMock() ) ;
+    var sut = CreateSut() ;
+    var tx = new IncomeTransaction
+    {
+      SpendAccountId = 5,
+      Amount = 1_000_000L,
+      Date = DateTime.UtcNow
+    } ;
+
+    await sut.CreateAsync( tx, 42, [
+      new TransactionShareInput( "Bob", percentage )
+    ] ) ;
+
+    // 0.005 → 0.01% of 1,000,000 = 100; 100.004 → 100.00% = 1,000,000. The parent keeps the rest.
+    tx.Children.Single().Amount.Should().Be( expectedChild ) ;
+    tx.Amount.Should().Be( 1_000_000L - expectedChild ) ;
+  }
 }
