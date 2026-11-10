@@ -5,6 +5,7 @@ argument-hint: "<path-to-source-file> [requirement or acceptance criteria]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, mcp__ide__getDiagnostics
 model: sonnet
 effort: high
+disable-model-invocation: true
 ---
 
 # Test Generator
@@ -17,7 +18,8 @@ Generate a complete xUnit test class for a given source file, following the proj
 knows what it does, and tends to test that rather than what it should do. So:
 
 - **Typed by the owner** (`/test-gen <file> <requirement>`): run as below.
-- **Needed by Claude during a change:** don't write the tests in the same conversation. Spawn a fresh agent
+- **Needed by Claude during a change:** Claude can't invoke this skill (`disable-model-invocation`, so the
+  sonnet/high pin applies when the owner types it), and doesn't write the tests in the same conversation. Spawn a fresh agent
   (Agent tool, `model: sonnet`) whose prompt holds only the production file path(s), the requirement or
   acceptance criteria, and "follow `.claude/skills/test-gen/skill.md`". It reads the signatures itself.
   Don't paste the implementation, the diff or the reasoning behind it.

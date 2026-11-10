@@ -5,6 +5,7 @@ argument-hint: "<PR number> [--no-post] [--depth 1|2|3|auto] [--output <output p
 allowed-tools: Read, Glob, Grep, Bash, Write, Agent, Edit
 model: opus
 effort: high
+disable-model-invocation: true
 ---
 
 # Impact Analysis Skill
