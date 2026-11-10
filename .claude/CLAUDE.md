@@ -23,6 +23,7 @@ Fiolyn is a .NET 10 web API with two front doors, both writing to one ledger:
 ```bash
 bash scripts/setup.sh                                         # once per clone: git hooks (ADR 0014)
 cd Fiolyn && dotnet run                                       # run locally (:5027)
+python .claude/skills/fiolyn-run/fiolyn_run.py                # /fiolyn-run: run + pending migrations + openapi.json regen
 cd Fiolyn && dotnet ef database update                        # apply migrations
 cd Fiolyn && dotnet ef migrations add <Name> --output-dir Data/Migrations
 dotnet test Fiolyn.Tests/Fiolyn.Tests.csproj                  # from repo root
@@ -122,7 +123,7 @@ Working material from phases 1–3 is transient wherever it is written and never
 
   | Changed | Update |
   |---|---|
-  | Endpoint added / removed / renamed, or a request record | regenerate `docs/reference/openapi.json` (command in `docs/README.md`) |
+  | Endpoint added / removed / renamed, or a request record | regenerate `docs/reference/openapi.json` (`/fiolyn-run --stop-after`, or the command in `docs/README.md`) |
   | Behaviour | the matching `docs/reference/*.md` |
   | A project-wide pattern | `docs/rules/*` **and** this file (per `feedback_update_claude_md`) |
   | A decision flagged in phase 3 | a **new** `docs/decisions/NNNN-*.md` — never edit a merged ADR, supersede it |

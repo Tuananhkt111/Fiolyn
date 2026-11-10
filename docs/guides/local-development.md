@@ -23,6 +23,13 @@ dotnet run
 Listens on `http://localhost:5027` (the `http` launch profile). Swagger UI is served at
 `http://localhost:5027/swagger` in Development only.
 
+Or, in one step (the `/fiolyn-run` skill): build, list pending migrations without applying them,
+start in Development, and regenerate `openapi.json` with a summary of what changed:
+
+```bash
+python .claude/skills/fiolyn-run/fiolyn_run.py            # --stop-after, --restart, --stop
+```
+
 ## Migrations
 
 **Migrations are not applied on startup** — see
@@ -138,7 +145,8 @@ info: Fiolyn.Services.External.Telegram.TelegramMessageService[0]
 
 ## Regenerating the API document
 
-After adding, removing or renaming an endpoint, or changing a request record:
+After adding, removing or renaming an endpoint, or changing a request record, run
+`python .claude/skills/fiolyn-run/fiolyn_run.py --stop-after`, or by hand:
 
 ```bash
 cd Fiolyn && dotnet run                                                   # terminal 1

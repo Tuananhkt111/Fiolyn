@@ -99,6 +99,9 @@ a dated snapshot, not kept in step with the code, and outside the four layers fo
 
 ## Regenerating `openapi.json`
 
+`python .claude/skills/fiolyn-run/fiolyn_run.py --stop-after` builds, starts the app, writes the
+document and lists the paths and schemas that changed. By hand:
+
 ```bash
 cd Fiolyn && dotnet run --launch-profile http    # terminal 1
 curl -s http://localhost:5027/swagger/v1/swagger.json > docs/reference/openapi.json
@@ -109,7 +112,7 @@ Requires `Fiolyn/appsettings.Development.json` (see [`guides/configuration.md`](
 
 Regenerate whenever a change adds, removes or renames an endpoint, or alters a request/response
 record. In a Claude Code session, the `Edit` and `Write` tools are denied on this file
-([0015](decisions/0015-claude-code-guards.md)); the `curl` above is the way to change it.
+([0015](decisions/0015-claude-code-guards.md)); the script or the `curl` above is the way to change it.
 
 ## Checking conformance
 
