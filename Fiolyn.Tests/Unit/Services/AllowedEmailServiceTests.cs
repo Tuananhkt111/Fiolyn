@@ -29,7 +29,6 @@ public class AllowedEmailServiceTests
   }
 
   [Fact]
-  [Trait( "Story", "US-01" )]
   public async Task CreateAsync_NormalizesEmailAndPersists()
   {
     SetupExisting() ;

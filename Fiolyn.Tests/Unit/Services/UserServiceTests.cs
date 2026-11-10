@@ -20,7 +20,6 @@ public class UserServiceTests
   private UserService CreateSut() => new(_repository, _logger) ;
 
   [Fact]
-  [Trait( "Story", "US-06" )]
   public async Task GetByIdAsync_Missing_ThrowsKeyNotFound()
   {
     _repository.GetByIdOrThrowAsync( 1L ).ThrowsAsync( new KeyNotFoundException() ) ;
@@ -31,7 +30,6 @@ public class UserServiceTests
   }
 
   [Fact]
-  [Trait( "Story", "US-07" )]
   public async Task UpdateDisplayNameAsync_UpdatesAndSaves()
   {
     var user = new AppUser
@@ -72,7 +70,6 @@ public class UserServiceTests
   }
 
   [Fact]
-  [Trait( "Story", "US-07" )]
   public async Task UpdateTelegramIdAsync_SetsAndSaves()
   {
     var user = new AppUser
@@ -97,7 +94,6 @@ public class UserServiceTests
   }
 
   [Fact]
-  [Trait( "Story", "US-07" )]
   public async Task UpdateTelegramIdAsync_NullClearsAndSkipsUniquenessCheck()
   {
     var user = new AppUser
@@ -129,7 +125,6 @@ public class UserServiceTests
   }
 
   [Fact]
-  [Trait( "Story", "US-07" )]
   public async Task UpdateTelegramIdAsync_TakenByOtherUser_ThrowsConflictAndDoesNotSave()
   {
     var caller = new AppUser
@@ -160,7 +155,6 @@ public class UserServiceTests
   }
 
   [Fact]
-  [Trait( "Story", "US-07" )]
   public async Task UpdateTelegramIdAsync_RaceLost_UniqueViolationMappedToConflict()
   {
     // The pre-check passed (no other user holds this TelegramId yet) but a concurrent caller
@@ -192,7 +186,6 @@ public class UserServiceTests
   }
 
   [Fact]
-  [Trait( "Story", "US-07" )]
   public async Task UpdateTelegramIdAsync_SelfReassign_IsNotAConflict()
   {
     var caller = new AppUser

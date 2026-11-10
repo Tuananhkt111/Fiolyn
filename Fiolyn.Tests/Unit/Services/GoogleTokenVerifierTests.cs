@@ -7,7 +7,6 @@ using NSubstitute ;
 
 namespace Fiolyn.Tests.Unit.Services ;
 
-[Trait( "Story", "US-02" )]
 public class GoogleTokenVerifierTests
 {
   private readonly ILogger<GoogleTokenVerifier> _logger = Substitute.For<ILogger<GoogleTokenVerifier>>() ;
