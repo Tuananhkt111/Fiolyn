@@ -54,6 +54,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task LoginWithGoogleAsync_EmailNotWhitelisted_ThrowsForbidden()
   {
     _google.VerifyAsync( "token" )
@@ -66,6 +67,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-01" )]
   public async Task LoginWithGoogleAsync_FirstLogin_CreatesNonAdminUser()
   {
     _google.VerifyAsync( "token" )
@@ -89,6 +91,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task LoginWithGoogleAsync_ExistingUser_UpdatesProfileAndLoginTimestamp()
   {
     _google.VerifyAsync( "token" )
@@ -116,6 +119,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_ValidToken_RotatesAndReturnsNewPair()
   {
     var user = new AppUser
@@ -250,6 +254,7 @@ public class AuthServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-02" )]
   public async Task RefreshAsync_ExpiredToken_Throws()
   {
     var user = new AppUser

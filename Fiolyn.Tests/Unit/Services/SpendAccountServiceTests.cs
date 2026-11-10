@@ -84,6 +84,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-03" )]
   public async Task CreateAsync_AddsCreatorAsFirstMember_AndSaves()
   {
     var sut = CreateSut() ;
@@ -104,6 +105,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-05" )]
   public async Task GetAllForUserAsync_FiltersByMembership()
   {
     List<SpendAccount> accounts =
@@ -153,6 +155,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-05" )]
   public async Task GetByIdForUserAsync_ReturnsNull_WhenCallerIsNotMember()
   {
     List<SpendAccount> accounts = [BuildAccount( 5, [99] )] ;
@@ -188,6 +191,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-05" )]
   public async Task UpdateAsync_ReturnsNull_WhenCallerIsNotMember()
   {
     _accountRepo.Query().Returns( new List<SpendAccount>
@@ -252,6 +256,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-05" )]
   public async Task SoftDeleteAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     _accountRepo.Query().Returns( new List<SpendAccount>
@@ -342,6 +347,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task AddMemberAsync_AddsNewMember_WhenTargetExists()
   {
     var account = BuildAccount( 5, [10] ) ;
@@ -364,6 +370,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task AddMemberAsync_NormalizesEmailBeforeLookup()
   {
     var account = BuildAccount( 5, [10] ) ;
@@ -384,6 +391,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task AddMemberAsync_IsIdempotent_WhenTargetIsAlreadyMember()
   {
     var account = BuildAccount( 5, [10, 20] ) ;
@@ -405,6 +413,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task AddMemberAsync_ThrowsKeyNotFound_WhenTargetEmailIsUnknown()
   {
     var account = BuildAccount( 5, [10] ) ;
@@ -422,6 +431,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-04" )]
   public async Task AddMemberAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     _accountRepo.Query().Returns( new List<SpendAccount>().BuildMock() ) ;
@@ -434,6 +444,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-05" )]
   public async Task RemoveMemberAsync_RemovesMember_WhenMultipleRemain()
   {
     var account = BuildAccount( 5, [10, 20, 30] ) ;
@@ -451,6 +462,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-05" )]
   public async Task RemoveMemberAsync_ThrowsBadRequest_WhenRemovingLastMember()
   {
     var account = BuildAccount( 5, [10] ) ;
@@ -483,6 +495,7 @@ public class SpendAccountServiceTests
   }
 
   [Fact]
+  [Trait( "Story", "US-05" )]
   public async Task RemoveMemberAsync_ThrowsKeyNotFound_WhenCallerIsNotMember()
   {
     _accountRepo.Query().Returns( new List<SpendAccount>().BuildMock() ) ;

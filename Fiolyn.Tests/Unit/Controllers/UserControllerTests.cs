@@ -38,6 +38,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-06" )]
   public async Task GetMeAsync_Returns200WithCallerProfile()
   {
     var user = new AppUser
@@ -58,6 +59,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-07" )]
   public async Task UpdateMeAsync_DelegatesCallerIdAndReturns200()
   {
     var user = new AppUser
@@ -138,6 +140,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-07" )]
   public async Task SetMyTelegramIdAsync_DelegatesCallerIdAndReturns200()
   {
     var user = new AppUser
@@ -159,6 +162,7 @@ public class UserControllerTests
   }
 
   [Fact]
+  [Trait( "Story", "US-07" )]
   public async Task ClearMyTelegramIdAsync_DelegatesCallerIdWithNullAndReturns200()
   {
     var user = new AppUser
