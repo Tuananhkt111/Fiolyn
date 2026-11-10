@@ -52,6 +52,12 @@ Run only the classes covering what you touched; fall back to the full suite for 
 changes (`IRepository<T>`, `AppDbContext`, `ServiceRegisters/*`, shared base classes) and as the
 pre-commit gate.
 
+Before a PR, list the changed lines no test runs (`<base>` defaults to `master`):
+
+```bash
+python scripts/coverage-changed.py [<base>]
+```
+
 ## Guards
 
 Three layers check the rules that used to be instructions only:

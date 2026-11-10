@@ -27,6 +27,7 @@ mark the old one superseded. The pre-commit hook enforces this: in a merged ADR,
 | [0013](0013-deploy-gated-on-tests-and-docs-lint.md) | Deploy only after tests and docs-lint pass | 2026-11-09 |
 | [0014](0014-versioned-git-hooks.md) | Git hooks live in the repo, under `scripts/hooks/` | 2026-11-09 |
 | [0015](0015-claude-code-guards.md) | Claude Code guards in one Python dispatcher, failing open | 2026-11-09 |
+| [0016](0016-changed-line-coverage-reported-not-gated.md) | Changed-line coverage is reported before a PR, not gated | 2026-11-10 |
 
 ## Writing a new one
 

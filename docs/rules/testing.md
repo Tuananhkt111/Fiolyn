@@ -76,3 +76,7 @@ FluentAssertions throughout — `result.Should().BeOfType<OkObjectResult>()`, `a
 ## Which tests to run
 
 Map each changed production file to its `*Tests.cs` and filter (see `CLAUDE.md`, Workflow). Run the full suite for cross-cutting changes — `IRepository<T>`, `AppDbContext`, `ServiceRegisters/*`, shared base classes — and always as the pre-commit gate.
+
+## Changed lines no test runs
+
+Before a PR, run `python scripts/coverage-changed.py` (base defaults to `master`). Give each line it lists a test, or say in the PR why it has none (startup wiring, EF configuration). It reports and never fails — [0016](../decisions/0016-changed-line-coverage-reported-not-gated.md).
