@@ -32,6 +32,7 @@ mark the old one superseded. The pre-commit hook enforces this: in a merged ADR,
 | [0018](0018-pinned-skills-are-owner-typed.md) | Skills whose model pin matters are typed by the owner only | 2026-11-10 |
 | [0019](0019-frs-analysis-committed-as-a-snapshot.md) | The FRS v1.1 analysis is committed as a dated snapshot | 2026-11-10 |
 | [0020](0020-story-to-code-links-checked-by-docs-lint.md) | Story-to-code links are written down and checked by docs-lint | 2026-11-10 |
+| [0021](0021-frs-open-questions-ranked-high-ones-gate-modules-3-7.md) | FRS open questions are ranked, and the high ones gate Modules 3–7 | 2026-11-10 |
 
 ## Writing a new one
 
