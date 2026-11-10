@@ -329,6 +329,7 @@ public class CounterpartyResolverTests
     result.Counterparty.Should().BeSameAs( deletedBob ) ;
     staged.Should().BeEmpty() ;
     _counterpartyRepo.Received( 1 ).Restore( deletedBob ) ;
+    await _counterpartyRepo.DidNotReceive().SaveAsync() ; // restored like an insert: the leaf's one save commits it
   }
 
   // Two requests that stage the same new contact at once: the loser's save hits the unique index.
@@ -351,5 +352,52 @@ public class CounterpartyResolverTests
     var act = () => sut.CreateAsync( lend, UserId, "Alice" ) ;
 
     await act.Should().ThrowAsync<ConflictException>() ;
+  }
+
+  // The batch path (shares) restores the same way as the single-name path.
+  [Fact]
+  public async Task CreateAsync_ShareNamingADeletedContact_RestoresItInsteadOfStagingANewOne()
+  {
+    var deletedBob = Contact( 11, "Bob" ) ;
+    deletedBob.IsDeleted = true ;
+    SetupContacts( deletedBob ) ;
+    var staged = await CaptureStagedAsync() ;
+    var sut = CreateIncomeSut() ;
+    var income = new IncomeTransaction
+    {
+      SpendAccountId = SpendId,
+      Amount = 1_000_000L,
+      Date = DateTime.UtcNow
+    } ;
+
+    await sut.CreateAsync( income, UserId, [
+      new TransactionShareInput( "bob", 30 )
+    ] ) ;
+
+    income.Children.Cast<BorrowingTransaction>().Single().Counterparty.Should().BeSameAs( deletedBob ) ;
+    staged.Should().BeEmpty() ;
+    _counterpartyRepo.Received( 1 ).Restore( deletedBob ) ;
+  }
+
+  // Only unique violations become 409. Any other database error (here a foreign-key violation) must
+  // still surface as itself, so a real fault isn't disguised as a retryable conflict.
+  [Fact]
+  public async Task CreateAsync_NonUniqueDatabaseError_StillPropagates()
+  {
+    SetupContacts() ;
+    var foreignKey = new PostgresException(
+      "insert or update violates foreign key constraint", "ERROR", "ERROR", PostgresErrorCodes.ForeignKeyViolation ) ;
+    _lendRepo.SaveAsync().ThrowsAsync( new DbUpdateException( "fk violation", foreignKey ) ) ;
+    var sut = CreateLendSut() ;
+    var lend = new LendTransaction
+    {
+      SpendAccountId = SpendId,
+      Amount = -100,
+      Date = DateTime.UtcNow
+    } ;
+
+    var act = () => sut.CreateAsync( lend, UserId, "Alice" ) ;
+
+    ( await act.Should().ThrowAsync<DbUpdateException>() ).Which.Should().NotBeOfType<DbUpdateConcurrencyException>() ;
   }
 }

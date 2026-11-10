@@ -309,5 +309,28 @@ public class CounterpartyServiceTests
     entry.Name.Should().Be( "Bob" ) ;
     _repository.Received( 1 ).Restore( deleted ) ;
     await _repository.DidNotReceive().AddAsync( Arg.Any<Counterparty>() ) ;
+    await _repository.Received( 1 ).SaveAsync() ;
+  }
+
+  // The contact list is private per user: another user's deleted "Bob" is not the caller's to restore.
+  [Fact]
+  public async Task CreateAsync_NameOfAnotherUsersDeletedContact_CreatesANewOneForTheCaller()
+  {
+    var othersDeleted = new Counterparty
+    {
+      Id = 4,
+      AppUserId = 99,
+      Name = "Bob",
+      IsDeleted = true
+    } ;
+    SetupExisting( othersDeleted ) ;
+    var sut = CreateSut() ;
+
+    var entry = await sut.CreateAsync( "Bob", 7 ) ;
+
+    entry.Should().NotBeSameAs( othersDeleted ) ;
+    entry.AppUserId.Should().Be( 7 ) ;
+    _repository.DidNotReceive().Restore( Arg.Any<Counterparty>() ) ;
+    await _repository.Received( 1 ).AddAsync( Arg.Is<Counterparty>( c => c.AppUserId == 7 && c.Name == "Bob" ) ) ;
   }
 }

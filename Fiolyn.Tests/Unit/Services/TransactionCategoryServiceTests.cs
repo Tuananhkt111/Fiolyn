@@ -141,5 +141,6 @@ public class TransactionCategoryServiceTests
     entry.Should().BeSameAs( deleted ) ;
     _repo.Received( 1 ).Restore( deleted ) ;
     await _repo.DidNotReceive().AddAsync( Arg.Any<TransactionCategory>() ) ;
+    await _repo.Received( 1 ).SaveAsync() ;
   }
 }
