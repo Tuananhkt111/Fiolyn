@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# pre-commit — the local gate. Enabled by scripts/setup.sh (core.hooksPath = scripts/hooks).
+#
+#   1. A merged ADR is immutable: a docs/decisions/NNNN-*.md that exists in HEAD may not be
+#      deleted, and a change to it may touch only its **Status:** line (to mark it superseded).
+#   2. scripts/docs-lint.sh passes.
+#   3. When C# is staged (.cs / .csproj), the solution builds with warnings as errors.
+#      NuGet audit advisories (NU1901-NU1904) stay warnings: they appear without any code change.
+#
+# Checks 2 and 3 read the working tree, not only what is staged.
+# Tests are not run here; CI's `verify` job runs them (docs/decisions/0014-*).
+
+set -uo pipefail
+cd "$( git rev-parse --show-toplevel )" || exit 1
+
+failed=0
+fail() { printf 'pre-commit: %s\n' "$1" >&2 ; failed=1 ; }
+
+# ------------------------------------------------------------ 1. merged ADRs
+
+while IFS=$'\t' read -r status path ; do
+  [ -n "$path" ] || continue
+  case "$status" in
+    A) continue ;;
+    M)
+      # Changed lines other than the **Status:** line.
+      other="$( git diff --cached --no-renames -U0 -- "$path" \
+                | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' | grep -vF '**Status:**' )"
+      [ -z "$other" ] && continue
+      fail "$path is a merged ADR: only its **Status:** line may change. Write a new ADR and mark this one superseded." ;;
+    *)
+      fail "$path is a merged ADR and can't be deleted, renamed or retyped ($status). Supersede it with a new one." ;;
+  esac
+done < <( git diff --cached --no-renames --name-status -- 'docs/decisions/[0-9][0-9][0-9][0-9]-*.md' )
+
+# ------------------------------------------------------------- 2. docs-lint
+
+if ! out="$( bash scripts/docs-lint.sh 2>&1 )" ; then
+  printf '%s\n' "$out" | grep -E 'FAIL|FAILED' >&2
+  fail "docs-lint failed (bash scripts/docs-lint.sh)."
+fi
+
+# ----------------------------------------------------------------- 3. build
+
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(cs|csproj)$' ; then
+  if ! out="$( dotnet build Fiolyn.sln -nologo -v q -warnaserror \
+                 -warnnotaserror:NU1901,NU1902,NU1903,NU1904 2>&1 )" ; then
+    printf '%s\n' "$out" | grep -E ' (error|warning) ' | sed 's/ \[[^]]*\]$//' | sort -u >&2
+    fail "dotnet build -warnaserror failed."
+  fi
+fi
+
+if [ "$failed" -ne 0 ] ; then
+  printf 'pre-commit: commit refused. Fix the above; never bypass with --no-verify.\n' >&2
+  exit 1
+fi
+exit 0

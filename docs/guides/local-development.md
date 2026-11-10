@@ -9,6 +9,10 @@
 
 Docker is optional, only for testing the container image locally.
 
+Once per clone, run `bash scripts/setup.sh`. It points git at `scripts/hooks/`, whose pre-commit
+hook refuses an edit to a merged ADR, runs docs-lint, and builds with `-warnaserror` when C# is
+staged ([0014](../decisions/0014-versioned-git-hooks.md)).
+
 ## Run
 
 ```bash
