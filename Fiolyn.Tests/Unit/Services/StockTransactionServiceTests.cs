@@ -75,6 +75,9 @@ public class StockTransactionServiceTests
     }.BuildMock() ) ;
   }
 
+  private void SetupBrokers( params (string Name, long Id)[] brokers ) =>
+    _brokerRepository.Query().Returns( brokers.Select( b => BuildBroker( b.Id, b.Name, [] ) ).ToList().BuildMock() ) ;
+
   private void SetupNoBrokers() => _brokerRepository.Query().Returns( new List<BrokerAccount>().BuildMock() ) ;
 
   [Fact]
@@ -151,17 +154,24 @@ public class StockTransactionServiceTests
     result.Date.Should().Be( new DateTime( 2026, 4, 14, 0, 0, 0, DateTimeKind.Utc ) ) ;
   }
 
+  // Every row names a broker that resolves, so only the format check can make the parse return null.
   [Theory]
   [InlineData( "" )]
-  [InlineData( "not a stock message" )]
-  [InlineData( "stock" )]
-  [InlineData( "stock buy" )]
-  [InlineData( "stock buy VNM" )]
-  [InlineData( "stock buy VNM abc 45000 4501500" )]
-  [InlineData( "stock unknown VNM 100 45000 4501500" )]
+  [InlineData( "not a stock message broker:VPS" )]
+  [InlineData( "stock broker:VPS" )]
+  [InlineData( "stock buy broker:VPS" )]
+  [InlineData( "stock buy VNM broker:VPS" )]
+  [InlineData( "stock buy VNM 100 45000 broker:VPS" )]
+  [InlineData( "stock buy VNM abc 45000 4501500 broker:VPS" )]
+  [InlineData( "stock sell VNM 100 abc 4501500 broker:VPS" )]
+  [InlineData( "stock sell VNM 100 45000 abc broker:VPS" )]
+  [InlineData( "stock unknown VNM 100 45000 4501500 broker:VPS" )]
+  [InlineData( "stock div VNM broker:VPS" )]
+  [InlineData( "stock div VNM abc broker:VPS" )]
+  [InlineData( "stock div VNM 100 5000 7 broker:VPS" )]
   public async Task ParseMessageAsync_InvalidFormat_ReturnsNull( string text )
   {
-    SetupNoBrokers() ;
+    SetupBroker( "VPS", 1L ) ;
     var sut = CreateSut() ;
 
     var result = await sut.ParseMessageAsync( text ) ;
@@ -172,10 +182,72 @@ public class StockTransactionServiceTests
   [Fact]
   public async Task ParseMessageAsync_BrokerLookup_IsCaseInsensitive()
   {
-    SetupBroker( "VPS", 1L ) ;
+    SetupBrokers( ( "SSI", 5L ), ( "VPS", 1L ) ) ;
     var sut = CreateSut() ;
 
     var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 broker:vps" ) ;
+
+    result.Should().NotBeNull() ;
+    result!.BrokerAccountId.Should().Be( 1L ) ;
+  }
+
+  [Theory]
+  [InlineData( "STOCK BUY VNM 100 45000 4501500 broker:VPS", StockTransactionType.Buy, -4501500L )]
+  [InlineData( "Stock Sell VNM 100 45000 4501500 broker:VPS", StockTransactionType.Sell, 4501500L )]
+  [InlineData( "stock DIV VNM 500000 broker:VPS", StockTransactionType.Dividend, 500000L )]
+  public async Task ParseMessageAsync_PrefixAndType_AreCaseInsensitive(
+    string text, StockTransactionType expectedType, long expectedAmount )
+  {
+    SetupBroker( "VPS", 1L ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ParseMessageAsync( text ) ;
+
+    result.Should().NotBeNull() ;
+    result!.StockTransactionType.Should().Be( expectedType ) ;
+    result.Amount.Should().Be( expectedAmount ) ;
+  }
+
+  [Fact]
+  public async Task ParseMessageAsync_NoDateOrNotes_DefaultsToUtcNowAndEmptyDescription()
+  {
+    SetupBroker( "VPS", 1L ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 broker:VPS" ) ;
+
+    result.Should().NotBeNull() ;
+    result!.Date.Should().BeCloseTo( DateTime.UtcNow, TimeSpan.FromMinutes( 1 ) ) ;
+    result.Date.Kind.Should().Be( DateTimeKind.Utc ) ;
+    result.Description.Should().BeEmpty() ;
+  }
+
+  [Theory]
+  [InlineData( "stock div VNM 500000 date:2026-04-14 broker:VPS", 0L, 0L, 500000L )]
+  [InlineData( "stock div VNM 100 5000 notes:Q2 broker:VPS", 100L, 5000L, 500000L )]
+  public async Task ParseMessageAsync_NamedParamAfterNumbers_EndsPositionalScan(
+    string text, long expectedQuantity, long expectedPrice, long expectedAmount )
+  {
+    SetupBroker( "VPS", 1L ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ParseMessageAsync( text ) ;
+
+    result.Should().NotBeNull() ;
+    result!.Quantity.Should().Be( expectedQuantity ) ;
+    result.Price.Should().Be( expectedPrice ) ;
+    result.Amount.Should().Be( expectedAmount ) ;
+    result.BrokerAccountId.Should().Be( 1L ) ;
+  }
+
+  [Fact]
+  public async Task ParseMessageAsync_SenderNotMemberOfBroker_StillResolves()
+  {
+    // Resolution is global; membership is enforced later, in CreateAsync.
+    SetupBroker( "VPS", 1L, memberIds: [99L] ) ;
+    var sut = CreateSut() ;
+
+    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500 broker:VPS" ) ;
 
     result.Should().NotBeNull() ;
     result!.BrokerAccountId.Should().Be( 1L ) ;
@@ -192,13 +264,17 @@ public class StockTransactionServiceTests
     result.Should().BeNull() ;
   }
 
-  [Fact]
-  public async Task ParseMessageAsync_NoBrokerParam_ReturnsNull()
+  // A broker named "VPS" exists, so null can only come from the missing broker: param.
+  [Theory]
+  [InlineData( "stock buy VNM 100 45000 4501500" )]
+  [InlineData( "stock buy VNM 100 45000 4501500 notes:VPS" )]
+  [InlineData( "stock div VNM 500000 notes:VPS" )]
+  public async Task ParseMessageAsync_NoBrokerParam_ReturnsNull( string text )
   {
-    SetupNoBrokers() ;
+    SetupBroker( "VPS", 1L ) ;
     var sut = CreateSut() ;
 
-    var result = await sut.ParseMessageAsync( "stock buy VNM 100 45000 4501500" ) ;
+    var result = await sut.ParseMessageAsync( text ) ;
 
     result.Should().BeNull() ;
   }
