@@ -33,6 +33,7 @@ mark the old one superseded. The pre-commit hook enforces this: in a merged ADR,
 | [0022](0022-one-deploy-at-a-time-newest-push-wins.md) | One deploy at a time: the newest push to `master` wins | 2026-11-10 |
 | [0023](0023-sessions-follow-the-whitelist.md) | Sessions end when the whitelist says so; logout is the caller's own | 2026-11-10 |
 | [0024](0024-recreating-a-deleted-row-restores-it.md) | Re-creating a soft-deleted row restores it; a deleted user stays out | 2026-11-10 |
+| [0025](0025-api-level-tests-on-the-real-pipeline.md) | API-level tests run the real pipeline on an in-memory database | 2026-11-10 |
 
 ## Writing a new one
 
