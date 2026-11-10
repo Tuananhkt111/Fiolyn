@@ -102,7 +102,7 @@ Turning a requirement — an FRS extract, a feature request, a bug report — in
 
 Working material from phases 1–3 is transient wherever it is written and never lands in the repo. The durable outputs are the code, the reference update and the ADR. (`docs/` once held ten `PLAN_*.md` files that outlived their moment and rotted into contradictory pseudo-specs.)
 
-**1 · Scope.** Map the requirement onto the [routing table](#read-the-matching-rule-before-your-first-edit-in-an-area). Name every area it touches, including ones it only reads from.
+**1 · Scope.** Map the requirement onto the [routing table](#read-the-matching-rule-before-your-first-edit-in-an-area). Name every area it touches, including ones it only reads from. For FRS work, check `FRS/README.md` → "Open questions, ranked": Modules 3–7 are not specified while a High question is open (ADR 0021).
 
 **2 · Load — before proposing any steps.** Read `docs/rules/*` for each area in scope, plus `docs/reference/*.md` for behaviour that already exists. This is the phase that produces consistent code, and it only works before the design is fixed: the rules constrain what can be built, they are not a style pass applied afterwards. Finish able to state the invariants the change must not break — and if a rule forbids the obvious approach, raise it now rather than after the code is written.
 

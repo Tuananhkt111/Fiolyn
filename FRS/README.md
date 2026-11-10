@@ -14,10 +14,11 @@ This is a dated snapshot, true at `6c3c953` (2026-09-17) and committed as one
 ([ADR 0019](../docs/decisions/0019-frs-analysis-committed-as-a-snapshot.md)). It is not updated as the
 code moves on: counts and endpoint inventories below are true at that commit and nowhere else.
 
-**The exception:** the `**Code:**` line under each story is kept current. It names the classes that
-implement the story today; tests for it carry `[Trait( "Story", "US-nn" )]`, and docs-lint fails when
-a listed class is gone or a story has no tagged test
-([ADR 0020](../docs/decisions/0020-story-to-code-links-checked-by-docs-lint.md)).
+**Two exceptions are kept current.** The `**Code:**` line under each story names the classes that
+implement it today; tests for it carry `[Trait( "Story", "US-nn" )]`, and docs-lint fails when a
+listed class is gone or a story has no tagged test
+([ADR 0020](../docs/decisions/0020-story-to-code-links-checked-by-docs-lint.md)). And the
+[open questions, ranked](#open-questions-ranked), are updated as each one is answered.
 
 ---
 
@@ -133,6 +134,36 @@ the data model, not in the open questions. Their fate under the workspace model 
 omission rather than by choice. See [cross-cutting §9](cross-cutting.md#9--implemented-capabilities-v11-does-not-mention).
 
 ---
+
+## Open questions, ranked
+
+Kept current, unlike the rest of this snapshot. Appendix A.2 lists seven open questions. The analysis
+found four more that v1.1 doesn't ask (`N-1` … `N-4`). Each has a kind and an impact:
+
+- **Kind:** **A** information missing · **B** two readings · **C** the rule is unknown (a decision
+  nobody has taken) · **D** not understood.
+- **Impact:** **High** blocks a module or changes the data model · **Medium** shapes the contract of
+  several stories · **Low** is local, or the code already answers it.
+
+**Gate:** every High is answered by the product owner and recorded as an ADR before Modules 3–7 are
+specified ([ADR 0021](../docs/decisions/0021-frs-open-questions-ranked-high-ones-gate-modules-3-7.md)).
+
+| # | Item | Question | Kind | Impact | Blocks | Status |
+|---|---|---|---|---|---|---|
+| 1 | A.2-5 | Passwords alongside Google SSO, instead of it, or keep SSO and drop US-01/US-02 as written? | C | **High** | Module 1: US-01, US-02, the email half of US-07 | Open. [cross-cutting §3](cross-cutting.md#3--authentication-two-incompatible-models) |
+| 2 | N-1 | Does the `AllowedEmail` whitelist survive, or does US-01's open registration replace it? | C | **High** | US-01, and who can join at all | Open. [cross-cutting §4](cross-cutting.md#4--the-whitelist-is-a-closed-registration-policy-v11-does-not-mention) |
+| 3 | A.2-8 | How do existing accounts, members and transactions move from per-resource membership to workspaces? | A | **High** | Modules 1, 3–6: the sharing boundary every module reads | Open. [cross-cutting §1](cross-cutting.md#1--the-workspace-does-not-exist) |
+| 4 | A.2-10 | Is "wallet (stock)" the same concept as a broker account? | B | **High** | Module 3's data model; stock transactions in Module 5 | Open. Today they are two entities, linked by a `Restrict` FK. [cross-cutting §6](cross-cutting.md#6--wallet-versus-spendaccount-plus-brokeraccount) |
+| 5 | N-2 | What becomes of the system-wide admin (`AppUser.IsAdmin`, `/api/admin/*`) next to v1.1's per-workspace Admin? | B | **High** | US-05; admin-managed categories (Module 4) | Open. [cross-cutting §2](cross-cutting.md#2--two-different-admins) |
+| 6 | N-3 | A.1-3 (owner-only editing) needs a creator column. What is the creator of an existing transaction? | A | **High** | US-05 AC6–AC8; every write path in Module 5 | Open. `PayerId` is not a creator. [cross-cutting §5](cross-cutting.md#5--transaction-ownership-has-no-column-to-stand-on) |
+| 7 | A.2-7 | Who writes endpoints, data types and status codes, and when? | A | Medium | The contract of every story | Proposed: follow `openapi.json` and the conventions in [ADR 0012](../docs/decisions/0012-rest-conventions-and-non-goals.md). [cross-cutting §7](cross-cutting.md#7--the-error-contract-v11-specifies-messages-the-api-deliberately-does-not-send) |
+| 8 | N-4 | Do Telegram ingest and income/expense shares survive under workspaces? | A | Medium | Module 5 | Open. [cross-cutting §9](cross-cutting.md#9--implemented-capabilities-v11-does-not-mention) |
+| 9 | A.2-9 | Session timeout after inactivity: how long? | B | Low | US-02 AC | Open. Two readings: idle time (not tracked anywhere) or token lifetime (15-minute access, 30-day refresh). [US-02](module-1-auth-onboarding.md#us-02--log-in-to-an-existing-account) |
+| 10 | A.2-6 | Confirm "Must" on every story, or set real priorities. | A | Low | Ordering only | Open, pending review. |
+| 11 | A.2-4 | Does a display-name change apply to past transactions? | C | Low | — | Answered by the code: yes, names are never copied into rows. Needs the owner's confirmation. [US-07](module-2-profile.md#us-07--edit-personal-profile-information) |
+
+Ranked by impact, then by how many modules each question blocks. Rows 1 and 2 are best answered
+together: the credential model and who may register at all are one decision.
 
 ## What is already right
 
