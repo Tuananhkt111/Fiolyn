@@ -14,7 +14,7 @@ Fiolyn is a .NET 10 web API with two front doors, both writing to one ledger:
 
 **Stack:** C# 14 on .NET 10 · EF Core 10 · Neon PostgreSQL · Northflank (Docker) · GitHub Actions → GHCR · Notion · Telegram Bot API · Google Sign-In · xUnit · NSubstitute · FluentAssertions
 
-**Layout:** `Fiolyn/` (app) · `Fiolyn.Tests/` (tests) · `docs/` (see [Documentation](#documentation)) · `planning/` (transient working material, not documentation)
+**Layout:** `Fiolyn/` (app) · `Fiolyn.Tests/` (tests) · `docs/` (see [Documentation](#documentation)) · `planning/` (transient working material, not documentation) · `FRS/` (FRS v1.1 analysis, a snapshot at `6c3c953`, not documentation)
 
 ---
 
