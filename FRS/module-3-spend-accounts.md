@@ -2,7 +2,7 @@
 
 Spend-account CRUD, membership-scoped access and the admin twin all work as FRS v1.0 states. Member management differs from the v1.0 text: members are added by **email**, not user id; adding an existing member is a no-op; and the last member cannot be removed (400). The member list ran a separate membership check before the read; #20 made it one query. Git shows these behaviours date from `62fdfbe` (2026-04-24) and `09655d5` (2026-05-10), and no file in this module changed after v1.0 was written (2026-09-16) except a DTO move (`87a56ab`). So v1.0 misdescribed member management; the code did not move after it.
 
-**Verdict:** 2 of 3 stories match; drift in US-10 (add by email, last-member guard).
+**Verdict:** 3 of 3 stories match against Rev 3. Rev 2 was wrong for US-10 (add by email, last-member guard).
 
 ## US-09 — Create and manage my spend accounts
 
@@ -28,14 +28,14 @@ Spend-account CRUD, membership-scoped access and the admin twin all work as FRS 
 
 **Tests:** `SpendAccountControllerTests.GetMembersAsync_Returns200WithMemberList`, `SpendAccountControllerTests.AddMemberAsync_PassesEmailToService_AndReturnsMemberList`, `SpendAccountControllerTests.RemoveMemberAsync_CallsServiceAndReturns204`, `SpendAccountServiceTests.GetMembersAsync_ReturnsMembersOrderedByJoinedAt_WhenCallerIsMember`, `SpendAccountServiceTests.GetMembersAsync_Throws_WhenCallerIsNotMember`, `SpendAccountServiceTests.AddMemberAsync_AddsNewMember_WhenTargetExists`, `SpendAccountServiceTests.AddMemberAsync_NormalizesEmailBeforeLookup`, `SpendAccountServiceTests.AddMemberAsync_IsIdempotent_WhenTargetIsAlreadyMember`, `SpendAccountServiceTests.AddMemberAsync_ThrowsKeyNotFound_WhenTargetEmailIsUnknown`, `SpendAccountServiceTests.AddMemberAsync_ThrowsKeyNotFound_WhenCallerIsNotMember`, `SpendAccountServiceTests.RemoveMemberAsync_RemovesMember_WhenMultipleRemain`, `SpendAccountServiceTests.RemoveMemberAsync_ThrowsBadRequest_WhenRemovingLastMember`, `SpendAccountServiceTests.RemoveMemberAsync_ThrowsKeyNotFound_WhenTargetIsNotMember`, `SpendAccountServiceTests.RemoveMemberAsync_ThrowsKeyNotFound_WhenCallerIsNotMember`, `SpendAccountServiceTests.GetMembersAsync_ChecksMembershipInTheSameQuery_NoSeparateMemberQuery`, `SpendAccountServiceTests.GetMembersAsync_AccountExistsButCallerIsNotAMember_ThrowsKeyNotFound`
 
-**Verdict: Drifted.** All three ACs hold, but members are added by email (not user id) and the last member cannot be removed — both since `62fdfbe` (2026-04-24).
+**Verdict: Matches** against Rev 3. All three ACs hold. Rev 2 said members are added by user id and didn't mention the last-member guard; both behaviours date from `62fdfbe` (2026-04-24).
 
 | Criterion (v1.0) | Today | Evidence |
 |---|---|---|
 | AC1 · A member adds a user → that user immediately has full access | Holds. A join row is inserted; every user-scoped read filters on membership. | `Fiolyn/Services/Internal/SpendAccountService.cs:128-134`, `:41`, `:50` |
 | AC2 · Non-member attempting member management → 404 | Holds for list, add and remove. | `Fiolyn/Services/Internal/SpendAccountService.cs:82-88`, `:104-115`, `:142-150` |
 | AC3 · Removing a member revokes their access immediately | Holds. The join row is hard-deleted. | `Fiolyn/Services/Internal/SpendAccountService.cs:162-163` |
-| Main flow · "A member adds another user by user id" | Differs: `AddMemberRequest` takes an **email**; the service normalizes it and looks the user up. Unknown email → 404. | `Fiolyn/Controllers/DTOs/Requests/Shared/AddMemberRequest.cs:9-13`, `Fiolyn/Services/Internal/SpendAccountService.cs:100-121` |
+| Main flow · "A member adds another user by user id" | Differs: `AddMemberRequest` takes an **email**; the service normalizes it and looks the user up. Unknown email → 404. Corrected in Rev 3. | `Fiolyn/Controllers/DTOs/Requests/Shared/AddMemberRequest.cs:9-13`, `Fiolyn/Services/Internal/SpendAccountService.cs:100-121` |
 | Main flow · Adding a user who is already a member | Not in v1.0. Idempotent: returns the current list (200), no error. | `Fiolyn/Services/Internal/SpendAccountService.cs:123-126` |
 | Main flow · A member removes a member (including themselves) | Holds, with a guard not in v1.0: removing the **last** member → 400 "delete the account instead". | `Fiolyn/Services/Internal/SpendAccountService.cs:147-160` |
 | List members with email / display name | Holds. | `Fiolyn/Services/Internal/SpendAccountService.cs:90-96`, `Fiolyn/Controllers/DTOs/Responses/SpendAccount/SpendAccountMemberResponse.cs` |

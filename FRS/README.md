@@ -4,7 +4,7 @@ How far the backend still matches `FRS_Fiolyn_v1.0.docx`, the spec of the system
 
 | | |
 |---|---|
-| **Spec** | `FRS_Fiolyn_v1.0.docx`, Rev 2, 2026-09-16 — "Baseline — documents the system as built" |
+| **Spec** | `FRS_Fiolyn_v1.0.docx`, checked against Rev 2 (2026-09-16). Rev 3 (2026-11-10, "corrected against the code") fixes list A and records the behaviour #20–#23 changed. |
 | **Code** | Checked against `master` at `4aa72f7` (2026-11-10); rows that #20–#23 changed are updated to `2c9b0e4`. `path:line` evidence in the other rows refers to `4aa72f7`. |
 | **Scope** | Backend stories US-01 … US-26 (Part I, Modules 1–9). The frontend stories FE-US-01 … FE-US-25 belong to the FiolynWeb repository and are out of scope here. |
 | **Method** | Each acceptance criterion and business rule was checked against the C# code and tests, with `path:line` evidence. Authority: code and `docs/reference/openapi.json`, then `docs/rules/`, then `docs/reference/`. Claims marked *inferred* were read from code but not run. |
@@ -17,25 +17,26 @@ date, so in each case it is **v1.0 that describes the system wrongly**, or the c
 defect v1.0 didn't notice.
 
 **Since the check, every code defect is fixed** (B1–B8, in #20–#23), and every criterion that had no
-test now has one (C, in #23). What is left is list A: places where v1.0 itself needs correcting.
+test now has one (C, in #23). Rev 3 of the spec corrects every place it described the system
+wrongly (A), so spec, code and tests agree again.
 
 ## Verdicts
 
 | Module | Stories | Verdict |
 |---|---|---|
 | [1 · Authentication & Access](module-1-authentication.md) | US-01 – US-04 | All match |
-| [2 · Users & Profile](module-2-users-profile.md) | US-05 – US-08 | US-06 partly (email isn't editable); US-07 differs (unlink returns 200, not 204) |
-| [3 · Spend Accounts](module-3-spend-accounts.md) | US-09 – US-11 | US-10 differs (members are added by email; the last member can't be removed) |
-| [4 · Broker Accounts](module-4-broker-accounts.md) | US-12 – US-14 | All match (US-13 adds by email too) |
+| [2 · Users & Profile](module-2-users-profile.md) | US-05 – US-08 | All match (US-06 and US-07 corrected in Rev 3) |
+| [3 · Spend Accounts](module-3-spend-accounts.md) | US-09 – US-11 | All match (US-10 corrected in Rev 3) |
+| [4 · Broker Accounts](module-4-broker-accounts.md) | US-12 – US-14 | All match (US-13's wording corrected in Rev 3) |
 | [5 · Transaction Categories](module-5-categories.md) | US-15 – US-16 | All match |
 | [6 · Transactions](module-6-transactions.md) | US-17 – US-21 | All match (US-19 was partly; fixed in #20) |
 | [7 · Counterparties & Obligations](module-7-counterparties-obligations.md) | US-22 – US-23 | All match |
-| [8 · Income/Expense Shares](module-8-shares.md) | US-24 | Matches, with small undocumented edges |
-| [9 · Telegram Ingest & Notion](module-9-telegram-ingest.md) | US-25 – US-26 | US-26 differs (per-share dividends; `broker:` is required) |
+| [8 · Income/Expense Shares](module-8-shares.md) | US-24 | Matches (edges recorded in Rev 3) |
+| [9 · Telegram Ingest & Notion](module-9-telegram-ingest.md) | US-25 – US-26 | All match (US-26 corrected in Rev 3) |
 
-## A · Where v1.0 is wrong (candidates for v1.0 Rev 3)
+## A · Where v1.0 was wrong (corrected in Rev 3)
 
-The code is right and the spec should change.
+The code was right and the spec changed. Rev 3 makes each correction below as a tracked change.
 
 - **US-06:** `PATCH /api/users/me` edits the display name only. Email is the Google identity and can't be edited. The Profile Fields table and the §8 "email already used" case don't apply.
 - **US-07:** unlinking a Telegram ID returns 200 with the profile, not 204.

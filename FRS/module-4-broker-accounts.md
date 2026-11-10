@@ -2,7 +2,7 @@
 
 A `BrokerAccount` is a trading account. It is shared through `BrokerAccountMember` rows and is always linked to one `SpendAccount` through a required FK. The user-scoped controller and the admin controller behave as v1.0 describes. No production code in this module has changed since v1.0 (last change: `87a56ab`, 2026-09-16, which only moved `AddMemberRequest` into `Requests/Shared`). The one difference from the v1.0 text is older than v1.0: members are added by email, not by user id.
 
-**Verdict:** 3 of 3 stories match; no drift. US-13's main-flow text says members are added "by user id"; the code adds them by email and has done so since 2026-04-24.
+**Verdict:** 3 of 3 stories match; no drift. US-13's main-flow text said members are added "by user id"; the code adds them by email (since 2026-04-24), and Rev 3 corrects the text.
 
 ## US-12 — Create and manage my broker accounts
 
@@ -33,7 +33,7 @@ A `BrokerAccount` is a trading account. It is shared through `BrokerAccountMembe
 |---|---|---|
 | AC1 · A member adds a user → that user gains access to the broker and its stock transactions | Holds. A new `BrokerAccountMember` row is inserted. Broker reads and stock-transaction reads both filter on broker membership, so access is immediate. | `Fiolyn/Services/Internal/BrokerAccountService.cs:118-155`; `Fiolyn/Services/Internal/StockTransactionService.cs:89-90`, `:115-123` |
 | AC2 · Non-member member-management → 404 | Holds. List, add and remove all throw `KeyNotFoundException` when the caller is not a member. | `Fiolyn/Services/Internal/BrokerAccountService.cs:100-106`, `:130-133`, `:165-168` |
-| Main flow · "A member lists, adds and removes broker members by user id" | Differs: add is **by email** (`AddMemberRequest.Email`, normalized, unknown email → 404, idempotent if already a member). Remove is by user id. This is not drift: add-by-email dates from `c74a484` (2026-04-24), before v1.0. | `Fiolyn/Controllers/DTOs/Requests/Shared/AddMemberRequest.cs:9-13`, `Fiolyn/Controllers/BrokerAccountController.cs:118-134`, `Fiolyn/Services/Internal/BrokerAccountService.cs:120`, `:135-144` |
+| Main flow · "A member lists, adds and removes broker members by user id" | Differs: add is **by email** (`AddMemberRequest.Email`, normalized, unknown email → 404, idempotent if already a member). Remove is by user id. This is not drift: add-by-email dates from `c74a484` (2026-04-24), before v1.0. Corrected in Rev 3. | `Fiolyn/Controllers/DTOs/Requests/Shared/AddMemberRequest.cs:9-13`, `Fiolyn/Controllers/BrokerAccountController.cs:118-134`, `Fiolyn/Services/Internal/BrokerAccountService.cs:120`, `:135-144` |
 | Not in v1.0 · removing the last member | The service refuses with 400 ("delete the account instead"). A member may remove themselves when others remain. | `Fiolyn/Services/Internal/BrokerAccountService.cs:174-178` |
 
 ## US-14 — Administer any broker account (admin)
