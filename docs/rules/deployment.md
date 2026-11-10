@@ -42,6 +42,10 @@ In `.github/workflows/deploy.yml`, `build-and-deploy` keeps `needs: verify` and 
 Don't add a job that pushes an image or restarts Northflank without depending on `verify`. Don't drop
 a step from `verify` to get a release through: fix the failure.
 
+Keep the workflow-level `concurrency` group with `cancel-in-progress: true` for pushes to `master`.
+Without it, parallel runs race to push `:latest`, and an older commit's image can land last
+([0022](../decisions/0022-one-deploy-at-a-time-newest-push-wins.md)).
+
 ## Never commit a secret
 
 `appsettings.json` is tracked and stays minimal. Local secrets go in the gitignored `appsettings.Development.json`; production values are Northflank environment variables.
