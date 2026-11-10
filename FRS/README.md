@@ -146,21 +146,22 @@ found four more that v1.1 doesn't ask (`N-1` … `N-4`). Each has a kind and an 
   several stories · **Low** is local, or the code already answers it.
 
 **Gate:** every High is answered by the product owner and recorded as an ADR before Modules 3–7 are
-specified ([ADR 0021](../docs/decisions/0021-frs-open-questions-ranked-high-ones-gate-modules-3-7.md)).
+specified. **Met on 2026-11-10:** all six High questions are answered (ADRs 0023–0027); the FRS
+revision that applies them is the next step ([ADR 0021](../docs/decisions/0021-frs-open-questions-ranked-high-ones-gate-modules-3-7.md)).
 
 | # | Item | Question | Kind | Impact | Blocks | Status |
 |---|---|---|---|---|---|---|
-| 1 | A.2-5 | Passwords alongside Google SSO, instead of it, or keep SSO and drop US-01/US-02 as written? | C | **High** | Module 1: US-01, US-02, the email half of US-07 | Open. [cross-cutting §3](cross-cutting.md#3--authentication-two-incompatible-models) |
-| 2 | N-1 | Does the `AllowedEmail` whitelist survive, or does US-01's open registration replace it? | C | **High** | US-01, and who can join at all | Open. [cross-cutting §4](cross-cutting.md#4--the-whitelist-is-a-closed-registration-policy-v11-does-not-mention) |
-| 3 | A.2-8 | How do existing accounts, members and transactions move from per-resource membership to workspaces? | A | **High** | Modules 1, 3–6: the sharing boundary every module reads | Open. [cross-cutting §1](cross-cutting.md#1--the-workspace-does-not-exist) |
-| 4 | A.2-10 | Is "wallet (stock)" the same concept as a broker account? | B | **High** | Module 3's data model; stock transactions in Module 5 | Open. Today they are two entities, linked by a `Restrict` FK. [cross-cutting §6](cross-cutting.md#6--wallet-versus-spendaccount-plus-brokeraccount) |
-| 5 | N-2 | What becomes of the system-wide admin (`AppUser.IsAdmin`, `/api/admin/*`) next to v1.1's per-workspace Admin? | B | **High** | US-05; admin-managed categories (Module 4) | Open. [cross-cutting §2](cross-cutting.md#2--two-different-admins) |
-| 6 | N-3 | A.1-3 (owner-only editing) needs a creator column. What is the creator of an existing transaction? | A | **High** | US-05 AC6–AC8; every write path in Module 5 | Open. `PayerId` is not a creator. [cross-cutting §5](cross-cutting.md#5--transaction-ownership-has-no-column-to-stand-on) |
+| 1 | A.2-5 | Passwords alongside Google SSO, instead of it, or keep SSO and drop US-01/US-02 as written? | C | **High** | Module 1: US-01, US-02, the email half of US-07 | **Answered:** keep Google sign-in; rewrite US-01/US-02 as first sign-in. [ADR 0023](../docs/decisions/0023-google-sign-in-and-whitelist-stay.md) |
+| 2 | N-1 | Does the `AllowedEmail` whitelist survive, or does US-01's open registration replace it? | C | **High** | US-01, and who can join at all | **Answered:** the whitelist stays; registration stays closed. [ADR 0023](../docs/decisions/0023-google-sign-in-and-whitelist-stay.md) |
+| 3 | A.2-8 | How do existing accounts, members and transactions move from per-resource membership to workspaces? | A | **High** | Modules 1, 3–6: the sharing boundary every module reads | **Answered:** no workspace; Admin/Member roles on each account's membership, earliest member becomes Admin. [ADR 0024](../docs/decisions/0024-roles-on-account-membership-no-workspace.md) |
+| 4 | A.2-10 | Is "wallet (stock)" the same concept as a broker account? | B | **High** | Module 3's data model; stock transactions in Module 5 | **Answered:** no; the two entities stay, and a stock wallet is a broker account. [ADR 0025](../docs/decisions/0025-spend-and-broker-accounts-stay-separate.md) |
+| 5 | N-2 | What becomes of the system-wide admin (`AppUser.IsAdmin`, `/api/admin/*`) next to v1.1's per-workspace Admin? | B | **High** | US-05; admin-managed categories (Module 4) | **Answered:** it stays, as a fourth user class; account roles are resolved per request. [ADR 0026](../docs/decisions/0026-system-administrator-stays-a-separate-tier.md) |
+| 6 | N-3 | A.1-3 (owner-only editing) needs a creator column. What is the creator of an existing transaction? | A | **High** | US-05 AC6–AC8; every write path in Module 5 | **Answered:** new `CreatorId`; backfilled from `PayerId`, else the account Admin. [ADR 0027](../docs/decisions/0027-transaction-creator-backfilled-from-payer-else-admin.md) |
 | 7 | A.2-7 | Who writes endpoints, data types and status codes, and when? | A | Medium | The contract of every story | Proposed: follow `openapi.json` and the conventions in [ADR 0012](../docs/decisions/0012-rest-conventions-and-non-goals.md). [cross-cutting §7](cross-cutting.md#7--the-error-contract-v11-specifies-messages-the-api-deliberately-does-not-send) |
-| 8 | N-4 | Do Telegram ingest and income/expense shares survive under workspaces? | A | Medium | Module 5 | Open. [cross-cutting §9](cross-cutting.md#9--implemented-capabilities-v11-does-not-mention) |
+| 8 | N-4 | Do Telegram ingest and income/expense shares survive under workspaces? | A | Medium | Module 5 | **Answered:** both stay and join the FRS. [ADR 0029](../docs/decisions/0029-telegram-ingest-and-shares-stay.md) |
 | 9 | A.2-9 | Session timeout after inactivity: how long? | B | Low | US-02 AC | Open. Two readings: idle time (not tracked anywhere) or token lifetime (15-minute access, 30-day refresh). [US-02](module-1-auth-onboarding.md#us-02--log-in-to-an-existing-account) |
 | 10 | A.2-6 | Confirm "Must" on every story, or set real priorities. | A | Low | Ordering only | Open, pending review. |
-| 11 | A.2-4 | Does a display-name change apply to past transactions? | C | Low | — | Answered by the code: yes, names are never copied into rows. Needs the owner's confirmation. [US-07](module-2-profile.md#us-07--edit-personal-profile-information) |
+| 11 | A.2-4 | Does a display-name change apply to past transactions? | C | Low | — | **Answered:** yes, names are read live. [ADR 0028](../docs/decisions/0028-display-names-read-live.md) |
 
 Ranked by impact, then by how many modules each question blocks. Rows 1 and 2 are best answered
 together: the credential model and who may register at all are one decision.

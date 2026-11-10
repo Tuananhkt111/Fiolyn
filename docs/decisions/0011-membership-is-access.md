@@ -1,6 +1,6 @@
 # 0011 — Membership is access; no owner/editor/viewer roles
 
-**Date:** 2026-04-23 · **Status:** Accepted
+**Date:** 2026-04-23 · **Status:** Superseded by [0024](0024-roles-on-account-membership-no-workspace.md) (decided 2026-11-10, not yet built)
 
 ## Context
 

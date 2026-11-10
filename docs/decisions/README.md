@@ -34,6 +34,13 @@ mark the old one superseded. The pre-commit hook enforces this: in a merged ADR,
 | [0020](0020-story-to-code-links-checked-by-docs-lint.md) | Story-to-code links are written down and checked by docs-lint | 2026-11-10 |
 | [0021](0021-frs-open-questions-ranked-high-ones-gate-modules-3-7.md) | FRS open questions are ranked, and the high ones gate Modules 3–7 | 2026-11-10 |
 | [0022](0022-one-deploy-at-a-time-newest-push-wins.md) | One deploy at a time: the newest push to `master` wins | 2026-11-10 |
+| [0023](0023-google-sign-in-and-whitelist-stay.md) | Google sign-in and the email whitelist stay | 2026-11-10 |
+| [0024](0024-roles-on-account-membership-no-workspace.md) | Admin and Member roles on each account's membership, no workspace | 2026-11-10 |
+| [0025](0025-spend-and-broker-accounts-stay-separate.md) | Spend accounts and broker accounts stay separate entities | 2026-11-10 |
+| [0026](0026-system-administrator-stays-a-separate-tier.md) | The system administrator stays a separate tier | 2026-11-10 |
+| [0027](0027-transaction-creator-backfilled-from-payer-else-admin.md) | Transactions record their creator; existing rows take the payer, else the account Admin | 2026-11-10 |
+| [0028](0028-display-names-read-live.md) | Display names are read live, never copied into rows | 2026-11-10 |
+| [0029](0029-telegram-ingest-and-shares-stay.md) | Telegram ingest and income/expense shares stay | 2026-11-10 |
 
 ## Writing a new one
 
