@@ -8,6 +8,12 @@ on:
   pull_request:
     branches: [master]
 
+# Pushes to master share one group: a newer push cancels the older run outright, verify included, so
+# the newest commit is always the last image pushed to :latest. Each pull request has its own group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'master' || github.ref }}
+  cancel-in-progress: true
+
 env:
   IMAGE_NAME: ghcr.io/tuananhkt111/fiolyn
 
@@ -59,7 +65,13 @@ jobs:
 
       - name: Trigger Northflank deploy
         run: |
-          curl -s -f -X POST \
+          status=$( curl -sS -o northflank-response.txt -w '%{http_code}' -X POST \
             "https://api.northflank.com/v1/projects/fiolyn/services/fiolyn/restart" \
             -H "Authorization: Bearer ${{ secrets.NORTHFLANK_API_TOKEN }}" \
-            -H "Content-Type: application/json"
+            -H "Content-Type: application/json" )
+          echo "Northflank restart: HTTP $status"
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ] ; then
+            cat northflank-response.txt ; echo
+            echo "::error::Northflank refused the restart (HTTP $status). 401 or 403: renew NORTHFLANK_API_TOKEN."
+            exit 1
+          fi

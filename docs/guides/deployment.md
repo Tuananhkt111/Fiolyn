@@ -86,8 +86,14 @@ Only needed once, and already done for the current deployment:
 
 ## Diagnosing a failed deploy
 
-1. GitHub Actions tab — did `verify` pass? Did build and push succeed?
-2. Northflank dashboard → service → **Logs**.
-3. If the app starts and then fails on every request, suspect the missing migration step.
-4. If startup throws about the signing key, `JWT__SIGNINGKEY` is missing or too short.
-5. If Northflank cannot pull the image, the GHCR package is still private.
+1. GitHub Actions tab — did `verify` pass? Did build and push succeed? A run marked *cancelled* was
+   superseded by a newer push to `master`, which deploys instead
+   ([0022](../decisions/0022-one-deploy-at-a-time-newest-push-wins.md)).
+2. If **Trigger Northflank deploy** failed, its log shows the HTTP status and Northflank's response.
+   401 or 403 means `NORTHFLANK_API_TOKEN` is expired or revoked: create a new token, update the
+   secret, then re-run the newest run on `master`. The image is already in GHCR; only the restart
+   is missing, and production keeps running the previous version.
+3. Northflank dashboard → service → **Logs**.
+4. If the app starts and then fails on every request, suspect the missing migration step.
+5. If startup throws about the signing key, `JWT__SIGNINGKEY` is missing or too short.
+6. If Northflank cannot pull the image, the GHCR package is still private.
